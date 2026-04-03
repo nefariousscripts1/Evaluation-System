@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  password      String
+  name          String?
+  role          Role
+  department    String?
+  studentId     String?   @unique
+  agreedToTerms Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  evaluationsGiven    Evaluation[] @relation("Evaluator")
+  evaluationsReceived Evaluation[] @relation("Evaluated")
+  results             Result[]
+}
+
+model Evaluation {
+  id            Int       @id @default(autoincrement())
+  evaluatorId   Int
+  evaluatedId   Int
+  academicYear  String
+  createdAt     DateTime  @default(now())
+
+  evaluator     User      @relation("Evaluator", fields: [evaluatorId], references: [id])
+  evaluated     User      @relation("Evaluated", fields: [evaluatedId], references: [id])
+  answers       EvaluationAnswer[]
+
+  @@unique([evaluatorId, evaluatedId, academicYear])
+}
+
+model EvaluationAnswer {
+  id            Int       @id @default(autoincrement())
+  evaluationId  Int
+  questionId    Int
+  rating        Int
+  comment       String?
+
+  evaluation    Evaluation    @relation(fields: [evaluationId], references: [id])
+  questionnaire Questionnaire @relation(fields: [questionId], references: [id])
+}
+
+model Questionnaire {
+  id            Int       @id @default(autoincrement())
+  questionText  String
+  category      String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  answers       EvaluationAnswer[]
+}
+
+model Schedule {
+  id            Int       @id @default(autoincrement())
+  academicYear  String
+  startDate     DateTime
+  endDate       DateTime
+  isOpen        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  @@unique([academicYear])
+}
+
+model Result {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  academicYear  String
+  averageRating Float
+  summary       String?
+
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, academicYear])
+}
+
+enum Role {
+  student
+  faculty
+  chairperson
+  dean
+  director
+  campus_director
+  secretary
+}

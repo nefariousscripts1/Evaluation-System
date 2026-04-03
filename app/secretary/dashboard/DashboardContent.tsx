@@ -1,0 +1,340 @@
+"use client";
+
+import Link from "next/link";
+import {
+  Calendar,
+  Home,
+  Monitor,
+  Pencil,
+  Plus,
+  Trash2,
+  User,
+  Users,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+
+type Props = {
+  totalStudents: number;
+  totalFaculty: number;
+  totalQuestionnaires: number;
+  displaySchedules: any[];
+  latestQuestionnaires: any[];
+  latestFaculty: any[];
+};
+
+// Date formatting functions inside client component
+const formatDate = (date: string | null) => {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const formatCompactDate = (date: string | null) => {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+export default function DashboardContent({
+  totalStudents,
+  totalFaculty,
+  totalQuestionnaires,
+  displaySchedules,
+  latestQuestionnaires,
+  latestFaculty,
+}: Props) {
+  const router = useRouter();
+
+  const handleDelete = async (id: number, name: string) => {
+    if (confirm(`Are you sure you want to delete ${name}?`)) {
+      const res = await fetch(`/api/instructors?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        alert("Failed to delete instructor");
+      }
+    }
+  };
+
+  return (
+    <main className="px-5 py-6">
+      <div className="mx-auto max-w-[1750px] space-y-4">
+        {/* Welcome Header */}
+        <div className="rounded-[18px] border border-[#dddddd] bg-white px-5 py-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[10px] bg-[#24135f] text-white shadow-md">
+              <Home size={30} />
+            </div>
+            <div>
+              <h1 className="text-[28px] font-extrabold leading-none text-[#24135f]">
+                Dashboard Overview
+              </h1>
+              <p className="mt-1 text-[16px] leading-none text-[#2f2f2f]">
+                Welcome to the Digital Evaluation System
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Evaluation Period Alert */}
+        {displaySchedules.length > 0 && (
+          <div className="rounded-[12px] bg-[#24135f] px-4 py-5 text-white">
+            <p className="text-[14px] font-extrabold">Evaluation Period is Active</p>
+            <p className="text-[14px]">
+              Users can submit evaluations until{" "}
+              {displaySchedules[0]?.endDate
+                ? formatCompactDate(displaySchedules[0].endDate)
+                : "No date set"}
+            </p>
+          </div>
+        )}
+
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            icon={<Users size={34} />}
+            title="Total Students"
+            value={totalStudents}
+            subtitle="Active Accounts"
+          />
+          <StatCard
+            icon={<User size={34} />}
+            title="Instructors"
+            value={totalFaculty}
+            subtitle="Assigned"
+          />
+          <StatCard
+            icon={<Monitor size={34} />}
+            title="Questionnaires"
+            value={totalQuestionnaires}
+            subtitle="Active"
+          />
+          <StatCard
+            icon={<Calendar size={34} />}
+            title="Active Evaluation"
+            value={displaySchedules.length}
+            subtitle="Evaluation Periods"
+          />
+        </div>
+
+        {/* Evaluation Schedule Section */}
+        <section className="rounded-[18px] border border-[#dddddd] bg-white px-4 py-10">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="w-full">
+              <h2 className="text-[16px] font-extrabold text-[#24135f]">
+                Evaluation Schedule
+              </h2>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                {displaySchedules.length > 0 ? (
+                  displaySchedules.map((schedule, index) => (
+                    <div
+                      key={schedule.id}
+                      className={`px-2 text-[14px] ${
+                        index === 0 && displaySchedules.length > 1
+                          ? "md:border-r md:border-[#8d87a8]"
+                          : ""
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <p>
+                          <span className="font-bold text-[#24135f]">Start Date:</span>{" "}
+                          <span className="text-[#3c305e]">
+                            {formatDate(schedule.startDate)}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="font-bold text-[#24135f]">End Date:</span>{" "}
+                          <span className="text-[#3c305e]">
+                            {formatDate(schedule.endDate)}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="font-bold text-[#24135f]">Status:</span>{" "}
+                          <span className="font-bold text-green-600">Active</span>
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    No active evaluation schedule found.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="shrink-0">
+              <Link
+                href="/secretary/schedule"
+                className="inline-flex items-center gap-2 rounded-full bg-[#24135f] px-8 py-3 text-[14px] font-extrabold text-white hover:bg-[#1a0f4a] transition"
+              >
+                <Pencil size={16} />
+                Edit Schedule
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {/* Questionnaires Section */}
+          <section className="rounded-[18px] border border-[#dddddd] bg-white px-4 py-4">
+            <h2 className="mb-4 text-[16px] font-extrabold text-[#24135f]">
+              Questionnaires
+            </h2>
+
+            <div className="overflow-hidden rounded-[6px] border border-[#e1e1e1]">
+              <table className="w-full text-left text-[14px]">
+                <thead className="bg-[#24135f] text-white">
+                  <tr>
+                    <th className="px-5 py-3 font-bold">Title</th>
+                    <th className="px-5 py-3 font-bold">Status</th>
+                    <th className="px-5 py-3 font-bold">Date Created</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {latestQuestionnaires.length > 0 ? (
+                    latestQuestionnaires.slice(0, 5).map((item) => (
+                      <tr key={item.id} className="border-t border-[#ececec]">
+                        <td className="px-5 py-3 font-semibold text-[#24135f]">
+                          {item.questionText.length > 50
+                            ? item.questionText.substring(0, 50) + "..."
+                            : item.questionText}
+                        </td>
+                        <td className="px-5 py-3">
+                          <span
+                            className={`inline-flex rounded-[8px] px-2 py-1 text-[12px] font-bold text-white ${
+                              item.isActive ? "bg-[#12c94b]" : "bg-[#ff1f1f]"
+                            }`}
+                          >
+                            {item.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 font-semibold text-[#24135f]">
+                          {formatCompactDate(item.createdAt)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="px-5 py-6 text-center text-gray-500">
+                        No questionnaires found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Link
+                href="/secretary/questionnaire"
+                className="inline-flex items-center gap-2 rounded-full bg-[#24135f] px-7 py-3 text-[14px] font-extrabold text-white hover:bg-[#1a0f4a] transition"
+              >
+                <Plus size={18} />
+                Add Questionnaires
+              </Link>
+            </div>
+          </section>
+
+          {/* Instructor Management Section */}
+          <section className="rounded-[18px] border border-[#dddddd] bg-white px-4 py-4">
+            <h2 className="mb-4 text-[16px] font-extrabold text-[#24135f]">
+              Instructor Management
+            </h2>
+
+            <div className="overflow-hidden rounded-[6px] border border-[#e1e1e1]">
+              <table className="w-full text-left text-[14px]">
+                <thead className="bg-[#24135f] text-white">
+                  <tr>
+                    <th className="px-5 py-3 font-bold">Name</th>
+                    <th className="px-5 py-3 font-bold">Email</th>
+                    <th className="px-5 py-3 text-center font-bold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {latestFaculty.length > 0 ? (
+                    latestFaculty.map((faculty) => (
+                      <tr key={faculty.id} className="border-t border-[#ececec]">
+                        <td className="px-5 py-3 text-[#3b3160]">{faculty.name}</td>
+                        <td className="px-5 py-3 text-[#3b3160]">{faculty.email}</td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <Link
+                              href={`/secretary/instructors/edit/${faculty.id}`}
+                              className="flex h-7 w-7 items-center justify-center rounded-[4px] bg-[#24135f] text-white hover:bg-[#1a0f4a] transition"
+                            >
+                              <Pencil size={14} />
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(faculty.id, faculty.name || "Instructor")}
+                              className="flex h-7 w-7 items-center justify-center rounded-[4px] bg-[#ff2d2d] text-white hover:bg-[#cc0000] transition"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="px-5 py-6 text-center text-gray-500">
+                        No instructors found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Link
+                href="/secretary/instructors"
+                className="inline-flex items-center gap-2 rounded-full bg-[#24135f] px-7 py-3 text-[14px] font-extrabold text-white hover:bg-[#1a0f4a] transition"
+              >
+                <Plus size={18} />
+                Add Instructor
+              </Link>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function StatCard({
+  icon,
+  title,
+  value,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: number;
+  subtitle: string;
+}) {
+  return (
+    <div className="rounded-[18px] border border-[#dddddd] bg-white px-6 py-10">
+      <div className="flex items-center gap-4">
+        <div className="text-[#24135f]">{icon}</div>
+        <div>
+          <p className="text-[14px] font-extrabold leading-none text-[#24135f]">
+            {title}
+          </p>
+          <p className="mt-1 text-[18px] font-extrabold leading-none text-[#24135f]">
+            {value}
+          </p>
+          <p className="mt-1 text-[14px] leading-none text-[#3f3562]">{subtitle}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
