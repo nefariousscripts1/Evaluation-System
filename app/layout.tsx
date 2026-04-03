@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./global.css";
+import "./globals.css";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import SessionProvider from "@/components/SessionProvider";
@@ -21,9 +21,8 @@ export default async function RootLayout({
 }) {
   const session = await getServerSession(authOptions);
   
-  // Check if the current path is login or register
-  // We need to do this check in a client component, but for now we'll check if session exists
-  // For login/register pages, session will be null anyway
+  // Get the current path - we need to check in a client component
+  // For now, we'll check if session exists - login page doesn't have session
 
   return (
     <html lang="en">
