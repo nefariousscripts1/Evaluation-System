@@ -21,8 +21,10 @@ export default function InstructorManagement() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [addFormLoading, setAddFormLoading] = useState(false);
+  const [editFormLoading, setEditFormLoading] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [editError, setEditError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -76,12 +78,12 @@ export default function InstructorManagement() {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormLoading(true);
-    setError("");
+    setAddFormLoading(true);
+    setAddError("");
 
     if (formData.departments.length === 0) {
-      setError("Please select at least one department");
-      setFormLoading(false);
+      setAddError("Please select at least one department");
+      setAddFormLoading(false);
       return;
     }
 
@@ -105,15 +107,14 @@ export default function InstructorManagement() {
       fetchInstructors();
     } else {
       const data = await res.json();
-      setError(data.message || "Failed to add instructor");
-      setFormLoading(false);
+      setAddError(data.message || "Failed to add instructor");
+      setAddFormLoading(false);
     }
   };
 
   // Handle Edit Instructor
   const openEditModal = (instructor: Instructor) => {
     setEditingInstructor(instructor);
-    // Parse departments from comma-separated string
     let departments: string[] = [];
     if (instructor.department) {
       departments = instructor.department.split(", ");
@@ -123,6 +124,8 @@ export default function InstructorManagement() {
       email: instructor.email,
       departments: departments,
     });
+    setEditError("");
+    setEditFormLoading(false);
     setIsEditModalOpen(true);
   };
 
@@ -137,12 +140,12 @@ export default function InstructorManagement() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormLoading(true);
-    setError("");
+    setEditFormLoading(true);
+    setEditError("");
 
     if (editFormData.departments.length === 0) {
-      setError("Please select at least one department");
-      setFormLoading(false);
+      setEditError("Please select at least one department");
+      setEditFormLoading(false);
       return;
     }
 
@@ -165,8 +168,8 @@ export default function InstructorManagement() {
       fetchInstructors();
     } else {
       const data = await res.json();
-      setError(data.message || "Failed to update instructor");
-      setFormLoading(false);
+      setEditError(data.message || "Failed to update instructor");
+      setEditFormLoading(false);
     }
   };
 
@@ -183,12 +186,10 @@ export default function InstructorManagement() {
     <>
       <main className="px-5 py-6">
         <div className="mx-auto max-w-[1200px]">
-          {/* Header */}
           <div className="mb-6">
             <h1 className="text-[28px] font-extrabold text-[#24135f]">Manage Instructors</h1>
           </div>
 
-          {/* Add Instructor Button */}
           <div className="mb-4 flex justify-end">
             <button
               onClick={() => setIsAddModalOpen(true)}
@@ -199,7 +200,6 @@ export default function InstructorManagement() {
             </button>
           </div>
 
-          {/* Table */}
           <div className="rounded-[18px] border border-[#dddddd] bg-white overflow-hidden">
             <table className="w-full text-left">
               <thead className="bg-[#24135f] text-white">
@@ -250,7 +250,7 @@ export default function InstructorManagement() {
         </div>
       </main>
 
-      {/* ADD MODAL - Add Instructor */}
+      {/* ADD MODAL */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="relative w-full max-w-[550px] rounded-[18px] bg-white shadow-2xl">
@@ -329,9 +329,9 @@ export default function InstructorManagement() {
                 </p>
               </div>
 
-              {error && (
+              {addError && (
                 <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">
-                  {error}
+                  {addError}
                 </div>
               )}
 
@@ -345,10 +345,10 @@ export default function InstructorManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={formLoading}
+                  disabled={addFormLoading}
                   className="px-5 py-2 rounded-lg bg-[#24135f] text-white text-sm font-semibold hover:bg-[#1a0f4a] transition disabled:opacity-50"
                 >
-                  {formLoading ? "Saving..." : "Save Instructor"}
+                  {addFormLoading ? "Saving..." : "Save Instructor"}
                 </button>
               </div>
             </form>
@@ -356,14 +356,17 @@ export default function InstructorManagement() {
         </div>
       )}
 
-      {/* EDIT MODAL - Edit Instructor */}
+      {/* EDIT MODAL */}
       {isEditModalOpen && editingInstructor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="relative w-full max-w-[550px] rounded-[18px] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#e5e5e5] p-5">
               <h2 className="text-[20px] font-bold text-[#24135f]">Edit Instructor</h2>
               <button
-                onClick={() => setIsEditModalOpen(false)}
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingInstructor(null);
+                }}
                 className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-100 transition"
               >
                 <X size={18} className="text-gray-500" />
@@ -419,26 +422,29 @@ export default function InstructorManagement() {
                 </p>
               </div>
 
-              {error && (
+              {editError && (
                 <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">
-                  {error}
+                  {editError}
                 </div>
               )}
 
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setIsEditModalOpen(false)}
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingInstructor(null);
+                  }}
                   className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={formLoading}
+                  disabled={editFormLoading}
                   className="px-5 py-2 rounded-lg bg-[#24135f] text-white text-sm font-semibold hover:bg-[#1a0f4a] transition disabled:opacity-50"
                 >
-                  {formLoading ? "Saving..." : "Save Changes"}
+                  {editFormLoading ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </form>
