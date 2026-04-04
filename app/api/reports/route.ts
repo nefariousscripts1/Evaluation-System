@@ -4,35 +4,66 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || (session.user.role !== "secretary" && session.user.role !== "admin")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const academicYear = searchParams.get("academicYear");
+
+    // Build where clause
+    const where: any = {};
+    if (academicYear) {
+      where.academicYear = academicYear;
+    }
+
+    // Get all results for faculty members only
+    const results = await prisma.result.findMany({
+      where: {
+        ...where,
+        user: {
+          role: {
+            in: ["faculty", "chairperson", "dean", "director", "campus_director"]
+          },
+          deletedAt: null
+        }
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            role: true,
+            department: true,
+          },
+        },
+      },
+      orderBy: {
+        averageRating: "desc",
+      },
+    });
+
+    // Get unique academic years from all results
+    const yearsData = await prisma.result.findMany({
+      distinct: ["academicYear"],
+      select: { academicYear: true },
+      orderBy: { academicYear: "desc" },
+    });
+
+    const years = yearsData.map((y) => y.academicYear);
+
+    return NextResponse.json({
+      results,
+      years,
+    });
+  } catch (error) {
+    console.error("Reports API error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch reports", results: [], years: [] },
+      { status: 500 }
+    );
   }
-
-  const { searchParams } = new URL(request.url);
-  const academicYear = searchParams.get("academicYear");
-  const role = searchParams.get("role");
-  const department = searchParams.get("department");
-
-  const where: any = {};
-  if (academicYear) where.academicYear = academicYear;
-  if (role) where.user = { role };
-  if (department) where.user = { department: { contains: department } };
-
-  const results = await prisma.result.findMany({
-    where,
-    include: { user: true },
-    orderBy: { averageRating: "desc" },
-  });
-
-  const years = await prisma.result.findMany({
-    distinct: ["academicYear"],
-    select: { academicYear: true },
-    orderBy: { academicYear: "desc" },
-  });
-
-  return NextResponse.json({
-    results,
-    years: years.map((y) => y.academicYear),
-  });
 }

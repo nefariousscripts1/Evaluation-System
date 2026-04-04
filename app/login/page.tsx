@@ -19,8 +19,9 @@ const roles = [
 
 function getRedirectPath(role: string) {
   if (role === "secretary") return "/secretary/dashboard";
+  if (role === "student") return "/student/evaluate";
   if (role === "faculty") return "/results";
-  if (["student", "chairperson", "dean", "director", "campus_director"].includes(role)) {
+  if (["chairperson", "dean", "director", "campus_director"].includes(role)) {
     return "/evaluate";
   }
   return "/login";
