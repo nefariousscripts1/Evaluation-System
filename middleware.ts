@@ -7,7 +7,13 @@ export default withAuth(
     const path = req.nextUrl.pathname;
 
     // Allow public routes
-    if (path === "/login" || path === "/register" || path === "/") {
+    if (
+      path === "/login" ||
+      path === "/register" ||
+      path === "/" ||
+      path === "/forgot-password" ||
+      path === "/reset-password"
+    ) {
       return NextResponse.next();
     }
 

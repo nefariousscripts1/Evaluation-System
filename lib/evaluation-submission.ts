@@ -1,4 +1,5 @@
 import prisma from "@/lib/db";
+import { getAllowedEvaluatedRoles } from "@/lib/role-evaluation";
 
 type SubmissionAnswerInput = {
   questionId: unknown;
@@ -7,6 +8,7 @@ type SubmissionAnswerInput = {
 
 type SubmissionInput = {
   evaluatorId: number;
+  evaluatorRole: unknown;
   evaluatedId: unknown;
   academicYear: unknown;
   answers: unknown;
@@ -20,6 +22,7 @@ type NormalizedAnswer = {
 
 type NormalizedSubmission = {
   evaluatorId: number;
+  evaluatorRole: string;
   evaluatedId: number;
   academicYear: string;
   answers: NormalizedAnswer[];
@@ -179,12 +182,17 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
     throw new EvaluationSubmissionError("Invalid evaluator session", 401);
   }
 
+  if (typeof input.evaluatorRole !== "string" || input.evaluatorRole.trim().length === 0) {
+    throw new EvaluationSubmissionError("Invalid evaluator role", 401);
+  }
+
   if (typeof input.academicYear !== "string" || input.academicYear.trim().length === 0) {
     throw new EvaluationSubmissionError("Academic year is required", 400);
   }
 
   const normalized = {
     evaluatorId: input.evaluatorId,
+    evaluatorRole: input.evaluatorRole.trim(),
     evaluatedId: parsePositiveInt(input.evaluatedId, "evaluated instructor"),
     academicYear: input.academicYear.trim(),
     answers: normalizeAnswers(input.answers),
@@ -198,6 +206,17 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
   return normalized;
 }
 
+function assertEvaluatorCanReviewRole(evaluatorRole: string, evaluatedRole: string) {
+  const allowedRoles = getAllowedEvaluatedRoles(evaluatorRole);
+
+  if (!allowedRoles.includes(evaluatedRole as never)) {
+    throw new EvaluationSubmissionError(
+      "You are not allowed to evaluate the selected user",
+      403
+    );
+  }
+}
+
 export async function submitEvaluationRecord(input: SubmissionInput) {
   const submission = await normalizeSubmission(input);
 
@@ -208,16 +227,15 @@ export async function submitEvaluationRecord(input: SubmissionInput) {
     where: {
       id: submission.evaluatedId,
       deletedAt: null,
-      role: {
-        in: ["faculty", "chairperson", "dean", "director", "campus_director"],
-      },
     },
-    select: { id: true },
+    select: { id: true, role: true },
   });
 
   if (!evaluatedUser) {
     throw new EvaluationSubmissionError("Selected instructor could not be found", 404);
   }
+
+  assertEvaluatorCanReviewRole(submission.evaluatorRole, evaluatedUser.role);
 
   const existingEvaluation = await prisma.evaluation.findUnique({
     where: {

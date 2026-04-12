@@ -5,10 +5,18 @@ import {
   EvaluationSubmissionError,
   submitEvaluationRecord,
 } from "@/lib/evaluation-submission";
+import { getAllowedEvaluatedRoles } from "@/lib/role-evaluation";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "student") {
+
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const evaluatorRole = session.user.role ?? "";
+
+  if (getAllowedEvaluatedRoles(evaluatorRole).length === 0) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
@@ -22,7 +30,7 @@ export async function POST(req: Request) {
     const payload = await req.json();
     const evaluation = await submitEvaluationRecord({
       evaluatorId,
-      evaluatorRole: session.user.role,
+      evaluatorRole,
       evaluatedId: payload?.evaluatedId,
       academicYear: payload?.academicYear,
       answers: payload?.answers,
@@ -31,7 +39,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, evaluation }, { status: 201 });
   } catch (error) {
-    console.error("Error submitting evaluation:", error);
+    console.error("Error submitting role evaluation:", error);
 
     if (error instanceof EvaluationSubmissionError) {
       return NextResponse.json(

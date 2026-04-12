@@ -1,11 +1,11 @@
 import RoleEvaluationPortal from "@/components/evaluation/RoleEvaluationPortal";
 import { getEvaluationPortalCopy } from "@/lib/role-evaluation";
 
-export default function StudentEvaluatePage() {
+export default function CampusDirectorEvaluatePage() {
   return (
     <RoleEvaluationPortal
-      allowedRole="student"
-      copy={getEvaluationPortalCopy("student")}
+      allowedRole="campus_director"
+      copy={getEvaluationPortalCopy("campus_director")}
     />
   );
 }

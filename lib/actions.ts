@@ -35,6 +35,7 @@ export async function submitEvaluation(formData: FormData) {
 
   await submitEvaluationRecord({
     evaluatorId,
+    evaluatorRole: session.user.role ?? "",
     evaluatedId,
     academicYear,
     answers: answersData,
