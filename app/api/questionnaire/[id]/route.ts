@@ -5,38 +5,58 @@ import { authOptions } from "@/lib/auth";
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ← Make params a Promise
 ) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== "secretary") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { questionText, category } = await req.json();
-  const id = parseInt(params.id);
+  const { id } = await params;  // ← Await params
   
-  const question = await prisma.questionnaire.update({
-    where: { id },
-    data: {
-      questionText,
-      category: category || null,
-    },
+  // Your existing PUT logic here
+  const data = await req.json();
+  const questionnaire = await prisma.questionnaire.update({
+    where: { id: parseInt(id) },
+    data: data,
   });
+
+  return NextResponse.json(questionnaire);
+}
+
+// Also fix GET, DELETE, or any other methods in this file
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }  // ← Make params a Promise
+) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== "secretary") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;  // ← Await params
   
-  return NextResponse.json(question);
+  const questionnaire = await prisma.questionnaire.findUnique({
+    where: { id: parseInt(id) },
+  });
+
+  return NextResponse.json(questionnaire);
 }
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ← Make params a Promise
 ) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== "secretary") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = parseInt(params.id);
-  await prisma.questionnaire.delete({ where: { id } });
+  const { id } = await params;  // ← Await params
   
-  return NextResponse.json({ success: true });
+  await prisma.questionnaire.delete({
+    where: { id: parseInt(id) },
+  });
+
+  return NextResponse.json({ message: "Questionnaire deleted successfully" });
 }

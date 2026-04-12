@@ -5,15 +5,16 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== "secretary") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await params;  // ← Await the params
   const instructor = await prisma.user.findUnique({
-    where: { id: parseInt(params.id) },
+    where: { id: parseInt(id) },
     select: { id: true, name: true, email: true, department: true, role: true },
   });
 
@@ -22,16 +23,17 @@ export async function GET(
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== "secretary") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await params;  // ← Await the params
   const { name, email, department, role } = await req.json();
   const instructor = await prisma.user.update({
-    where: { id: parseInt(params.id) },
+    where: { id: parseInt(id) },
     data: { name, email, department, role },
   });
 
