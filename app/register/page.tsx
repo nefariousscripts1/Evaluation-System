@@ -53,8 +53,8 @@ export default function RegisterPage() {
         {/* Header */}
         <div className="rounded-t-[26px] bg-[#24135f] px-6 py-5">
           <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1">
-              <AppLogo className="h-full w-full object-contain" />
+            <div className="flex h-11 w-11 items-center justify-center">
+              <AppLogo className="h-11 w-11 object-contain" />
             </div>
             <h1 className="text-[18px] font-extrabold leading-tight text-white">
               Digital Evaluation

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import evaluationLogo from "@/public/evaluationlogo.png";
 
 type AppLogoProps = {
@@ -9,11 +8,14 @@ type AppLogoProps = {
 
 export default function AppLogo({ className = "" }: AppLogoProps) {
   return (
-    <Image
-      src={evaluationLogo}
+    <img
+      src={evaluationLogo.src}
       alt="Digital Evaluation System logo"
+      width={evaluationLogo.width}
+      height={evaluationLogo.height}
       className={className}
-      priority
+      loading="eager"
+      decoding="async"
     />
   );
 }

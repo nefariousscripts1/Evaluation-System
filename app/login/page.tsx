@@ -93,8 +93,8 @@ export default function LoginPage() {
       <div className="w-full max-w-[340px] overflow-visible rounded-[26px] border border-[#d9d9d9] bg-white shadow-sm">
         <div className="rounded-t-[26px] bg-[#24135f] px-6 py-6">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white p-1">
-              <AppLogo className="h-full w-full object-contain" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center">
+              <AppLogo className="h-12 w-12 object-contain" />
             </div>
             <h1 className="text-[22px] font-extrabold leading-tight text-white">
               Digital Evaluation

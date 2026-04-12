@@ -174,8 +174,8 @@ export default function Sidebar() {
           <div className={`flex items-center justify-between gap-3 ${collapsed ? "lg:justify-center" : ""}`}>
             {(!collapsed || mobileOpen) && (
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-white p-1">
-                  <AppLogo className="h-full w-full object-contain" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center">
+                  <AppLogo className="h-12 w-12 object-contain" />
                 </div>
                 <div className="leading-tight text-white">
                   <h1 className="text-[16px] font-extrabold">Digital Evaluation</h1>
