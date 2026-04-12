@@ -24,8 +24,8 @@ const formatDepartment = (dept: string) => {
 
 export default function InstructorsTable({ instructors, onEdit, onDelete }: InstructorsTableProps) {
   return (
-    <div className="rounded-[18px] border border-[#dddddd] bg-white overflow-hidden">
-      <table className="w-full text-left">
+    <div className="overflow-x-auto rounded-[18px] border border-[#dddddd] bg-white">
+      <table className="w-full min-w-[720px] text-left">
         <thead className="bg-[#24135f] text-white">
           <tr>
             <th className="px-6 py-4 text-[16px] font-bold">Name</th>

@@ -15,23 +15,27 @@ interface Instructor {
   department: string;
 }
 
+interface Question {
+  id: number;
+  questionText: string;
+  isActive?: boolean;
+}
+
 export default function EvaluateInstructorPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [selectedInstructor, setSelectedInstructor] = useState("");
   const [selectedInstructorId, setSelectedInstructorId] = useState("");
-  const [selectedYear, setSelectedYear] = useState("2023-2024");
+  const [selectedYear, setSelectedYear] = useState("");
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [answers, setAnswers] = useState<
-    Record<number, { rating: number; comment: string }>
-  >({});
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<Record<number, { rating: number }>>({});
+  const [finalComment, setFinalComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  const academicYears = ["2023-2024", "2024-2025", "2025-2026"];
+  const [academicYears, setAcademicYears] = useState<string[]>([]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -44,6 +48,7 @@ export default function EvaluateInstructorPage() {
     }
     fetchInstructors();
     fetchQuestions();
+    fetchCurrentSchedule();
   }, [status, session, router]);
 
   const fetchInstructors = async () => {
@@ -62,15 +67,33 @@ export default function EvaluateInstructorPage() {
     try {
       const res = await fetch("/api/questionnaire");
       const data = await res.json();
-      setQuestions(data.filter((q: any) => q.isActive !== false));
+      setQuestions(data.filter((q: Question) => q.isActive !== false));
     } catch (error) {
       console.error("Failed to fetch questions:", error);
+    }
+  };
+
+  const fetchCurrentSchedule = async () => {
+    try {
+      const res = await fetch("/api/schedule/current", { cache: "no-store" });
+      const data = await res.json();
+
+      if (data?.academicYear) {
+        setSelectedYear(data.academicYear);
+        setAcademicYears([data.academicYear]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch current schedule:", error);
     }
   };
 
   const handleNext = () => {
     if (step === 1 && !selectedInstructorId) {
       setError("Please select an instructor");
+      return;
+    }
+    if (step === 1 && !selectedYear) {
+      setError("No evaluation schedule is available right now");
       return;
     }
     setError("");
@@ -94,29 +117,43 @@ export default function EvaluateInstructorPage() {
     }
 
     try {
+      const evaluatedId = Number.parseInt(selectedInstructorId, 10);
+      if (!Number.isInteger(evaluatedId)) {
+        setError("Please select an instructor");
+        return;
+      }
+
       const res = await fetch("/api/evaluate/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          evaluatedId: parseInt(selectedInstructorId),
+          evaluatedId,
           academicYear: selectedYear,
-          answers: Object.entries(answers).map(([qId, { rating, comment }]) => ({
-            questionId: parseInt(qId),
-            rating,
-            comment: comment || "",
+          answers: questions.map((question) => ({
+            questionId: question.id,
+            rating: answers[question.id].rating,
           })),
+          comment: finalComment,
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (res.ok) {
         setStep(3);
       } else {
-        setError(data.message || "Failed to submit evaluation");
+        const message =
+          data?.details && data?.message
+            ? `${data.message} (${data.details})`
+            : data?.message || "Failed to submit evaluation";
+        setError(message);
       }
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError(
+        err instanceof Error
+          ? `Unable to submit evaluation: ${err.message}`
+          : "An error occurred. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -131,25 +168,28 @@ export default function EvaluateInstructorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f4f4]">
+    <div className="min-h-screen bg-gradient-to-br from-[#f9f7ff] via-[#f4f4f4] to-[#eee9f5]">
       {/* Main Content - Centered */}
-      <div className="mx-auto max-w-[1180px] px-4 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:py-10">
         {/* Stepper */}
-        <div className="rounded-[12px] bg-[#24135f] px-6 py-5 shadow-[0_4px_10px_rgba(0,0,0,0.12)]">
-          <div className="flex flex-wrap items-center justify-between gap-6 text-white">
-            <StepItem number="1" label="Select Instructor" active={step === 1} />
-            <StepItem number="2" label="Answer Evaluation" active={step === 2} />
-            <StepItem number="3" label="Submit Evaluation" active={step === 3} />
+        <div className="mb-8 rounded-[16px] bg-white px-4 py-5 shadow-[0_10px_30px_rgba(0,0,0,0.08)] sm:mb-12 sm:px-8 sm:py-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <StepItem number="1" label="Select Instructor" active={step === 1} completed={step > 1} />
+            <div className={`h-1 flex-1 rounded-full ${step > 1 ? "bg-gradient-to-r from-[#24135f] to-[#3b82f6]" : "bg-gray-200"}`}></div>
+            <StepItem number="2" label="Answer Evaluation" active={step === 2} completed={step > 2} />
+            <div className={`h-1 flex-1 rounded-full ${step > 2 ? "bg-gradient-to-r from-[#24135f] to-[#3b82f6]" : "bg-gray-200"}`}></div>
+            <StepItem number="3" label="Submit Evaluation" active={step === 3} completed={step > 3} />
           </div>
         </div>
 
         {/* Step 1: Select Instructor */}
         {step === 1 && (
-          <div className="mt-8 rounded-[14px] border border-[#dddddd] bg-white px-6 py-8 shadow-[0_4px_14px_rgba(0,0,0,0.06)]">
+          <div className="rounded-[20px] border border-[#e8e4f3] bg-white px-4 py-6 shadow-[0_10px_40px_rgba(36,19,95,0.08)] sm:px-8 sm:py-10">
+            <h2 className="mb-8 text-[28px] font-bold text-[#24135f]">Select an Instructor to Evaluate</h2>
             <div className="space-y-6">
               <div>
-                <label className="mb-2 block text-[18px] font-extrabold text-[#24135f]">
-                  Select Instructor:
+                <label className="mb-3 block text-[16px] font-semibold text-[#24135f]">
+                  Which instructor would you like to evaluate?
                 </label>
 
                 <div className="relative">
@@ -162,7 +202,7 @@ export default function EvaluateInstructorPage() {
                       setSelectedInstructorId(e.target.value);
                       setSelectedInstructor(instructor?.name || "");
                     }}
-                    className="h-[44px] w-full appearance-none rounded-[6px] border border-[#8c82b5] bg-white px-4 pr-10 text-[15px] text-[#77728f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f]"
+                    className="h-[48px] w-full appearance-none rounded-[10px] border-2 border-[#e8e4f3] bg-white px-5 pr-12 text-[16px] text-gray-700 outline-none transition focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/20"
                   >
                     <option value="">Select Instructor</option>
                     {instructors.map((instructor) => (
@@ -179,15 +219,15 @@ export default function EvaluateInstructorPage() {
               </div>
 
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <label className="text-[18px] font-extrabold text-[#24135f]">
-                  Select Academic Year:
+                <label className="text-[16px] font-semibold text-[#24135f]">
+                  For which academic year?
                 </label>
 
-                <div className="relative w-full md:w-[180px]">
+                <div className="relative w-full md:w-[200px]">
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
-                    className="h-[40px] w-full appearance-none rounded-[4px] border border-[#8c82b5] bg-white px-3 pr-9 text-[14px] font-semibold text-[#24135f] outline-none focus:border-[#24135f]"
+                    className="h-[48px] w-full appearance-none rounded-[10px] border-2 border-[#e8e4f3] bg-white px-5 pr-12 text-[16px] font-semibold text-[#24135f] outline-none transition focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/20"
                   >
                     {academicYears.map((year) => (
                       <option key={year} value={year}>
@@ -202,14 +242,14 @@ export default function EvaluateInstructorPage() {
                 </div>
               </div>
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="mt-4 rounded-[10px] bg-red-50 p-4 text-[14px] font-semibold text-red-700 border border-red-200">{error}</p>}
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-8">
                 <button
                   onClick={handleNext}
-                  className="rounded-[6px] bg-[#24135f] px-8 py-2.5 text-[14px] font-bold text-white transition hover:bg-[#1a0f4a]"
+                  className="rounded-[10px] bg-gradient-to-r from-[#24135f] to-[#3a1d7f] px-10 py-3 text-[15px] font-bold text-white transition shadow-[0_4px_15px_rgba(36,19,95,0.3)] hover:shadow-[0_6px_20px_rgba(36,19,95,0.4)] hover:scale-105"
                 >
-                  Next
+                  Next →
                 </button>
               </div>
             </div>
@@ -218,81 +258,153 @@ export default function EvaluateInstructorPage() {
 
         {/* Step 2: Answer Evaluation */}
         {step === 2 && (
-          <div className="mt-8 rounded-[14px] border border-[#dddddd] bg-white px-6 py-8 shadow-[0_4px_14px_rgba(0,0,0,0.06)]">
-            <div className="mb-5 border-b border-gray-200 pb-4">
-              <h2 className="text-[20px] font-extrabold text-[#24135f]">
-                Evaluating: {selectedInstructor}
+          <div className="rounded-[20px] border border-[#e8e4f3] bg-white px-4 py-6 shadow-[0_10px_40px_rgba(36,19,95,0.08)] sm:px-8 sm:py-10">
+            <div className="mb-8 border-b border-[#e8e4f3] pb-6">
+              <h2 className="text-[28px] font-bold text-[#24135f]">
+                Evaluating: <span className="text-[#3b82f6]">{selectedInstructor}</span>
               </h2>
-              <p className="text-[14px] text-gray-500">
-                Academic Year: {selectedYear}
+              <p className="mt-2 text-[15px] text-gray-600">
+                Academic Year <span className="font-semibold text-[#24135f]">{selectedYear}</span>
               </p>
             </div>
 
             <div className="space-y-6">
-              {questions.map((question, index) => (
-                <div key={question.id} className="border-b border-gray-100 pb-5">
-                  <p className="mb-2 text-[16px] font-semibold text-[#24135f]">
-                    {index + 1}. {question.questionText}
+              <div className="rounded-[16px] border border-[#e8e4f3] bg-gradient-to-br from-[#f9f7ff] to-[#f4f0fd] p-4 shadow-[0_4px_12px_rgba(36,19,95,0.06)] sm:p-8">
+                <h3 className="mb-6 text-[20px] font-bold text-[#24135f] flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#24135f] text-white text-[14px] font-bold">ℹ</span>
+                  Instructions for Evaluation
+                </h3>
+                <div className="space-y-4 text-[15px] text-gray-700">
+                  <p className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#24135f] text-white flex items-center justify-center text-sm font-bold">
+                      1
+                    </span>
+                    <span>Please evaluate <strong>{selectedInstructor}</strong> based on your experience in their class during this semester.</span>
                   </p>
+                  <p className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#24135f] text-white flex items-center justify-center text-sm font-bold">
+                      2
+                    </span>
+                    <span>Consider various aspects of the instructor's performance including teaching methodology, clarity of instruction, responsiveness to student needs, and overall effectiveness.</span>
+                  </p>
+                  <p className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#24135f] text-white flex items-center justify-center text-sm font-bold">
+                      3
+                    </span>
+                    <span>Provide honest and constructive feedback. Your evaluation is confidential and will be used to help improve teaching quality.</span>
+                  </p>
+                  <p className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#24135f] text-white flex items-center justify-center text-sm font-bold">
+                      4
+                    </span>
+                    <span>Overall Rating Scale: 1 = Strongly Disagree, 2 = Disagree, 3 = Neutral, 4 = Agree, 5 = Strongly Agree</span>
+                  </p>
+                  <p className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#24135f] text-white flex items-center justify-center text-sm font-bold">
+                      5
+                    </span>
+                  </p>
+                </div>
+              </div>
 
-                  <div className="mt-2 flex gap-2">
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <button
-                        key={rating}
-                        type="button"
-                        onClick={() =>
-                          setAnswers((prev) => ({
-                            ...prev,
-                            [question.id]: { ...prev[question.id], rating },
-                          }))
-                        }
-                        className="focus:outline-none"
-                      >
-                        <Star
-                          size={28}
-                          className={
-                            answers[question.id]?.rating >= rating
-                              ? "fill-[#f4c542] text-[#f4c542]"
-                              : "text-gray-300"
-                          }
-                        />
-                      </button>
-                    ))}
+              <div className="mt-10 pt-8 border-t-2 border-[#e8e4f3]">
+                <div className="mb-8 flex items-center justify-between">
+                  <h3 className="text-[20px] font-bold text-[#24135f]">
+                    Please rate the following statements:
+                  </h3>
+                  <span className="text-[14px] font-semibold text-gray-500">
+                    {questions.filter((question) => answers[question.id]?.rating).length} of {questions.length} answered
+                  </span>
+                </div>
+
+                {questions.map((question, index) => (
+                  <div key={question.id} className="mb-8 rounded-[14px] border border-[#f0ecf7] bg-[#fafbfd] p-6 pb-6 hover:border-[#e8e4f3] hover:shadow-[0_4px_12px_rgba(36,19,95,0.06)] transition">
+                    <div className="flex items-start gap-3 mb-5">
+                      <span className="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-r from-[#24135f] to-[#3b82f6] text-white flex items-center justify-center text-[14px] font-bold">
+                        {index + 1}
+                      </span>
+                      <p className="text-[16px] font-semibold text-[#24135f] flex-1 mt-0.5">
+                        {question.questionText}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-6">
+                        <div className="flex gap-4">
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <button
+                              key={rating}
+                              type="button"
+                              onClick={() =>
+                                setAnswers((prev) => ({
+                                  ...prev,
+                                  [question.id]: { ...prev[question.id], rating },
+                                }))
+                              }
+                              className="focus:outline-none"
+                            >
+                              <Star
+                                size={28}
+                                className={
+                                  answers[question.id]?.rating >= rating
+                                    ? "fill-[#f4c542] text-[#f4c542]"
+                                    : "text-gray-300"
+                                }
+                              />
+                            </button>
+                          ))}
+                        </div>
+                        {answers[question.id]?.rating && (
+                          <div className="text-sm font-semibold text-[#24135f]">
+                            {["", "Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"][answers[question.id].rating]}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-4 text-xs font-medium text-gray-500">
+                        <span>Strongly Disagree</span>
+                        <span>Disagree</span>
+                        <span>Neutral</span>
+                        <span>Agree</span>
+                        <span>Strongly Agree</span>
+                      </div>
+                    </div>
                   </div>
+                ))}
 
+                <div className="rounded-[14px] border border-[#f0ecf7] bg-[#fafbfd] p-6 transition">
+                  <div className="mb-5">
+                    <p className="text-[16px] font-semibold text-[#24135f]">
+                      Optional Comments
+                    </p>
+                    <p className="mt-1 text-[14px] text-gray-500">
+                      Share any overall feedback about this instructor.
+                    </p>
+                  </div>
                   <textarea
-                    placeholder="Optional comments..."
-                    className="mt-3 w-full rounded-[6px] border border-gray-300 p-3 text-sm focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f]"
-                    rows={2}
-                    value={answers[question.id]?.comment || ""}
-                    onChange={(e) =>
-                      setAnswers((prev) => ({
-                        ...prev,
-                        [question.id]: {
-                          ...prev[question.id],
-                          comment: e.target.value,
-                        },
-                      }))
-                    }
+                    placeholder="Optional overall comments..."
+                    className="w-full rounded-[10px] border-2 border-[#e8e4f3] bg-white p-4 text-[14px] text-gray-700 transition focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/20"
+                    rows={3}
+                    value={finalComment}
+                    onChange={(e) => setFinalComment(e.target.value)}
                   />
                 </div>
-              ))}
+              </div>
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="mt-6 rounded-[10px] bg-red-50 p-4 text-[14px] font-semibold text-red-700 border border-red-200">{error}</p>}
 
-              <div className="flex justify-between gap-3 pt-4">
+              <div className="mt-10 flex flex-col gap-3 pt-8 sm:flex-row sm:justify-between sm:gap-4">
                 <button
                   onClick={handleBack}
-                  className="rounded-[6px] border border-gray-300 px-8 py-2.5 text-[14px] font-bold text-gray-700 transition hover:bg-gray-50"
+                  className="rounded-[10px] border-2 border-gray-300 px-8 py-3 text-[15px] font-bold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50"
                 >
-                  Back
+                  ← Back
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="rounded-[6px] bg-[#24135f] px-8 py-2.5 text-[14px] font-bold text-white transition hover:bg-[#1a0f4a] disabled:opacity-50"
+                  className="rounded-[10px] bg-gradient-to-r from-[#24135f] to-[#3a1d7f] px-10 py-3 text-[15px] font-bold text-white transition shadow-[0_4px_15px_rgba(36,19,95,0.3)] hover:shadow-[0_6px_20px_rgba(36,19,95,0.4)] hover:scale-105 disabled:opacity-50 disabled:scale-100"
                 >
-                  {submitting ? "Submitting..." : "Submit Evaluation"}
+                  {submitting ? "Submitting..." : "Submit Evaluation ✓"}
                 </button>
               </div>
             </div>
@@ -301,13 +413,21 @@ export default function EvaluateInstructorPage() {
 
         {/* Step 3: Success */}
         {step === 3 && (
-          <div className="mt-8 rounded-[14px] border border-[#dddddd] bg-white px-6 py-16 text-center shadow-[0_4px_14px_rgba(0,0,0,0.06)]">
-            <div className="mb-4 text-7xl">✅</div>
-            <h2 className="mb-2 text-[28px] font-extrabold text-[#24135f]">
-              Evaluation Submitted!
+          <div className="rounded-[20px] border border-[#e8e4f3] bg-gradient-to-br from-white via-[#f9f7ff] to-white px-4 py-10 text-center shadow-[0_10px_40px_rgba(36,19,95,0.08)] sm:px-8 sm:py-16">
+            <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-r from-[#24135f] to-[#3b82f6] text-5xl text-white">
+              ✓
+            </div>
+            <h2 className="mb-4 text-[32px] font-bold text-[#24135f]">
+              Evaluation Submitted Successfully!
             </h2>
-            <p className="mb-8 text-gray-600">
-              Thank you for evaluating {selectedInstructor}
+            <p className="mb-4 text-[18px] text-gray-600">
+              Thank you for your thoughtful evaluation of
+            </p>
+            <p className="mb-8 text-[20px] font-bold text-[#3b82f6]">
+              {selectedInstructor}
+            </p>
+            <p className="mb-8 text-[15px] text-gray-500">
+              Your feedback is valuable and will help improve teaching quality
             </p>
             <button
               onClick={() => {
@@ -315,8 +435,10 @@ export default function EvaluateInstructorPage() {
                 setSelectedInstructor("");
                 setSelectedInstructorId("");
                 setAnswers({});
+                setFinalComment("");
+                setError("");
               }}
-              className="rounded-[6px] bg-[#24135f] px-8 py-3 text-[14px] font-bold text-white transition hover:bg-[#1a0f4a]"
+              className="rounded-[10px] bg-gradient-to-r from-[#24135f] to-[#3a1d7f] px-10 py-3 text-[15px] font-bold text-white transition shadow-[0_4px_15px_rgba(36,19,95,0.3)] hover:shadow-[0_6px_20px_rgba(36,19,95,0.4)] hover:scale-105"
             >
               Evaluate Another Instructor
             </button>
@@ -331,23 +453,29 @@ function StepItem({
   number,
   label,
   active = false,
+  completed = false,
 }: {
   number: string;
   label: string;
   active?: boolean;
+  completed?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-col items-center gap-2">
       <div
-        className={`flex h-8 w-8 items-center justify-center rounded-full border text-[18px] font-extrabold ${
+        className={`flex h-12 w-12 items-center justify-center rounded-full text-[18px] font-bold transition ${
           active
-            ? "border-white bg-white text-[#24135f]"
-            : "border-white text-white"
+            ? "bg-gradient-to-r from-[#24135f] to-[#3a1d7f] text-white shadow-[0_4px_15px_rgba(36,19,95,0.3)]"
+            : completed
+            ? "bg-gradient-to-r from-[#3b82f6] to-[#2563eb] text-white shadow-[0_4px_12px_rgba(59,130,246,0.2)]"
+            : "border-2 border-gray-300 text-gray-400"
         }`}
       >
-        {number}
+        {completed ? "✓" : number}
       </div>
-      <span className={`text-[16px] ${active ? "font-extrabold" : "font-medium"}`}>
+      <span className={`text-center text-[14px] font-semibold ${
+        active ? "text-[#24135f]" : completed ? "text-[#3b82f6]" : "text-gray-500"
+      }`}>
         {label}
       </span>
     </div>

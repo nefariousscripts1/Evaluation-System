@@ -1,4 +1,6 @@
-import { Department, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
+
+export type Department = "CSM" | "CTE";
 
 export const VALID_ROLES: Role[] = [
   "student",

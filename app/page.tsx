@@ -16,7 +16,7 @@ export default async function Home() {
   } else if (role === "student") {
     redirect("/student/evaluate");
   } else if (role === "faculty") {
-    redirect("/faculty/results");
+    redirect("/faculty/dashboard");
   } else if (role === "chairperson") {
     redirect("/chairperson/evaluate");
   } else if (role === "dean") {

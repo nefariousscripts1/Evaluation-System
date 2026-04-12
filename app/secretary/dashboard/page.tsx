@@ -49,6 +49,8 @@ export default async function SecretaryDashboard() {
     take: 5,
   });
 
+  const now = new Date();
+
   return (
     <DashboardContent
       totalStudents={totalStudents}
@@ -59,6 +61,10 @@ export default async function SecretaryDashboard() {
         startDate: schedule.startDate?.toISOString(),
         endDate: schedule.endDate?.toISOString(),
         isOpen: schedule.isOpen,
+        isActiveNow:
+          schedule.isOpen &&
+          now >= schedule.startDate &&
+          now <= schedule.endDate,
       }))}
       latestQuestionnaires={latestQuestionnaires.map(q => ({
         ...q,

@@ -101,7 +101,7 @@ export default function QuestionnaireManagement() {
 
   return (
     <>
-      <main className="px-5 py-6">
+      <main className="px-4 py-4 sm:px-5 sm:py-6">
         <div className="mx-auto max-w-[1400px]">
           {/* Header */}
           <div className="mb-6">
@@ -120,8 +120,8 @@ export default function QuestionnaireManagement() {
           </div>
 
           {/* Table */}
-          <div className="rounded-[18px] border border-[#dddddd] bg-white overflow-hidden">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto rounded-[18px] border border-[#dddddd] bg-white">
+            <table className="w-full min-w-[720px] text-left">
               <thead className="bg-[#24135f] text-white">
                 <tr>
                   <th className="px-6 py-4 text-[16px] font-bold">Question</th>

@@ -30,6 +30,7 @@ model Evaluation {
   evaluatorId   Int
   evaluatedId   Int
   academicYear  String
+  generalComment String?
   createdAt     DateTime  @default(now())
 
   evaluator     User      @relation("Evaluator", fields: [evaluatorId], references: [id])

@@ -85,12 +85,16 @@ export default function DashboardContent({
   };
 
   // Check if there's an open schedule
-  const hasOpenSchedule = displaySchedules.some(schedule => schedule.isOpen === true);
-  const activeSchedule = displaySchedules.find(schedule => schedule.isOpen === true);
+  const hasOpenSchedule = displaySchedules.some(
+    (schedule) => schedule.isActiveNow === true
+  );
+  const activeSchedule = displaySchedules.find(
+    (schedule) => schedule.isActiveNow === true
+  );
 
   return (
     <>
-      <main className="px-5 py-6">
+      <main className="px-4 py-4 sm:px-5 sm:py-6">
         <div className="mx-auto max-w-[1750px] space-y-4">
           {/* Welcome Header */}
           <div className="rounded-[18px] border border-[#dddddd] bg-white px-5 py-5">
@@ -185,9 +189,9 @@ export default function DashboardContent({
                           <p>
                             <span className="font-bold text-[#24135f]">Status:</span>{" "}
                             <span className={`font-bold ${
-                              schedule.isOpen ? "text-green-600" : "text-red-600"
+                              schedule.isActiveNow ? "text-green-600" : "text-red-600"
                             }`}>
-                              {schedule.isOpen ? "Open" : "Closed"}
+                              {schedule.isActiveNow ? "Open" : "Closed"}
                             </span>
                           </p>
                         </div>
@@ -221,8 +225,8 @@ export default function DashboardContent({
                 Questionnaires
               </h2>
 
-              <div className="overflow-hidden rounded-[6px] border border-[#e1e1e1]">
-                <table className="w-full text-left text-[14px]">
+              <div className="overflow-x-auto rounded-[6px] border border-[#e1e1e1]">
+                <table className="w-full min-w-[720px] text-left text-[14px]">
                   <thead className="bg-[#24135f] text-white">
                     <tr>
                       <th className="px-5 py-3 font-bold">Title</th>
@@ -281,8 +285,8 @@ export default function DashboardContent({
                 Instructor Management
               </h2>
 
-              <div className="overflow-hidden rounded-[6px] border border-[#e1e1e1]">
-                <table className="w-full text-left text-[14px]">
+              <div className="overflow-x-auto rounded-[6px] border border-[#e1e1e1]">
+                <table className="w-full min-w-[720px] text-left text-[14px]">
                   <thead className="bg-[#24135f] text-white">
                     <tr>
                       <th className="px-5 py-3 font-bold">Name</th>

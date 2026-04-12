@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import SessionProvider from "@/components/SessionProvider";
 import Sidebar from "@/components/layout/Sidebar";
 import Navbar from "@/components/layout/Navbar";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Digital Evaluation System",
@@ -26,14 +23,14 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <SessionProvider session={session}>
           {session ? (
             <div className="flex">
               <Sidebar />
-              <div className="ml-[294px] flex-1">
+              <div className="flex-1 transition-all duration-300">
                 <Navbar />
-                <main className="min-h-screen bg-[#f3f3f3]">{children}</main>
+                <main className="min-h-screen bg-[#f3f3f3] pt-16 lg:pt-0">{children}</main>
               </div>
             </div>
           ) : (

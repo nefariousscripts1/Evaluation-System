@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcrypt";
 import { revalidatePath } from "next/cache";
+import { submitEvaluationRecord } from "@/lib/evaluation-submission";
 
 // Utility
 async function isWithinSchedule(academicYear: string): Promise<boolean> {
@@ -26,68 +27,18 @@ export async function submitEvaluation(formData: FormData) {
   const session = await getServerSession(authOptions);
   if (!session) throw new Error("Unauthorized");
 
-  const evaluatorId = parseInt(session.user.id);
-  const evaluatedId = parseInt(formData.get("evaluatedId") as string);
-  const academicYear = formData.get("academicYear") as string;
+  const evaluatorId = Number.parseInt(session.user.id ?? "", 10);
+  const evaluatedId = formData.get("evaluatedId");
+  const academicYear = formData.get("academicYear");
   const answersData = JSON.parse(formData.get("answers") as string);
+  const comment = formData.get("comment");
 
-  // Check schedule
-  const within = await isWithinSchedule(academicYear);
-  if (!within) throw new Error("Evaluation period is closed");
-
-  // Check duplicate
-  const existing = await prisma.evaluation.findUnique({
-    where: {
-      evaluatorId_evaluatedId_academicYear: {
-        evaluatorId,
-        evaluatedId,
-        academicYear,
-      },
-    },
-  });
-  if (existing) throw new Error("You have already evaluated this person for this academic year");
-
-  // Create evaluation
-  await prisma.evaluation.create({
-    data: {
-      evaluatorId,
-      evaluatedId,
-      academicYear,
-      answers: {
-        create: answersData.map((a: any) => ({
-          questionId: a.questionId,
-          rating: a.rating,
-          comment: a.comment,
-        })),
-      },
-    },
-  });
-
-  // Recalculate average rating for evaluated user
-  const allRatings = await prisma.evaluationAnswer.aggregate({
-    where: {
-      evaluation: {
-        evaluatedId,
-        academicYear,
-      },
-    },
-    _avg: { rating: true },
-  });
-  const avg = allRatings._avg.rating || 0;
-
-  await prisma.result.upsert({
-    where: {
-      userId_academicYear: {
-        userId: evaluatedId,
-        academicYear,
-      },
-    },
-    update: { averageRating: avg },
-    create: {
-      userId: evaluatedId,
-      academicYear,
-      averageRating: avg,
-    },
+  await submitEvaluationRecord({
+    evaluatorId,
+    evaluatedId,
+    academicYear,
+    answers: answersData,
+    comment,
   });
 
   revalidatePath("/evaluate");

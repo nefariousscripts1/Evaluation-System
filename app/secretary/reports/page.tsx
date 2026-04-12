@@ -110,8 +110,8 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <main className="px-5 py-6">
-        <div className="mx-auto max-w-[1050px] rounded-[18px] border border-[#dddddd] bg-white p-8 text-center text-[#24135f]">
+      <main className="px-4 py-4 sm:px-5 sm:py-6">
+        <div className="mx-auto max-w-[1380px] rounded-[18px] border border-[#dddddd] bg-white p-6 text-center text-[#24135f] sm:p-8">
           Loading evaluation results...
         </div>
       </main>
@@ -119,8 +119,8 @@ export default function ReportsPage() {
   }
 
   return (
-    <main className="px-5 py-6">
-      <div className="mx-auto max-w-[1050px] rounded-[10px] border border-[#dddddd] bg-white px-8 py-6">
+    <main className="px-4 py-4 sm:px-5 sm:py-6">
+      <div className="mx-auto max-w-[1380px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
         {/* Header */}
         <div className="border-b border-[#8e8e8e] pb-5">
           <div className="flex items-start gap-4">
@@ -137,7 +137,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Cards */}
-        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="mt-8 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-2 md:gap-6">
           <div className="rounded-[6px] border border-[#e3e3e3] bg-white px-6 py-5 text-center">
             <h2 className="text-[22px] font-extrabold text-[#24135f]">
               Average Rating
@@ -167,7 +167,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Filters */}
-        <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="relative w-full md:max-w-[420px]">
             <Search
               size={18}
@@ -182,12 +182,12 @@ export default function ReportsPage() {
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
             <label className="text-[15px] font-bold text-black">
               Select Academic Year:
             </label>
 
-            <div className="relative min-w-[165px]">
+            <div className="relative w-full min-w-0 md:min-w-[165px]">
               <select
                 value={academicYear}
                 onChange={(e) => setAcademicYear(e.target.value)}
@@ -209,8 +209,8 @@ export default function ReportsPage() {
         </div>
 
         {/* Table */}
-        <div className="mt-4 overflow-hidden rounded-[4px] border border-[#dddddd]">
-          <table className="w-full text-left">
+        <div className="mt-4 overflow-x-auto rounded-[4px] border border-[#dddddd]">
+          <table className="w-full min-w-[620px] text-left">
             <thead className="bg-[#24135f] text-white">
               <tr>
                 <th className="px-5 py-4 text-[18px] font-bold">Instructor</th>

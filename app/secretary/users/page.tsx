@@ -153,7 +153,7 @@ export default function UsersManagement() {
 
   return (
     <>
-      <main className="px-5 py-6">
+      <main className="px-4 py-4 sm:px-5 sm:py-6">
         <div className="mx-auto max-w-[1400px]">
           <div className="mb-6">
             <h1 className="text-[28px] font-extrabold text-[#24135f]">Users Management</h1>
@@ -170,8 +170,8 @@ export default function UsersManagement() {
           </div>
 
           {/* Users Table */}
-          <div className="rounded-[18px] border border-[#dddddd] bg-white overflow-hidden">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto rounded-[18px] border border-[#dddddd] bg-white">
+            <table className="w-full min-w-[860px] text-left">
               <thead className="bg-[#24135f] text-white">
                 <tr>
                   <th className="px-6 py-4 text-[16px] font-bold">Name</th>

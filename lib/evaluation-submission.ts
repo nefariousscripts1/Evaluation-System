@@ -1,0 +1,292 @@
+import prisma from "@/lib/db";
+
+type SubmissionAnswerInput = {
+  questionId: unknown;
+  rating: unknown;
+};
+
+type SubmissionInput = {
+  evaluatorId: number;
+  evaluatedId: unknown;
+  academicYear: unknown;
+  answers: unknown;
+  comment?: unknown;
+};
+
+type NormalizedAnswer = {
+  questionId: number;
+  rating: number;
+};
+
+type NormalizedSubmission = {
+  evaluatorId: number;
+  evaluatedId: number;
+  academicYear: string;
+  answers: NormalizedAnswer[];
+  comment: string | null;
+};
+
+export class EvaluationSubmissionError extends Error {
+  status: number;
+  details?: string;
+
+  constructor(message: string, status = 400, details?: string) {
+    super(message);
+    this.name = "EvaluationSubmissionError";
+    this.status = status;
+    this.details = details;
+  }
+}
+
+function parsePositiveInt(value: unknown, fieldName: string) {
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+      ? Number.parseInt(value, 10)
+      : Number.NaN;
+
+  if (!Number.isInteger(numericValue) || numericValue <= 0) {
+    throw new EvaluationSubmissionError(`Invalid ${fieldName}`, 400);
+  }
+
+  return numericValue;
+}
+
+function normalizeComment(value: unknown) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new EvaluationSubmissionError("Invalid optional comment", 400);
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeAnswers(value: unknown) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new EvaluationSubmissionError("Please answer all questions", 400);
+  }
+
+  return value.map((answer, index) => {
+    if (!answer || typeof answer !== "object") {
+      throw new EvaluationSubmissionError(
+        "Invalid answer payload",
+        400,
+        `Answer at position ${index + 1} is not an object`
+      );
+    }
+
+    const { questionId, rating } = answer as SubmissionAnswerInput;
+    const normalizedRating =
+      typeof rating === "number"
+        ? rating
+        : typeof rating === "string"
+        ? Number.parseInt(rating, 10)
+        : Number.NaN;
+
+    if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+      throw new EvaluationSubmissionError(
+        "Ratings must be whole numbers from 1 to 5",
+        400,
+        `Invalid rating for question ${String(questionId)}`
+      );
+    }
+
+    return {
+      questionId: parsePositiveInt(questionId, "question ID"),
+      rating: normalizedRating,
+    };
+  });
+}
+
+async function assertScheduleIsOpen(academicYear: string) {
+  const schedule = await prisma.schedule.findFirst({
+    where: { academicYear },
+  });
+
+  if (!schedule) {
+    throw new EvaluationSubmissionError(
+      "The evaluation schedule is not configured for this academic year",
+      400
+    );
+  }
+
+  const now = new Date();
+  const withinDateWindow = now >= schedule.startDate && now <= schedule.endDate;
+
+  if (!schedule.isOpen || !withinDateWindow) {
+    throw new EvaluationSubmissionError(
+      "The evaluation period is currently closed",
+      400,
+      `Open window: ${schedule.startDate.toISOString()} to ${schedule.endDate.toISOString()}`
+    );
+  }
+}
+
+async function assertQuestionSetIsValid(answers: NormalizedAnswer[]) {
+  const activeQuestions = await prisma.questionnaire.findMany({
+    where: { isActive: true },
+    select: { id: true },
+    orderBy: { id: "asc" },
+  });
+
+  if (activeQuestions.length === 0) {
+    throw new EvaluationSubmissionError("No active questionnaire items are available", 400);
+  }
+
+  const allowedQuestionIds = new Set(activeQuestions.map((question) => question.id));
+  const submittedQuestionIds = new Set<number>();
+
+  for (const answer of answers) {
+    if (!allowedQuestionIds.has(answer.questionId)) {
+      throw new EvaluationSubmissionError(
+        "One or more questionnaire items are no longer available",
+        400,
+        `Unexpected question ID ${answer.questionId}`
+      );
+    }
+
+    if (submittedQuestionIds.has(answer.questionId)) {
+      throw new EvaluationSubmissionError(
+        "Duplicate answers were submitted",
+        400,
+        `Question ${answer.questionId} was provided more than once`
+      );
+    }
+
+    submittedQuestionIds.add(answer.questionId);
+  }
+
+  const missingQuestionIds = activeQuestions
+    .map((question) => question.id)
+    .filter((questionId) => !submittedQuestionIds.has(questionId));
+
+  if (missingQuestionIds.length > 0) {
+    throw new EvaluationSubmissionError(
+      "Please answer all required questions",
+      400,
+      `Missing question IDs: ${missingQuestionIds.join(", ")}`
+    );
+  }
+}
+
+async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSubmission> {
+  if (!Number.isInteger(input.evaluatorId) || input.evaluatorId <= 0) {
+    throw new EvaluationSubmissionError("Invalid evaluator session", 401);
+  }
+
+  if (typeof input.academicYear !== "string" || input.academicYear.trim().length === 0) {
+    throw new EvaluationSubmissionError("Academic year is required", 400);
+  }
+
+  const normalized = {
+    evaluatorId: input.evaluatorId,
+    evaluatedId: parsePositiveInt(input.evaluatedId, "evaluated instructor"),
+    academicYear: input.academicYear.trim(),
+    answers: normalizeAnswers(input.answers),
+    comment: normalizeComment(input.comment),
+  };
+
+  if (normalized.evaluatorId === normalized.evaluatedId) {
+    throw new EvaluationSubmissionError("You cannot evaluate yourself", 400);
+  }
+
+  return normalized;
+}
+
+export async function submitEvaluationRecord(input: SubmissionInput) {
+  const submission = await normalizeSubmission(input);
+
+  await assertScheduleIsOpen(submission.academicYear);
+  await assertQuestionSetIsValid(submission.answers);
+
+  const evaluatedUser = await prisma.user.findFirst({
+    where: {
+      id: submission.evaluatedId,
+      deletedAt: null,
+      role: {
+        in: ["faculty", "chairperson", "dean", "director", "campus_director"],
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!evaluatedUser) {
+    throw new EvaluationSubmissionError("Selected instructor could not be found", 404);
+  }
+
+  const existingEvaluation = await prisma.evaluation.findUnique({
+    where: {
+      evaluatorId_evaluatedId_academicYear: {
+        evaluatorId: submission.evaluatorId,
+        evaluatedId: submission.evaluatedId,
+        academicYear: submission.academicYear,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (existingEvaluation) {
+    throw new EvaluationSubmissionError(
+      "You have already evaluated this instructor for this academic year",
+      409
+    );
+  }
+
+  const evaluation = await prisma.$transaction(async (tx) => {
+    const createdEvaluation = await tx.evaluation.create({
+      data: {
+        evaluatorId: submission.evaluatorId,
+        evaluatedId: submission.evaluatedId,
+        academicYear: submission.academicYear,
+        generalComment: submission.comment,
+        answers: {
+          create: submission.answers.map((answer) => ({
+            questionId: answer.questionId,
+            rating: answer.rating,
+          })),
+        },
+      },
+      include: {
+        answers: true,
+      },
+    });
+
+    const averageRatingResult = await tx.evaluationAnswer.aggregate({
+      where: {
+        evaluation: {
+          evaluatedId: submission.evaluatedId,
+          academicYear: submission.academicYear,
+        },
+      },
+      _avg: { rating: true },
+    });
+
+    const averageRating = averageRatingResult._avg.rating ?? 0;
+
+    await tx.result.upsert({
+      where: {
+        userId_academicYear: {
+          userId: submission.evaluatedId,
+          academicYear: submission.academicYear,
+        },
+      },
+      update: {
+        averageRating,
+      },
+      create: {
+        userId: submission.evaluatedId,
+        academicYear: submission.academicYear,
+        averageRating,
+      },
+    });
+
+    return createdEvaluation;
+  });
+
+  return evaluation;
+}
