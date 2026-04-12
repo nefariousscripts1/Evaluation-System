@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
+import AppLogo from "@/components/AppLogo";
 import {
   Home,
   User,
@@ -174,11 +175,7 @@ export default function Sidebar() {
             {(!collapsed || mobileOpen) && (
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-white p-1">
-                  <img
-                    src="/evaluationlogo.png?v=3"
-                    alt="Digital Evaluation System logo"
-                    className="h-full w-full object-contain"
-                  />
+                  <AppLogo className="h-full w-full object-contain" />
                 </div>
                 <div className="leading-tight text-white">
                   <h1 className="text-[16px] font-extrabold">Digital Evaluation</h1>

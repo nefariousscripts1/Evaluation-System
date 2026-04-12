@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, User } from "lucide-react";
+import AppLogo from "@/components/AppLogo";
 
 const roles = [
   { label: "Campus Director", value: "campus_director" },
@@ -93,11 +94,7 @@ export default function LoginPage() {
         <div className="rounded-t-[26px] bg-[#24135f] px-6 py-6">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white p-1">
-              <img
-                src="/evaluationlogo.png?v=3"
-                alt="Digital Evaluation System logo"
-                className="h-full w-full object-contain"
-              />
+              <AppLogo className="h-full w-full object-contain" />
             </div>
             <h1 className="text-[22px] font-extrabold leading-tight text-white">
               Digital Evaluation
