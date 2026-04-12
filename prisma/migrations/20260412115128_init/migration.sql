@@ -5,11 +5,15 @@ CREATE TABLE `User` (
     `password` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NULL,
     `role` ENUM('student', 'faculty', 'chairperson', 'dean', 'director', 'campus_director', 'secretary') NOT NULL,
+    `department` VARCHAR(191) NULL,
+    `studentId` VARCHAR(191) NULL,
+    `agreedToTerms` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
     `deletedAt` DATETIME(3) NULL,
 
     UNIQUE INDEX `User_email_key`(`email`),
+    UNIQUE INDEX `User_studentId_key`(`studentId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -19,6 +23,7 @@ CREATE TABLE `Evaluation` (
     `evaluatorId` INTEGER NOT NULL,
     `evaluatedId` INTEGER NOT NULL,
     `academicYear` VARCHAR(191) NOT NULL,
+    `generalComment` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     UNIQUE INDEX `Evaluation_evaluatorId_evaluatedId_academicYear_key`(`evaluatorId`, `evaluatedId`, `academicYear`),
@@ -37,13 +42,13 @@ CREATE TABLE `EvaluationAnswer` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `questionnaires` (
+CREATE TABLE `Questionnaire` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `title` VARCHAR(191) NOT NULL,
+    `questionText` VARCHAR(191) NOT NULL,
+    `category` VARCHAR(191) NULL,
     `isActive` BOOLEAN NOT NULL DEFAULT true,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
-    `deletedAt` DATETIME(3) NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -54,6 +59,7 @@ CREATE TABLE `Schedule` (
     `academicYear` VARCHAR(191) NOT NULL,
     `startDate` DATETIME(3) NOT NULL,
     `endDate` DATETIME(3) NOT NULL,
+    `isOpen` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     UNIQUE INDEX `Schedule_academicYear_key`(`academicYear`),
@@ -83,7 +89,7 @@ ALTER TABLE `Evaluation` ADD CONSTRAINT `Evaluation_evaluatedId_fkey` FOREIGN KE
 ALTER TABLE `EvaluationAnswer` ADD CONSTRAINT `EvaluationAnswer_evaluationId_fkey` FOREIGN KEY (`evaluationId`) REFERENCES `Evaluation`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `EvaluationAnswer` ADD CONSTRAINT `EvaluationAnswer_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `questionnaires`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `EvaluationAnswer` ADD CONSTRAINT `EvaluationAnswer_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `Questionnaire`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Result` ADD CONSTRAINT `Result_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
