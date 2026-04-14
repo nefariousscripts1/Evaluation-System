@@ -11,7 +11,7 @@ export async function GET() {
   }
 
   const instructors = await prisma.user.findMany({
-    where: { role: { in: ["faculty", "chairperson", "dean", "director", "campus_director"] }, deletedAt: null },
+    where: { role: "faculty", deletedAt: null },
     select: { id: true, name: true, email: true, role: true, department: true },
   });
   return NextResponse.json(instructors);

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Plus, X, AlertTriangle, Pencil, Trash2 } from "lucide-react";
+import { Plus, X, AlertTriangle, Pencil, Trash2, Search } from "lucide-react";
 
 interface User {
   id: number;
@@ -13,7 +13,7 @@ interface User {
   department: string;
 }
 
-const roles = [
+const formRoles = [
   { label: "Dean", value: "dean" },
   { label: "Chairperson", value: "chairperson" },
   { label: "Director of Instructions", value: "director" },
@@ -21,6 +21,27 @@ const roles = [
   { label: "Faculty", value: "faculty" },
   { label: "Secretary", value: "secretary" },
 ];
+
+const roleFilterOptions = [
+  { label: "All Roles", value: "all" },
+  { label: "Students", value: "student" },
+  { label: "Faculty", value: "faculty" },
+  { label: "Chairpersons", value: "chairperson" },
+  { label: "Deans", value: "dean" },
+  { label: "Directors", value: "director" },
+  { label: "Campus Directors", value: "campus_director" },
+  { label: "Secretaries", value: "secretary" },
+];
+
+const roleLabels: Record<string, string> = {
+  student: "Student",
+  faculty: "Faculty",
+  chairperson: "Chairperson",
+  dean: "Dean",
+  director: "Director of Instructions",
+  campus_director: "Campus Director",
+  secretary: "Secretary",
+};
 
 export default function UsersManagement() {
   const { data: session, status } = useSession();
@@ -34,6 +55,8 @@ export default function UsersManagement() {
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedRole, setSelectedRole] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -145,9 +168,21 @@ export default function UsersManagement() {
   };
 
   const getRoleLabel = (roleValue: string) => {
-    const role = roles.find(r => r.value === roleValue);
-    return role ? role.label : roleValue;
+    return roleLabels[roleValue] || roleValue;
   };
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const matchesRole = selectedRole === "all" || user.role === selectedRole;
+      const normalizedSearch = searchTerm.trim().toLowerCase();
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        user.name.toLowerCase().includes(normalizedSearch) ||
+        user.email.toLowerCase().includes(normalizedSearch);
+
+      return matchesRole && matchesSearch;
+    });
+  }, [searchTerm, selectedRole, users]);
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
 
@@ -169,6 +204,49 @@ export default function UsersManagement() {
             </button>
           </div>
 
+          <div className="mb-4 rounded-[18px] border border-[#dddddd] bg-white p-4 sm:p-5">
+            <div className="flex flex-col gap-4">
+              <div className="relative w-full max-w-[420px]">
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8e89aa]"
+                />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by name or email"
+                  className="h-11 w-full rounded-[10px] border border-[#cfcadf] bg-white pl-10 pr-4 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f]"
+                />
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {roleFilterOptions.map((role) => {
+                  const isActive = selectedRole === role.value;
+
+                  return (
+                    <button
+                      key={role.value}
+                      type="button"
+                      onClick={() => setSelectedRole(role.value)}
+                      className={`shrink-0 rounded-full border px-4 py-2 text-[13px] font-bold transition ${
+                        isActive
+                          ? "border-[#24135f] bg-[#24135f] text-white"
+                          : "border-[#d9d4eb] bg-white text-[#24135f] hover:border-[#24135f]"
+                      }`}
+                    >
+                      {role.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-[13px] text-[#6c6684]">
+                Showing <span className="font-bold text-[#24135f]">{filteredUsers.length}</span> user{filteredUsers.length === 1 ? "" : "s"}.
+              </p>
+            </div>
+          </div>
+
           {/* Users Table */}
           <div className="overflow-x-auto rounded-[18px] border border-[#dddddd] bg-white">
             <table className="w-full min-w-[860px] text-left">
@@ -182,13 +260,13 @@ export default function UsersManagement() {
                 </tr>
               </thead>
               <tbody className="bg-white">
-                {users.length > 0 ? (
-                  users.map((user) => (
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
                     <tr key={user.id} className="border-t border-[#ececec]">
                       <td className="px-6 py-4 text-[#3b3160]">{user.name}</td>
                       <td className="px-6 py-4 text-[#3b3160]">{user.email}</td>
                       <td className="px-6 py-4 text-[#3b3160]">{getRoleLabel(user.role)}</td>
-                      <td className="px-6 py-4 text-[#3b3160]">{user.department || "—"}</td>
+                      <td className="px-6 py-4 text-[#3b3160]">{user.department || "N/A"}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-3">
                           <button
@@ -212,7 +290,7 @@ export default function UsersManagement() {
                 ) : (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                      No users found. Click "Create Account" to add one.
+                      No users matched the selected role or search.
                     </td>
                   </tr>
                 )}
@@ -250,7 +328,7 @@ export default function UsersManagement() {
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   className="h-10 w-full rounded-[8px] border border-[#6d63a3] px-3 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f]"
                 >
-                  {roles.map((role) => (
+                  {formRoles.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
                     </option>
