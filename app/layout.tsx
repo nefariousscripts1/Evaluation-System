@@ -26,11 +26,13 @@ export default async function RootLayout({
       <body>
         <SessionProvider session={session}>
           {session ? (
-            <div className="flex">
+            <div className="flex min-h-screen min-w-0">
               <Sidebar />
-              <div className="flex-1 transition-all duration-300">
+              <div className="min-w-0 flex-1 transition-all duration-300">
                 <Navbar />
-                <main className="min-h-screen bg-[#f3f3f3] pt-16 lg:pt-0">{children}</main>
+                <main className="min-h-screen min-w-0 bg-[#f3f3f3] pt-16 lg:pt-0">
+                  {children}
+                </main>
               </div>
             </div>
           ) : (

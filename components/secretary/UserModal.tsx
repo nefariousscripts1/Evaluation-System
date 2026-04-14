@@ -186,7 +186,7 @@ export default function UserModal({ isOpen, onClose, onSave, editingUser }: User
               type="text"
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              placeholder="e.g., CSM, CTE, CAS"
+              placeholder="e.g., CSM, CTE, SAS"
               className="h-10 w-full rounded-[8px] border border-[#6d63a3] px-3 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f] placeholder:text-[#9d98b8]"
             />
           </div>
