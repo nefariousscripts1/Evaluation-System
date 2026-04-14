@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Search, UserRound } from "lucide-react";
+import { Search, UserRound } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import PaginationControls from "@/components/secretary/PaginationControls";
 import SummaryCommentsTable, {
   SummaryComment,
 } from "@/components/secretary/SummaryCommentsTable";
+import InlineLoadingIndicator from "@/components/ui/InlineLoadingIndicator";
 
 type RoleCommentsPanelProps = {
   title: string;
@@ -146,7 +147,7 @@ export default function RoleCommentsPanel({
                 <button
                   type="button"
                   onClick={onSearch}
-                  className="rounded-[4px] bg-[#24135f] px-4 py-2 text-[13px] font-bold text-white transition hover:bg-[#1b0f4d]"
+                  className="min-h-[44px] rounded-[4px] bg-[#24135f] px-4 py-2 text-[13px] font-bold text-white transition hover:bg-[#1b0f4d] sm:min-h-[40px]"
                 >
                   Search
                 </button>
@@ -169,10 +170,7 @@ export default function RoleCommentsPanel({
           <div className="flex items-center justify-between border-b border-[#ece7f6] px-4 py-3">
             <h3 className="text-[16px] font-bold text-[#24135f]">Comments list</h3>
             {isLoading && (
-              <div className="flex items-center gap-2 text-[13px] font-medium text-[#6c6684]">
-                <Loader2 size={14} className="animate-spin" />
-                Loading...
-              </div>
+              <InlineLoadingIndicator label="Refreshing comments..." />
             )}
           </div>
           <SummaryCommentsTable comments={comments} startIndex={start} />

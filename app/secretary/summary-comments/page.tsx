@@ -8,6 +8,8 @@ import ProfileInfoCard from "@/components/secretary/ProfileInfoCard";
 import SummaryCommentsTable, {
   SummaryComment,
 } from "@/components/secretary/SummaryCommentsTable";
+import InlineLoadingIndicator from "@/components/ui/InlineLoadingIndicator";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 type SummaryCommentsResponse = {
   years: string[];
@@ -102,9 +104,20 @@ export default function SummaryCommentsPage() {
     setSearchTerm(searchInput.trim());
   };
 
+  if (loading && !selectedInstructor && !searchTerm && comments.length === 0) {
+    return (
+      <PortalPageLoader
+        title="View Director of Instruction Summary Comments"
+        description="Loading instructor search, latest academic year, and summary comments..."
+        cards={1}
+        compact
+      />
+    );
+  }
+
   return (
-    <main className="px-5 py-6">
-      <div className="mx-auto max-w-[1380px] rounded-[10px] border border-[#dddddd] bg-white px-8 py-6">
+    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
+      <div className="mx-auto max-w-[1380px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
         <div className="pb-5">
           <h1 className="text-[26px] font-extrabold leading-none text-[#24135f] md:text-[30px]">
             View Director of Instruction
@@ -151,7 +164,7 @@ export default function SummaryCommentsPage() {
               <button
                 type="button"
                 onClick={handleSearch}
-                className="rounded-[4px] bg-[#24135f] px-5 py-2 text-[14px] font-bold text-white transition hover:bg-[#1b0f4d]"
+                className="min-h-[44px] rounded-[4px] bg-[#24135f] px-5 py-2 text-[14px] font-bold text-white transition hover:bg-[#1b0f4d]"
               >
                 Search
               </button>
@@ -185,9 +198,7 @@ export default function SummaryCommentsPage() {
             />
           </div>
 
-          {loading && (
-            <p className="px-1 text-[13px] text-[#6c6684]">Loading comments...</p>
-          )}
+          {loading && <InlineLoadingIndicator label="Refreshing comments..." />}
 
           <PaginationControls
             start={startDisplay}

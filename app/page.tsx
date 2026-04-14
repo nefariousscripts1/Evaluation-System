@@ -20,11 +20,11 @@ export default async function Home() {
   } else if (role === "chairperson") {
     redirect("/chairperson/results");
   } else if (role === "dean") {
-    redirect("/dean/evaluate");
+    redirect("/dean/results");
   } else if (role === "director") {
-    redirect("/director/evaluate");
+    redirect("/director/results");
   } else if (role === "campus_director") {
-    redirect("/campus-director/evaluate");
+    redirect("/campus-director/results");
   } else {
     redirect("/login");
   }

@@ -62,12 +62,12 @@ export function getEvaluationPortalCopy(role: string) {
       };
     case "campus_director":
       return {
-        pageTitle: "Evaluate Director",
-        pageDescription: "Review the director's institutional performance and support.",
-        selectorLabel: "Which director would you like to evaluate?",
-        emptyMessage: "No directors are available to evaluate right now.",
-        successTitle: "Director Evaluation Submitted!",
-        successDescription: "Your director review has been saved successfully.",
+        pageTitle: "Evaluate DOI",
+        pageDescription: "Review the director of instruction's institutional performance and support.",
+        selectorLabel: "Which DOI would you like to evaluate?",
+        emptyMessage: "No DOI records are available to evaluate right now.",
+        successTitle: "DOI Evaluation Submitted!",
+        successDescription: "Your DOI review has been saved successfully.",
       };
     default:
       return {

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { UserRound } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import CommentsList from "@/components/faculty/CommentsList";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 type CommentItem = {
   id: string | number;
@@ -139,8 +140,18 @@ export default function FacultyCommentsPage() {
   const chairpersonName =
     chairpersonComments[0]?.evaluatorName || "Chairperson";
 
+  if (loading) {
+    return (
+      <PortalPageLoader
+        title="View Comments"
+        description="Loading faculty comments, academic years, and evaluator sections..."
+        cards={2}
+      />
+    );
+  }
+
   return (
-    <main className="px-4 py-4 sm:px-5 sm:py-6">
+    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
       <div className="mx-auto max-w-[1400px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
         <div className="pb-5">
           <h1 className="text-[28px] font-extrabold leading-tight text-[#24135f]">
@@ -148,9 +159,7 @@ export default function FacultyCommentsPage() {
           </h1>
         </div>
 
-        {loading ? (
-          <div className="py-16 text-center text-[#24135f]">Loading comments...</div>
-        ) : error ? (
+        {error ? (
           <div className="mt-2 rounded-[10px] border border-red-200 bg-red-50 p-4 text-red-700">
             {error}
           </div>

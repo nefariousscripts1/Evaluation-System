@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ChevronDown, Star, UserRound } from "lucide-react";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 type EvaluationTarget = {
   id: number;
@@ -195,17 +196,17 @@ export default function RoleEvaluationPortal({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f4f4f4] px-4">
-        <div className="rounded-[18px] bg-white px-6 py-5 text-center text-[#24135f] shadow-sm">
-          Loading evaluation portal...
-        </div>
-      </div>
+      <PortalPageLoader
+        title={copy.pageTitle}
+        description="Loading the evaluation flow, active schedule, and target list..."
+        cards={2}
+      />
     );
   }
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#f8f4ff_0%,#f3f3f3_55%,#ece7f8_100%)]">
-      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-6xl px-4 pb-5 pt-16 sm:px-6 sm:py-8">
         <div className="mb-6 rounded-[22px] bg-[#24135f] px-5 py-6 text-white shadow-[0_18px_45px_rgba(36,19,95,0.22)] sm:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -351,7 +352,7 @@ export default function RoleEvaluationPortal({
               <button
                 type="button"
                 onClick={handleNext}
-                className="rounded-[14px] bg-[#24135f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#1b0f4d]"
+                className="min-h-[44px] w-full rounded-[14px] bg-[#24135f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#1b0f4d] sm:w-auto"
               >
                 Continue
               </button>
@@ -401,7 +402,7 @@ export default function RoleEvaluationPortal({
                             [question.id]: { rating },
                           }))
                         }
-                        className="rounded-full border border-[#e3d7ff] bg-white p-2 transition hover:border-[#24135f]"
+                        className="min-h-[44px] min-w-[44px] rounded-full border border-[#e3d7ff] bg-white p-2 transition hover:border-[#24135f]"
                         aria-label={`Rate ${rating} stars`}
                       >
                         <Star
@@ -452,7 +453,7 @@ export default function RoleEvaluationPortal({
               <button
                 type="button"
                 onClick={handleBack}
-                className="rounded-[14px] border border-[#d2cae8] px-6 py-3 text-sm font-semibold text-[#24135f] transition hover:bg-[#f8f5ff]"
+                className="min-h-[44px] rounded-[14px] border border-[#d2cae8] px-6 py-3 text-sm font-semibold text-[#24135f] transition hover:bg-[#f8f5ff]"
               >
                 Back
               </button>
@@ -460,7 +461,7 @@ export default function RoleEvaluationPortal({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="rounded-[14px] bg-[#24135f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#1b0f4d] disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-[44px] rounded-[14px] bg-[#24135f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#1b0f4d] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? "Submitting..." : "Submit Evaluation"}
               </button>

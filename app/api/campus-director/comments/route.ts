@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getLeadershipCommentsData } from "@/lib/leadership-portal";
+import { getSingleTargetCommentsData } from "@/lib/leadership-portal";
 
 export const dynamic = "force-dynamic";
 
@@ -9,20 +9,14 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "chairperson") {
+    if (!session || session.user.role !== "campus_director") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const chairpersonId = Number.parseInt(session.user.id ?? "", 10);
-    if (!Number.isInteger(chairpersonId)) {
-      return NextResponse.json({ message: "Invalid session user" }, { status: 401 });
-    }
-
-    const data = await getLeadershipCommentsData({
+    const data = await getSingleTargetCommentsData({
       request,
-      sessionUserId: chairpersonId,
-      targetRole: "faculty",
-      targetLabel: "Faculty",
+      targetRole: "director",
+      targetLabel: "DOI",
     });
 
     return NextResponse.json(data);
@@ -30,11 +24,11 @@ export async function GET(request: Request) {
     const message =
       error instanceof Error && error.message === "Invalid semester filter"
         ? error.message
-        : "Failed to fetch chairperson comments";
+        : "Failed to fetch campus director comments";
     const status =
       error instanceof Error && error.message === "Invalid semester filter" ? 400 : 500;
 
-    console.error("Chairperson comments API error:", error);
+    console.error("Campus director comments API error:", error);
     return NextResponse.json({ message }, { status });
   }
 }

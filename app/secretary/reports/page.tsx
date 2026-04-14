@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Search, Star, ChevronDown } from "lucide-react";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 interface Result {
   id: number;
@@ -110,16 +111,17 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <main className="px-4 py-4 sm:px-5 sm:py-6">
-        <div className="mx-auto max-w-[1380px] rounded-[18px] border border-[#dddddd] bg-white p-6 text-center text-[#24135f] sm:p-8">
-          Loading evaluation results...
-        </div>
-      </main>
+      <PortalPageLoader
+        title="View Evaluation Results"
+        description="Loading instructor results, academic years, and summary metrics..."
+        cards={1}
+        compact
+      />
     );
   }
 
   return (
-    <main className="px-4 py-4 sm:px-5 sm:py-6">
+    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
       <div className="mx-auto max-w-[1380px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
         {/* Header */}
         <div className="border-b border-[#8e8e8e] pb-5">
@@ -209,7 +211,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Table */}
-        <div className="mt-4 overflow-x-auto rounded-[4px] border border-[#dddddd]">
+        <div className="mt-4 hidden overflow-x-auto rounded-[4px] border border-[#dddddd] sm:block">
           <table className="w-full min-w-[620px] text-left">
             <thead className="bg-[#24135f] text-white">
               <tr>
@@ -247,6 +249,31 @@ export default function ReportsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="mt-4 space-y-3 sm:hidden">
+          {filteredResults.length > 0 ? (
+            filteredResults.map((item) => (
+              <article
+                key={item.id}
+                className="rounded-[12px] border border-[#dddddd] bg-white p-4"
+              >
+                <p className="text-[15px] font-semibold text-[#24135f]">
+                  {item.user?.name || item.user?.email}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {renderStars(item.averageRating)}
+                  <span className="text-[15px] font-semibold text-[#24135f]">
+                    {item.averageRating.toFixed(2)}
+                  </span>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="rounded-[12px] border border-[#dddddd] bg-white px-5 py-8 text-center text-[#7d7d95]">
+              No evaluation results found.
+            </div>
+          )}
         </div>
       </div>
     </main>

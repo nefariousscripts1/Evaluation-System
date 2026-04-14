@@ -9,20 +9,20 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "chairperson") {
+    if (!session || session.user.role !== "director") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const chairpersonId = Number.parseInt(session.user.id ?? "", 10);
-    if (!Number.isInteger(chairpersonId)) {
+    const directorId = Number.parseInt(session.user.id ?? "", 10);
+    if (!Number.isInteger(directorId)) {
       return NextResponse.json({ message: "Invalid session user" }, { status: 401 });
     }
 
     const data = await getLeadershipCommentsData({
       request,
-      sessionUserId: chairpersonId,
-      targetRole: "faculty",
-      targetLabel: "Faculty",
+      sessionUserId: directorId,
+      targetRole: "dean",
+      targetLabel: "Dean",
     });
 
     return NextResponse.json(data);
@@ -30,11 +30,11 @@ export async function GET(request: Request) {
     const message =
       error instanceof Error && error.message === "Invalid semester filter"
         ? error.message
-        : "Failed to fetch chairperson comments";
+        : "Failed to fetch director comments";
     const status =
       error instanceof Error && error.message === "Invalid semester filter" ? 400 : 500;
 
-    console.error("Chairperson comments API error:", error);
+    console.error("Director comments API error:", error);
     return NextResponse.json({ message }, { status });
   }
 }

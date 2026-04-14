@@ -18,7 +18,6 @@ import {
   Star,
   ClipboardCheck,
   LayoutDashboard,
-  Crown,
   ChevronLeft,
   ChevronRight,
   MessageSquareText,
@@ -52,7 +51,7 @@ export default function Sidebar() {
 
   // Student Sidebar
   const studentNavItems = [
-    { href: "/student/evaluate", icon: <ClipboardCheck size={18} />, label: "Evaluate Instructor" },
+    { href: "/student/evaluate", icon: <Star size={18} />, label: "Evaluate Instructor" },
   ];
 
   // Faculty Sidebar
@@ -71,20 +70,23 @@ export default function Sidebar() {
 
   // Dean Sidebar
   const deanNavItems = [
+    { href: "/dean/results", icon: <BarChart3 size={18} />, label: "View Evaluation Results" },
     { href: "/dean/evaluate", icon: <Star size={18} />, label: "Evaluate Chairperson" },
-    { href: "/dean/results", icon: <BarChart3 size={18} />, label: "Department Results" },
+    { href: "/dean/comments", icon: <FileText size={18} />, label: "View Comments" },
   ];
 
   // Director Sidebar
   const directorNavItems = [
+    { href: "/director/results", icon: <BarChart3 size={18} />, label: "View Evaluation Results" },
     { href: "/director/evaluate", icon: <Star size={18} />, label: "Evaluate Dean" },
-    { href: "/director/results", icon: <BarChart3 size={18} />, label: "Institute Results" },
+    { href: "/director/comments", icon: <FileText size={18} />, label: "View Comments" },
   ];
 
   // Campus Director Sidebar
   const campusDirectorNavItems = [
-    { href: "/campus-director/evaluate", icon: <Crown size={18} />, label: "Evaluate Director" },
-    { href: "/campus-director/results", icon: <BarChart3 size={18} />, label: "Campus Results" },
+    { href: "/campus-director/evaluate", icon: <Star size={18} />, label: "Evaluate DOI" },
+    { href: "/campus-director/comments", icon: <FileText size={18} />, label: "View DOI Comments" },
+    { href: "/campus-director/results", icon: <BarChart3 size={18} />, label: "View DOI Rating" },
   ];
 
   // Get sidebar items based on role
@@ -123,7 +125,7 @@ export default function Sidebar() {
       case "dean":
         return "Dean Portal";
       case "director":
-        return "Director Portal";
+        return "DOI Portal";
       case "campus_director":
         return "Campus Director Portal";
       default:
@@ -148,7 +150,7 @@ export default function Sidebar() {
       <button
         type="button"
         onClick={() => setMobileOpen((prev) => !prev)}
-        className="fixed left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#24135f] text-white shadow-lg transition hover:bg-[#1b0f4d] lg:hidden"
+        className="fixed left-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-[10px] bg-[#24135f] text-white shadow-lg transition hover:bg-[#1b0f4d] lg:hidden"
         aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
       >
         {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -166,9 +168,9 @@ export default function Sidebar() {
       <div className={`hidden shrink-0 transition-all duration-300 lg:block ${collapsed ? "w-20" : "w-64"}`} />
 
       <aside
-        className={`fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-[#d8d8d8] bg-white transition-all duration-300 ${
+        className={`fixed left-0 top-0 z-40 flex h-screen w-[280px] max-w-[85vw] flex-col border-r border-[#d8d8d8] bg-white transition-all duration-300 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 ${collapsed ? "lg:w-20 lg:items-center" : "lg:w-64"}`}
+        } lg:w-64 lg:max-w-none lg:translate-x-0 ${collapsed ? "lg:w-20 lg:items-center" : "lg:w-64"}`}
       >
         {/* Header */}
         <div className={`w-full bg-[#24135f] ${collapsed ? "lg:flex lg:justify-center lg:px-2 lg:py-3" : "px-5 py-6"}`}>
@@ -203,7 +205,7 @@ export default function Sidebar() {
             <Link
               key={`${item.href}-${item.label}`}
               href={item.href}
-              className={`mb-1 flex items-center rounded-[8px] py-3 text-[14px] font-semibold transition ${
+              className={`mb-1 flex min-h-[44px] items-center rounded-[8px] py-3 text-[14px] font-semibold transition ${
                 collapsed ? "gap-3 px-4 lg:justify-center lg:px-0" : "gap-3 px-4"
               } ${
                 isActive(item.href, item.label)

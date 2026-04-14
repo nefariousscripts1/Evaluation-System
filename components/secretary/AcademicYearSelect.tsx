@@ -18,18 +18,18 @@ export default function AcademicYearSelect({
   className = "",
 }: Props) {
   return (
-    <div className={`flex items-center gap-3 ${className}`.trim()}>
+    <div className={`flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3 ${className}`.trim()}>
       {!hideLabel && (
         <label className="text-[14px] font-bold text-[#24135f]">
           Select Academic Year:
         </label>
       )}
 
-      <div className="relative min-w-[170px]">
+      <div className="relative w-full min-w-0 sm:min-w-[170px]">
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-[40px] w-full appearance-none rounded-[4px] border border-[#cfcadf] bg-white px-4 pr-10 text-[14px] font-semibold text-[#24135f] outline-none focus:border-[#24135f]"
+          className="h-[44px] w-full appearance-none rounded-[4px] border border-[#cfcadf] bg-white px-4 pr-10 text-[14px] font-semibold text-[#24135f] outline-none focus:border-[#24135f] sm:h-[40px]"
         >
           {options.map((option) => (
             <option key={option} value={option}>
