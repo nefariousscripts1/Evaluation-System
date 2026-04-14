@@ -22,7 +22,8 @@ function getRedirectPath(role: string) {
   if (role === "secretary") return "/secretary/dashboard";
   if (role === "student") return "/student/evaluate";
   if (role === "faculty") return "/results";
-  if (["chairperson", "dean", "director", "campus_director"].includes(role)) {
+  if (role === "chairperson") return "/chairperson/results";
+  if (["dean", "director", "campus_director"].includes(role)) {
     return "/evaluate";
   }
   return "/login";

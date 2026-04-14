@@ -64,8 +64,9 @@ export default function Sidebar() {
 
   // Chairperson Sidebar
   const chairpersonNavItems = [
+    { href: "/chairperson/results", icon: <BarChart3 size={18} />, label: "View Evaluation Results" },
     { href: "/chairperson/evaluate", icon: <Star size={18} />, label: "Evaluate Faculty" },
-    { href: "/chairperson/results", icon: <BarChart3 size={18} />, label: "Program Results" },
+    { href: "/chairperson/comments", icon: <FileText size={18} />, label: "View Comments" },
   ];
 
   // Dean Sidebar
