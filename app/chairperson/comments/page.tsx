@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import RoleCommentsPanel from "@/components/comments/RoleCommentsPanel";
 import { SummaryComment } from "@/components/secretary/SummaryCommentsTable";
@@ -54,8 +54,10 @@ export default function ChairpersonCommentsPage() {
   const [selectedFaculty, setSelectedFaculty] =
     useState<ChairpersonCommentsResponse["facultyComments"]["selectedFaculty"]>(null);
   const [totalFacultyComments, setTotalFacultyComments] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [facultyLoading, setFacultyLoading] = useState(false);
   const [error, setError] = useState("");
+  const hasLoadedOnceRef = useRef(false);
 
   useEffect(() => {
     const fetchFacultyOptions = async () => {
@@ -85,7 +87,11 @@ export default function ChairpersonCommentsPage() {
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        setLoading(true);
+        if (!hasLoadedOnceRef.current) {
+          setInitialLoading(true);
+        } else {
+          setFacultyLoading(true);
+        }
         setError("");
 
         const params = new URLSearchParams({
@@ -122,10 +128,12 @@ export default function ChairpersonCommentsPage() {
         setSelectedFaculty(data.facultyComments.selectedFaculty);
         setFacultyComments(data.facultyComments.comments || []);
         setTotalFacultyComments(data.facultyComments.total || 0);
+        hasLoadedOnceRef.current = true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load chairperson comments");
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
+        setFacultyLoading(false);
       }
     };
 
@@ -169,7 +177,7 @@ export default function ChairpersonCommentsPage() {
     setFacultyPage(1);
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <main className="px-4 py-4 sm:px-5 sm:py-6">
         <div className="mx-auto max-w-[1380px] rounded-[18px] border border-[#dddddd] bg-white p-6 text-center text-[#24135f] sm:p-8">
@@ -229,11 +237,17 @@ export default function ChairpersonCommentsPage() {
                 onNext={() =>
                   setFacultyPage((current) => Math.min(facultyTotalPages, current + 1))
                 }
+                isLoading={facultyLoading}
                 searchInput={searchInput}
                 searchPlaceholder="Search Faculty"
                 onSearchInputChange={(value) => {
                   setSearchInput(value);
                   setSelectedFacultyId(null);
+
+                  if (!value.trim()) {
+                    setFacultyPage(1);
+                    setSearchTerm("");
+                  }
                 }}
                 onSearch={handleSearch}
                 suggestions={facultyOptions}

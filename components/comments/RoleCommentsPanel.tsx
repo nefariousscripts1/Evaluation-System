@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, UserRound } from "lucide-react";
+import { Loader2, Search, UserRound } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import PaginationControls from "@/components/secretary/PaginationControls";
 import SummaryCommentsTable, {
@@ -27,6 +27,7 @@ type RoleCommentsPanelProps = {
   searchPlaceholder?: string;
   onSearchInputChange?: (value: string) => void;
   onSearch?: () => void;
+  isLoading?: boolean;
   suggestions?: Array<{
     id: number;
     label: string;
@@ -54,6 +55,7 @@ export default function RoleCommentsPanel({
   searchPlaceholder = "Search",
   onSearchInputChange,
   onSearch,
+  isLoading = false,
   suggestions = [],
   onSuggestionSelect,
 }: RoleCommentsPanelProps) {
@@ -164,8 +166,14 @@ export default function RoleCommentsPanel({
         </div>
 
         <div className="mt-5 rounded-[6px] border border-[#dcd7e7]">
-          <div className="border-b border-[#ece7f6] px-4 py-3">
+          <div className="flex items-center justify-between border-b border-[#ece7f6] px-4 py-3">
             <h3 className="text-[16px] font-bold text-[#24135f]">Comments list</h3>
+            {isLoading && (
+              <div className="flex items-center gap-2 text-[13px] font-medium text-[#6c6684]">
+                <Loader2 size={14} className="animate-spin" />
+                Loading...
+              </div>
+            )}
           </div>
           <SummaryCommentsTable comments={comments} startIndex={start} />
           <PaginationControls
