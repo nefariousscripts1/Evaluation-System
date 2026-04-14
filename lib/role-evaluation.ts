@@ -1,5 +1,5 @@
 export const evaluatorTargets = {
-  student: ["faculty", "chairperson", "dean", "director", "campus_director"],
+  student: ["faculty"],
   chairperson: ["faculty"],
   dean: ["chairperson"],
   director: ["dean"],

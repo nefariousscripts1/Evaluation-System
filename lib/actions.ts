@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import bcrypt from "bcrypt";
 import { revalidatePath } from "next/cache";
 import { submitEvaluationRecord } from "@/lib/evaluation-submission";
+import { getAllowedEvaluatedRoles } from "@/lib/role-evaluation";
 
 // Utility
 async function isWithinSchedule(academicYear: string): Promise<boolean> {
@@ -134,27 +135,10 @@ export async function getEvaluableUsers() {
   const session = await getServerSession(authOptions);
   if (!session) throw new Error("Unauthorized");
 
-  const role = session.user.role;
-  let targetRoles: string[] = [];
+  const targetRoles = getAllowedEvaluatedRoles(session.user.role ?? "");
 
-  switch (role) {
-    case "student":
-      targetRoles = ["faculty"];
-      break;
-    case "chairperson":
-      targetRoles = ["faculty"];
-      break;
-    case "dean":
-      targetRoles = ["chairperson"];
-      break;
-    case "director":
-      targetRoles = ["dean"];
-      break;
-    case "campus_director":
-      targetRoles = ["director"];
-      break;
-    default:
-      return [];
+  if (targetRoles.length === 0) {
+    return [];
   }
 
   const users = await prisma.user.findMany({
