@@ -99,9 +99,9 @@ export default function FacultyRatingsPage() {
   }
 
   return (
-    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1400px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
-        <div className="border-b border-[#8e8e8e] pb-5">
+    <main className="app-page-with-topbar">
+      <div className="app-page-card">
+        <div className="border-b border-[#ece7f6] pb-5">
           <h1 className="text-[28px] font-extrabold text-[#24135f]">View My Ratings</h1>
         </div>
 
@@ -114,7 +114,7 @@ export default function FacultyRatingsPage() {
         </div>
 
         {error ? (
-          <div className="mt-6 rounded-[10px] border border-red-200 bg-red-50 p-4 text-red-700">
+          <div className="app-alert-danger mt-6">
             {error}
           </div>
         ) : (

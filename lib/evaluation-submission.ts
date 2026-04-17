@@ -1,5 +1,6 @@
 import prisma from "@/lib/db";
 import { getAllowedEvaluatedRoles } from "@/lib/role-evaluation";
+import { getActiveSchedule, isScheduleActive } from "@/lib/evaluation-session";
 
 type SubmissionAnswerInput = {
   questionId: unknown;
@@ -10,6 +11,7 @@ type SubmissionInput = {
   evaluatorId: number;
   evaluatorRole: unknown;
   evaluatedId: unknown;
+  scheduleId?: unknown;
   academicYear: unknown;
   answers: unknown;
   comment?: unknown;
@@ -24,6 +26,7 @@ type NormalizedSubmission = {
   evaluatorId: number;
   evaluatorRole: string;
   evaluatedId: number;
+  scheduleId: number;
   academicYear: string;
   answers: NormalizedAnswer[];
   comment: string | null;
@@ -106,30 +109,6 @@ function normalizeAnswers(value: unknown) {
   });
 }
 
-async function assertScheduleIsOpen(academicYear: string) {
-  const schedule = await prisma.schedule.findFirst({
-    where: { academicYear },
-  });
-
-  if (!schedule) {
-    throw new EvaluationSubmissionError(
-      "The evaluation schedule is not configured for this academic year",
-      400
-    );
-  }
-
-  const now = new Date();
-  const withinDateWindow = now >= schedule.startDate && now <= schedule.endDate;
-
-  if (!schedule.isOpen || !withinDateWindow) {
-    throw new EvaluationSubmissionError(
-      "The evaluation period is currently closed",
-      400,
-      `Open window: ${schedule.startDate.toISOString()} to ${schedule.endDate.toISOString()}`
-    );
-  }
-}
-
 async function assertQuestionSetIsValid(answers: NormalizedAnswer[]) {
   const activeQuestions = await prisma.questionnaire.findMany({
     where: { isActive: true },
@@ -186,15 +165,57 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
     throw new EvaluationSubmissionError("Invalid evaluator role", 401);
   }
 
-  if (typeof input.academicYear !== "string" || input.academicYear.trim().length === 0) {
-    throw new EvaluationSubmissionError("Academic year is required", 400);
+  const normalizedScheduleId =
+    input.scheduleId === undefined || input.scheduleId === null || input.scheduleId === ""
+      ? null
+      : parsePositiveInt(input.scheduleId, "schedule");
+
+  const normalizedAcademicYear =
+    typeof input.academicYear === "string" && input.academicYear.trim().length > 0
+      ? input.academicYear.trim()
+      : null;
+
+  const schedule = normalizedScheduleId
+    ? await prisma.schedule.findUnique({
+        where: { id: normalizedScheduleId },
+        select: {
+          id: true,
+          academicYear: true,
+          startDate: true,
+          endDate: true,
+          isOpen: true,
+        },
+      })
+    : normalizedAcademicYear
+    ? await prisma.schedule.findFirst({
+        where: {
+          academicYear: normalizedAcademicYear,
+          isOpen: true,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          academicYear: true,
+          startDate: true,
+          endDate: true,
+          isOpen: true,
+        },
+      })
+    : await getActiveSchedule();
+
+  if (!schedule || !isScheduleActive(schedule)) {
+    throw new EvaluationSubmissionError(
+      "The evaluation period is currently closed",
+      400
+    );
   }
 
   const normalized = {
     evaluatorId: input.evaluatorId,
     evaluatorRole: input.evaluatorRole.trim(),
     evaluatedId: parsePositiveInt(input.evaluatedId, "evaluated instructor"),
-    academicYear: input.academicYear.trim(),
+    scheduleId: schedule.id,
+    academicYear: schedule.academicYear,
     answers: normalizeAnswers(input.answers),
     comment: normalizeComment(input.comment),
   };
@@ -220,7 +241,6 @@ function assertEvaluatorCanReviewRole(evaluatorRole: string, evaluatedRole: stri
 export async function submitEvaluationRecord(input: SubmissionInput) {
   const submission = await normalizeSubmission(input);
 
-  await assertScheduleIsOpen(submission.academicYear);
   await assertQuestionSetIsValid(submission.answers);
 
   const evaluatedUser = await prisma.user.findFirst({
@@ -237,20 +257,20 @@ export async function submitEvaluationRecord(input: SubmissionInput) {
 
   assertEvaluatorCanReviewRole(submission.evaluatorRole, evaluatedUser.role);
 
-  const existingEvaluation = await prisma.evaluation.findUnique({
+  const existingEvaluation = await prisma.evaluation.findFirst({
     where: {
-      evaluatorId_evaluatedId_academicYear: {
-        evaluatorId: submission.evaluatorId,
-        evaluatedId: submission.evaluatedId,
-        academicYear: submission.academicYear,
-      },
+      evaluatorId: submission.evaluatorId,
+      evaluatedId: submission.evaluatedId,
+      scheduleId: submission.scheduleId,
     },
     select: { id: true },
   });
 
   if (existingEvaluation) {
     throw new EvaluationSubmissionError(
-      "You have already evaluated this instructor for this academic year",
+      submission.evaluatorRole === "student"
+        ? "You have already submitted this evaluation"
+        : "You have already evaluated this instructor for this session",
       409
     );
   }
@@ -260,6 +280,7 @@ export async function submitEvaluationRecord(input: SubmissionInput) {
       data: {
         evaluatorId: submission.evaluatorId,
         evaluatedId: submission.evaluatedId,
+        scheduleId: submission.scheduleId,
         academicYear: submission.academicYear,
         generalComment: submission.comment,
         answers: {

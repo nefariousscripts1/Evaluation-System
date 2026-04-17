@@ -183,18 +183,18 @@ export default function SingleTargetCommentsView({
   }
 
   return (
-    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1200px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
+    <main className="app-page-with-topbar">
+      <div className="app-page-card max-w-[1200px]">
         <div className="pb-5">
           <h1 className="text-[28px] font-extrabold leading-tight text-[#24135f]">{title}</h1>
         </div>
 
         {error ? (
-          <div className="rounded-[10px] border border-red-200 bg-red-50 p-4 text-red-700">
+          <div className="app-alert-danger">
             {error}
           </div>
         ) : (
-          <section className="rounded-[10px] border border-[#dddddd] bg-white p-4 sm:p-6">
+          <section className="rounded-[24px] border border-[#dddddd] bg-white p-4 shadow-[0_14px_34px_rgba(36,19,95,0.06)] sm:p-6">
             <div className="flex flex-col gap-5 border-b border-[#ece7f6] pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#ebdbff] text-[#5c4599]">
@@ -236,11 +236,11 @@ export default function SingleTargetCommentsView({
                         handleSearch();
                       }
                     }}
-                    className="h-[38px] w-full rounded-[4px] border border-[#cfcadf] bg-white pl-9 pr-4 text-[13px] text-[#24135f] outline-none focus:border-[#24135f]"
+                  className="app-input h-[44px] rounded-[16px] pl-9 text-[13px]"
                   />
 
                   {showSuggestions && filteredSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 rounded-[8px] border border-[#d9d3e8] bg-white shadow-lg">
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 rounded-[18px] border border-[#d9d3e8] bg-white p-2 shadow-[0_18px_40px_rgba(36,19,95,0.14)]">
                       {filteredSuggestions.map((suggestion) => (
                         <button
                           key={suggestion.id}
@@ -249,7 +249,7 @@ export default function SingleTargetCommentsView({
                             event.preventDefault();
                             handleSuggestionSelect(suggestion);
                           }}
-                          className="flex w-full flex-col px-3 py-2 text-left transition hover:bg-[#f8f6ff]"
+                          className="flex w-full flex-col rounded-[12px] px-3 py-2 text-left transition hover:bg-[#f8f6ff]"
                         >
                           <span className="text-[13px] font-semibold text-[#24135f]">
                             {suggestion.label}
@@ -278,7 +278,7 @@ export default function SingleTargetCommentsView({
               </div>
             </div>
 
-            <div className="mt-4 rounded-[6px] border border-[#dcd7e7]">
+            <div className="mt-4 rounded-[18px]">
               <div className="border-b border-[#ece7f6] px-4 py-3">
                 <div className="flex items-center justify-between gap-4">
                   <h3 className="text-[16px] font-bold text-[#24135f]">Comments list</h3>

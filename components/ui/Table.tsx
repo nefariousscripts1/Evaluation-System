@@ -12,22 +12,22 @@ interface TableProps<T> {
 
 export default function Table<T>({ columns, data }: TableProps<T>) {
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className="app-table-shell overflow-x-auto">
+      <table className="app-table min-w-full">
+        <thead className="app-table-head">
           <tr>
             {columns.map((col, idx) => (
-              <th key={idx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th key={idx}>
                 {col.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white">
           {data.map((item, rowIdx) => (
-            <tr key={rowIdx}>
+            <tr key={rowIdx} className="app-table-row">
               {columns.map((col, colIdx) => (
-                <td key={colIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td key={colIdx} className="app-table-cell whitespace-nowrap">
                   {typeof col.accessor === "function" ? col.accessor(item) : (item[col.accessor] as React.ReactNode)}
                 </td>
               ))}

@@ -28,13 +28,13 @@ export default function RatingSummaryCard({
   totalRatings,
 }: Props) {
   return (
-    <section className="rounded-[18px] border border-[#dddddd] bg-white p-4 sm:p-5">
+    <section className="rounded-[24px] border border-[#dddddd] bg-white p-5 shadow-[0_16px_36px_rgba(36,19,95,0.08)] sm:p-6">
       <h2 className="text-[20px] font-extrabold text-[#24135f] sm:text-[22px]">{title}</h2>
 
       <div className="mt-5 space-y-5">
         <ProfileInfoCard name={evaluatorName} label={evaluatorRole} />
 
-        <div className="rounded-[12px] border border-[#e8e4f3] bg-white px-4 py-4 sm:px-5">
+        <div className="rounded-[20px] border border-[#e8e4f3] bg-white px-5 py-5 shadow-[0_10px_26px_rgba(36,19,95,0.05)]">
           <p className="text-[14px] font-bold text-[#24135f]">Overall Rating</p>
           <div className="mt-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="text-[34px] font-extrabold leading-none text-[#24135f] sm:text-[40px]">

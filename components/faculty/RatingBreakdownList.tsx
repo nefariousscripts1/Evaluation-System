@@ -20,7 +20,7 @@ const breakdownRows: Array<{ label: string; key: keyof RatingBreakdown }> = [
 
 export default function RatingBreakdownList({ breakdown }: Props) {
   return (
-    <div className="space-y-2 rounded-[8px] border border-[#e8e4f3] bg-[#fafbfd] p-4">
+    <div className="space-y-3 rounded-[18px] border border-[#e8e4f3] bg-white p-4 shadow-[0_10px_26px_rgba(36,19,95,0.05)]">
       {breakdownRows.map((row) => (
         <div key={row.key} className="flex items-center justify-between text-[14px]">
           <span className="font-semibold text-[#3f3562]">{row.label}</span>

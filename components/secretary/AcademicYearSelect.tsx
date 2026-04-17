@@ -29,7 +29,7 @@ export default function AcademicYearSelect({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-[44px] w-full appearance-none rounded-[4px] border border-[#cfcadf] bg-white px-4 pr-10 text-[14px] font-semibold text-[#24135f] outline-none focus:border-[#24135f] sm:h-[40px]"
+          className="app-select h-[46px] rounded-[16px] text-[14px] sm:h-[44px]"
         >
           {options.map((option) => (
             <option key={option} value={option}>

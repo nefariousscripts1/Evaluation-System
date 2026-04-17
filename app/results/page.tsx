@@ -89,9 +89,9 @@ export default async function ResultsPage() {
   }
 
   return (
-    <main className="px-4 py-4 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1400px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
-        <div className="border-b border-[#8e8e8e] pb-5">
+    <main className="app-page">
+      <div className="app-page-card">
+        <div className="border-b border-[#ece7f6] pb-5">
           <h1 className="text-[28px] font-extrabold text-[#24135f]">{title}</h1>
         </div>
 
@@ -99,7 +99,7 @@ export default async function ResultsPage() {
           {results.map((result) => (
             <div
               key={result.id}
-              className="rounded-[10px] border border-[#e7e7e7] bg-white p-6 shadow-sm"
+              className="rounded-[22px] border border-[#e7e7e7] bg-white p-6 shadow-[0_16px_36px_rgba(36,19,95,0.08)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -128,7 +128,7 @@ export default async function ResultsPage() {
           ))}
 
           {results.length === 0 && (
-            <div className="rounded-[10px] border border-[#e7e7e7] bg-white p-6 text-[#6d6d86]">
+            <div className="rounded-[22px] border border-[#e7e7e7] bg-white p-6 text-[#6d6d86] shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
               No results available.
             </div>
           )}
@@ -141,7 +141,7 @@ export default async function ResultsPage() {
               {comments.map((comment, idx) => (
                 <div
                   key={idx}
-                  className="rounded-[10px] border border-[#e7e7e7] bg-white p-4 shadow-sm"
+                  className="rounded-[18px] border border-[#e7e7e7] bg-white p-4 shadow-[0_12px_28px_rgba(36,19,95,0.06)]"
                 >
                   <p className="text-[#24135f]">{comment.comment}</p>
                   <p className="mt-2 text-xs text-[#9aa0bf]">{comment.label}</p>

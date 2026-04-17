@@ -121,10 +121,10 @@ export default function ReportsPage() {
   }
 
   return (
-    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1380px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
+    <main className="app-page-with-topbar">
+      <div className="app-page-card max-w-[1380px]">
         {/* Header */}
-        <div className="border-b border-[#8e8e8e] pb-5">
+        <div className="border-b border-[#ece7f6] pb-5">
           <div className="flex items-start gap-4">
             <div className="mt-1 h-[52px] w-[8px] bg-[#24135f]" />
             <div>
@@ -140,7 +140,7 @@ export default function ReportsPage() {
 
         {/* Cards */}
         <div className="mt-8 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-2 md:gap-6">
-          <div className="rounded-[6px] border border-[#e3e3e3] bg-white px-6 py-5 text-center">
+          <div className="app-stat-card text-center">
             <h2 className="text-[22px] font-extrabold text-[#24135f]">
               Average Rating
             </h2>
@@ -155,7 +155,7 @@ export default function ReportsPage() {
             </p>
           </div>
 
-          <div className="rounded-[6px] border border-[#e3e3e3] bg-white px-6 py-5 text-center">
+          <div className="app-stat-card text-center">
             <h2 className="text-[22px] font-extrabold text-[#24135f]">
               Completion Rate
             </h2>
@@ -180,7 +180,7 @@ export default function ReportsPage() {
               placeholder="Search Instuctor"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-[42px] w-full rounded-[4px] border border-[#8e83b5] bg-white pl-10 pr-4 text-[15px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f]"
+              className="app-input h-[46px] rounded-[16px] pl-10 text-[15px]"
             />
           </div>
 
@@ -193,7 +193,7 @@ export default function ReportsPage() {
               <select
                 value={academicYear}
                 onChange={(e) => setAcademicYear(e.target.value)}
-                className="h-[42px] w-full appearance-none rounded-[2px] border border-[#8e83b5] bg-white px-4 pr-10 text-[15px] font-semibold text-[#24135f] outline-none"
+                className="app-select h-[46px] rounded-[16px] text-[15px]"
               >
                 <option value="">All Years</option>
                 {years.map((year) => (
@@ -211,23 +211,23 @@ export default function ReportsPage() {
         </div>
 
         {/* Table */}
-        <div className="mt-4 hidden overflow-x-auto rounded-[4px] border border-[#dddddd] sm:block">
+        <div className="app-table-shell mt-4 hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[620px] text-left">
-            <thead className="bg-[#24135f] text-white">
+            <thead className="app-table-head">
               <tr>
-                <th className="px-5 py-4 text-[18px] font-bold">Instructor</th>
-                <th className="px-5 py-4 text-[18px] font-bold">Rating</th>
+                <th>Instructor</th>
+                <th>Rating</th>
               </tr>
             </thead>
 
             <tbody className="bg-white">
               {filteredResults.length > 0 ? (
                 filteredResults.map((item) => (
-                  <tr key={item.id} className="border-t border-[#e7e7e7]">
-                    <td className="px-5 py-5 text-[15px] text-[#2f2a57]">
+                  <tr key={item.id} className="app-table-row">
+                    <td className="app-table-cell text-[15px] text-[#2f2a57]">
                       {item.user?.name || item.user?.email}
                     </td>
-                    <td className="px-5 py-5">
+                    <td className="app-table-cell">
                       <div className="flex items-center gap-3">
                         {renderStars(item.averageRating)}
                         <span className="text-[15px] font-semibold text-[#24135f]">
@@ -256,7 +256,7 @@ export default function ReportsPage() {
             filteredResults.map((item) => (
               <article
                 key={item.id}
-                className="rounded-[12px] border border-[#dddddd] bg-white p-4"
+                className="rounded-[18px] border border-[#dddddd] bg-white p-4 shadow-[0_12px_28px_rgba(36,19,95,0.06)]"
               >
                 <p className="text-[15px] font-semibold text-[#24135f]">
                   {item.user?.name || item.user?.email}
@@ -270,7 +270,7 @@ export default function ReportsPage() {
               </article>
             ))
           ) : (
-            <div className="rounded-[12px] border border-[#dddddd] bg-white px-5 py-8 text-center text-[#7d7d95]">
+            <div className="rounded-[18px] border border-[#dddddd] bg-white px-5 py-8 text-center text-[#7d7d95] shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
               No evaluation results found.
             </div>
           )}

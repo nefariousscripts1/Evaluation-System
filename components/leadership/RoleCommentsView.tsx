@@ -205,8 +205,8 @@ export default function RoleCommentsView({
   }
 
   return (
-    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1380px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
+    <main className="app-page-with-topbar">
+      <div className="app-page-card max-w-[1380px]">
         <div className="pb-5">
           <h1 className="text-[28px] font-extrabold leading-tight text-[#24135f]">
             View Comments
@@ -214,11 +214,11 @@ export default function RoleCommentsView({
         </div>
 
         {error ? (
-          <div className="rounded-[10px] border border-red-200 bg-red-50 p-4 text-red-700">
+          <div className="app-alert-danger">
             {error}
           </div>
         ) : (
-          <div className="rounded-[10px] border border-[#dddddd] bg-white p-4 sm:p-6">
+          <div className="rounded-[24px] border border-[#dddddd] bg-white p-4 shadow-[0_14px_34px_rgba(36,19,95,0.06)] sm:p-6">
             <div className="mb-4 flex justify-end">
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                 <label className="text-[14px] font-semibold text-[#24135f]">Semester</label>
@@ -228,7 +228,7 @@ export default function RoleCommentsView({
                     setSemester(event.target.value);
                     setTargetPage(1);
                   }}
-                  className="h-[44px] w-full rounded-[8px] border border-[#d2cae8] bg-white px-3 text-[13px] text-[#24135f] outline-none focus:border-[#24135f] sm:h-[40px] sm:w-auto"
+                  className="app-select h-[44px] rounded-[16px] px-3 text-[13px] sm:h-[44px] sm:w-auto"
                 >
                   {semesterOptions.map((option) => {
                     const normalized = option.toLowerCase() === "all semesters" ? "all" : option;

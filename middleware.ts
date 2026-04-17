@@ -11,6 +11,7 @@ export default withAuth(
       path === "/login" ||
       path === "/register" ||
       path === "/" ||
+      path === "/student/evaluate" ||
       path === "/forgot-password" ||
       path === "/reset-password"
     ) {
@@ -24,19 +25,16 @@ export default withAuth(
 
     const role = token.role as string;
 
-    // STUDENT - Allow students to access student pages and home
+    // Legacy STUDENT session support
     if (role === "student") {
-      // Allow student to access their specific routes
       if (path === "/student/evaluate" || path === "/student" || path === "/") {
         return NextResponse.next();
       }
-      // Block students from accessing admin/secretary routes
-      if (path.startsWith("/secretary") || path.startsWith("/faculty") || 
+      if (path.startsWith("/secretary") || path.startsWith("/faculty") ||
           path.startsWith("/chairperson") || path.startsWith("/dean") ||
           path.startsWith("/director") || path.startsWith("/campus-director")) {
         return NextResponse.redirect(new URL("/unauthorized", req.url));
       }
-      // Allow all other routes for student
       return NextResponse.next();
     }
 

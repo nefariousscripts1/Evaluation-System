@@ -82,19 +82,19 @@ export default function RoleCommentsPanel({
   return (
     <section>
       <h2 className="text-[20px] font-extrabold text-[#1f1a52]">{title}</h2>
-      <div className="mt-4 border-t border-[#8e8e8e] pt-4">
+      <div className="mt-4 rounded-[24px] border border-[#e3def1] bg-white p-5 shadow-[0_16px_36px_rgba(36,19,95,0.08)]">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#ebdbff] text-[#5c4599]">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#ebdbff] text-[#5c4599] shadow-[0_12px_28px_rgba(92,69,153,0.16)]">
             <UserRound size={34} />
           </div>
           <div>
-            <p className="text-[18px] font-bold leading-tight text-[#191919]">{profileName}</p>
-            <p className="text-[14px] leading-tight text-[#191919]">{profileRole}</p>
+            <p className="text-[18px] font-bold leading-tight text-[#24135f]">{profileName}</p>
+            <p className="mt-1 text-[14px] leading-tight text-[#6c6684]">{profileRole}</p>
           </div>
         </div>
 
         <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <p className="text-[15px] font-bold text-[#191919]">Select Academic Year:</p>
+          <p className="text-[15px] font-bold text-[#24135f]">Select Academic Year:</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {typeof searchInput === "string" && onSearchInputChange && onSearch && (
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -116,11 +116,11 @@ export default function RoleCommentsPanel({
                         onSearch();
                       }
                     }}
-                    className="h-[40px] w-full rounded-[4px] border border-[#cfcadf] bg-white pl-9 pr-4 text-[13px] text-[#24135f] outline-none focus:border-[#24135f]"
+                    className="app-input h-[44px] rounded-[16px] pl-9 text-[13px]"
                   />
 
                   {showSuggestions && filteredSuggestions.length > 0 && onSuggestionSelect && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 rounded-[8px] border border-[#d9d3e8] bg-white shadow-lg">
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 rounded-[18px] border border-[#d9d3e8] bg-white p-2 shadow-[0_18px_40px_rgba(36,19,95,0.14)]">
                       {filteredSuggestions.map((suggestion) => (
                         <button
                           key={suggestion.id}
@@ -130,7 +130,7 @@ export default function RoleCommentsPanel({
                             onSuggestionSelect(suggestion);
                             setShowSuggestions(false);
                           }}
-                          className="flex w-full flex-col px-3 py-2 text-left transition hover:bg-[#f8f6ff]"
+                          className="flex w-full flex-col rounded-[12px] px-3 py-2 text-left transition hover:bg-[#f8f6ff]"
                         >
                           <span className="text-[13px] font-semibold text-[#24135f]">
                             {suggestion.label}
@@ -147,7 +147,7 @@ export default function RoleCommentsPanel({
                 <button
                   type="button"
                   onClick={onSearch}
-                  className="min-h-[44px] rounded-[4px] bg-[#24135f] px-4 py-2 text-[13px] font-bold text-white transition hover:bg-[#1b0f4d] sm:min-h-[40px]"
+                  className="app-btn-primary min-h-[44px] px-4 py-2 text-[13px] sm:min-h-[44px]"
                 >
                   Search
                 </button>
@@ -166,8 +166,8 @@ export default function RoleCommentsPanel({
           </div>
         </div>
 
-        <div className="mt-5 rounded-[6px] border border-[#dcd7e7]">
-          <div className="flex items-center justify-between border-b border-[#ece7f6] px-4 py-3">
+        <div className="mt-5 overflow-hidden rounded-[20px] border border-[#dcd7e7] bg-white shadow-[0_12px_30px_rgba(36,19,95,0.06)]">
+          <div className="flex items-center justify-between border-b border-[#ece7f6] bg-[#faf8ff] px-4 py-4">
             <h3 className="text-[16px] font-bold text-[#24135f]">Comments list</h3>
             {isLoading && (
               <InlineLoadingIndicator label="Refreshing comments..." />

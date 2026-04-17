@@ -24,6 +24,7 @@ export async function POST(req: Request) {
       evaluatorId,
       evaluatorRole: session.user.role,
       evaluatedId: payload?.evaluatedId,
+      scheduleId: payload?.scheduleId,
       academicYear: payload?.academicYear,
       answers: payload?.answers,
       comment: payload?.comment,

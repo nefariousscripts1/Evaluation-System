@@ -11,15 +11,14 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
-        <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
-        <div className="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 className="text-lg font-medium leading-6 text-gray-900">{title}</h3>
-            <div className="mt-4">{children}</div>
-          </div>
+    <div className="app-modal-overlay">
+      <div className="absolute inset-0" onClick={onClose} />
+      <div className="app-modal-card relative max-w-lg text-left">
+        <div className="border-b border-[#ede8f7] px-6 py-5">
+          <h3 className="text-xl font-bold text-[#24135f]">{title}</h3>
+        </div>
+        <div className="px-6 py-6">
+          <div className="mt-1">{children}</div>
         </div>
       </div>
     </div>

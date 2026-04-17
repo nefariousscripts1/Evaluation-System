@@ -1,11 +1,8 @@
-import RoleEvaluationPortal from "@/components/evaluation/RoleEvaluationPortal";
-import { getEvaluationPortalCopy } from "@/lib/role-evaluation";
+Faculty Evaluation
+Access Portal
+import StudentAccessPortal from "@/components/evaluation/StudentAccessPortal";
 
 export default function StudentEvaluatePage() {
-  return (
-    <RoleEvaluationPortal
-      allowedRole="student"
-      copy={getEvaluationPortalCopy("student")}
-    />
-  );
+  return <StudentAccessPortal />;
 }
+  

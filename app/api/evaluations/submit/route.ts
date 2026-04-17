@@ -32,6 +32,7 @@ export async function POST(req: Request) {
       evaluatorId,
       evaluatorRole,
       evaluatedId: payload?.evaluatedId,
+      scheduleId: payload?.scheduleId,
       academicYear: payload?.academicYear,
       answers: payload?.answers,
       comment: payload?.comment,

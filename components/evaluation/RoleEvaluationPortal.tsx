@@ -43,6 +43,7 @@ export default function RoleEvaluationPortal({
 
   const [selectedTargetId, setSelectedTargetId] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
+  const [scheduleId, setScheduleId] = useState<number | null>(null);
   const [targets, setTargets] = useState<EvaluationTarget[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<number, { rating: number }>>({});
@@ -106,7 +107,8 @@ export default function RoleEvaluationPortal({
       const res = await fetch("/api/schedule/current", { cache: "no-store" });
       const data = await res.json();
 
-      if (data?.academicYear) {
+      if (data?.scheduleId && data?.academicYear) {
+        setScheduleId(data.scheduleId);
         setSelectedYear(data.academicYear);
         setAcademicYears([data.academicYear]);
       }
@@ -126,6 +128,11 @@ export default function RoleEvaluationPortal({
 
     if (!selectedYear) {
       setError("No evaluation schedule is available right now");
+      return;
+    }
+
+    if (!scheduleId) {
+      setError("No active evaluation session is available right now");
       return;
     }
 
@@ -159,6 +166,7 @@ export default function RoleEvaluationPortal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           evaluatedId: Number.parseInt(selectedTargetId, 10),
+          scheduleId,
           academicYear: selectedYear,
           answers: questions.map((question) => ({
             questionId: question.id,
@@ -205,9 +213,9 @@ export default function RoleEvaluationPortal({
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#f8f4ff_0%,#f3f3f3_55%,#ece7f8_100%)]">
+    <div className="app-shell-bg min-h-screen">
       <div className="mx-auto max-w-6xl px-4 pb-5 pt-16 sm:px-6 sm:py-8">
-        <div className="mb-6 rounded-[22px] bg-[#24135f] px-5 py-6 text-white shadow-[0_18px_45px_rgba(36,19,95,0.22)] sm:px-8">
+        <div className="mb-6 rounded-[28px] bg-[#24135f] px-5 py-6 text-white shadow-[0_22px_52px_rgba(36,19,95,0.18)] sm:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/65">
@@ -221,7 +229,7 @@ export default function RoleEvaluationPortal({
               </p>
             </div>
 
-            <div className="rounded-[18px] border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/85 backdrop-blur">
+            <div className="rounded-[20px] border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/85 shadow-[0_14px_30px_rgba(17,10,49,0.16)] backdrop-blur">
               <p className="font-semibold">{session?.user?.name || session?.user?.email}</p>
               <p className="text-white/70">{selectedYear || "Waiting for schedule"}</p>
             </div>
@@ -236,7 +244,7 @@ export default function RoleEvaluationPortal({
           ].map((item, index) => (
             <div
               key={item.label}
-              className={`rounded-[18px] border px-4 py-3 text-sm font-semibold shadow-sm ${
+              className={`rounded-[18px] border px-4 py-3 text-sm font-semibold shadow-[0_10px_26px_rgba(36,19,95,0.06)] ${
                 item.active
                   ? "border-[#24135f] bg-white text-[#24135f]"
                   : item.complete
@@ -250,7 +258,7 @@ export default function RoleEvaluationPortal({
         </div>
 
         {step === 1 && (
-          <section className="rounded-[24px] border border-[#e7e0f3] bg-white px-4 py-5 shadow-[0_14px_40px_rgba(36,19,95,0.08)] sm:px-8 sm:py-8">
+          <section className="rounded-[28px] border border-[#e7e0f3] bg-white px-4 py-5 shadow-[0_18px_42px_rgba(36,19,95,0.08)] sm:px-8 sm:py-8">
             <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
               <div>
                 <h2 className="text-[22px] font-bold text-[#24135f]">Choose Evaluation Target</h2>
@@ -313,8 +321,8 @@ export default function RoleEvaluationPortal({
                 </div>
               </div>
 
-              <div className="rounded-[20px] border border-[#efe7fb] bg-[#faf7ff] p-5">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#24135f] text-white">
+              <div className="rounded-[24px] border border-[#efe7fb] bg-white p-5 shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#24135f] text-white shadow-[0_12px_24px_rgba(36,19,95,0.14)]">
                   <UserRound size={28} />
                 </div>
 
@@ -352,7 +360,7 @@ export default function RoleEvaluationPortal({
               <button
                 type="button"
                 onClick={handleNext}
-                className="min-h-[44px] w-full rounded-[14px] bg-[#24135f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#1b0f4d] sm:w-auto"
+                className="app-btn-primary min-h-[44px] w-full px-6 py-3 sm:w-auto"
               >
                 Continue
               </button>
@@ -361,7 +369,7 @@ export default function RoleEvaluationPortal({
         )}
 
         {step === 2 && (
-          <section className="rounded-[24px] border border-[#e7e0f3] bg-white px-4 py-5 shadow-[0_14px_40px_rgba(36,19,95,0.08)] sm:px-8 sm:py-8">
+          <section className="rounded-[28px] border border-[#e7e0f3] bg-white px-4 py-5 shadow-[0_18px_42px_rgba(36,19,95,0.08)] sm:px-8 sm:py-8">
             <div className="flex flex-col gap-3 border-b border-[#eee7fb] pb-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="text-[24px] font-bold text-[#24135f]">
@@ -371,7 +379,7 @@ export default function RoleEvaluationPortal({
                   Rate each statement from strongly disagree to strongly agree.
                 </p>
               </div>
-              <div className="rounded-full bg-[#f5f0ff] px-4 py-2 text-sm font-semibold text-[#24135f]">
+              <div className="rounded-full border border-[#ebe4f9] bg-[#faf8ff] px-4 py-2 text-sm font-semibold text-[#24135f] shadow-[0_8px_20px_rgba(36,19,95,0.05)]">
                 {answeredCount} of {questions.length} answered
               </div>
             </div>
@@ -380,7 +388,7 @@ export default function RoleEvaluationPortal({
               {questions.map((question, index) => (
                 <div
                   key={question.id}
-                  className="rounded-[18px] border border-[#efe8fb] bg-[#fcfbff] p-4 sm:p-5"
+                  className="rounded-[20px] border border-[#efe8fb] bg-white p-4 shadow-[0_10px_24px_rgba(36,19,95,0.05)] sm:p-5"
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#24135f] text-sm font-bold text-white">
@@ -429,7 +437,7 @@ export default function RoleEvaluationPortal({
                 </div>
               ))}
 
-              <div className="rounded-[18px] border border-[#efe8fb] bg-[#fcfbff] p-4 sm:p-5">
+              <div className="rounded-[20px] border border-[#efe8fb] bg-white p-4 shadow-[0_10px_24px_rgba(36,19,95,0.05)] sm:p-5">
                 <label className="mb-2 block text-sm font-semibold text-[#24135f]">
                   Optional Overall Comment
                 </label>
@@ -438,7 +446,7 @@ export default function RoleEvaluationPortal({
                   onChange={(e) => setFinalComment(e.target.value)}
                   rows={4}
                   placeholder="Share any constructive feedback..."
-                  className="w-full rounded-[14px] border border-[#d2cae8] bg-white px-4 py-3 text-sm text-[#24135f] outline-none focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/15"
+                  className="app-textarea"
                 />
               </div>
             </div>
@@ -453,7 +461,7 @@ export default function RoleEvaluationPortal({
               <button
                 type="button"
                 onClick={handleBack}
-                className="min-h-[44px] rounded-[14px] border border-[#d2cae8] px-6 py-3 text-sm font-semibold text-[#24135f] transition hover:bg-[#f8f5ff]"
+                className="app-btn-secondary min-h-[44px] px-6 py-3"
               >
                 Back
               </button>
@@ -461,7 +469,7 @@ export default function RoleEvaluationPortal({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="min-h-[44px] rounded-[14px] bg-[#24135f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#1b0f4d] disabled:cursor-not-allowed disabled:opacity-60"
+                className="app-btn-primary min-h-[44px] px-6 py-3"
               >
                 {submitting ? "Submitting..." : "Submit Evaluation"}
               </button>
@@ -470,7 +478,7 @@ export default function RoleEvaluationPortal({
         )}
 
         {step === 3 && (
-          <section className="rounded-[24px] border border-[#dbeadf] bg-white px-4 py-10 text-center shadow-[0_14px_40px_rgba(36,19,95,0.08)] sm:px-8">
+          <section className="rounded-[28px] border border-[#dbeadf] bg-white px-4 py-10 text-center shadow-[0_18px_42px_rgba(36,19,95,0.08)] sm:px-8">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#eaf8ee] text-[32px] text-[#18794e]">
               ✓
             </div>
@@ -481,7 +489,7 @@ export default function RoleEvaluationPortal({
             <button
               type="button"
               onClick={resetFlow}
-              className="mt-8 rounded-[14px] bg-[#24135f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#1b0f4d]"
+              className="app-btn-primary mt-8 px-6 py-3"
             >
               Submit Another Evaluation
             </button>

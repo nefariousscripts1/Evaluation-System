@@ -30,7 +30,7 @@ export default function PaginationControls({
           type="button"
           onClick={onPrevious}
           disabled={!hasPrevious}
-          className="flex h-11 flex-1 items-center justify-center rounded-[6px] border border-[#d7d2e4] bg-white px-4 text-[13px] font-semibold text-[#24135f] transition hover:bg-[#f6f4fb] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 sm:flex-none sm:rounded-[4px] sm:px-0"
+          className="flex h-11 flex-1 items-center justify-center rounded-[14px] border border-[#ddd6ee] bg-white px-4 text-[13px] font-semibold text-[#24135f] shadow-[0_10px_24px_rgba(36,19,95,0.06)] transition hover:bg-[#f6f4fb] disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10 sm:flex-none sm:px-0"
         >
           <span className="sm:hidden">Prev</span>
           <span className="hidden sm:inline">-</span>
@@ -39,7 +39,7 @@ export default function PaginationControls({
           type="button"
           onClick={onNext}
           disabled={!hasNext}
-          className="flex h-11 flex-1 items-center justify-center gap-1 rounded-[6px] bg-[#24135f] px-4 text-[13px] font-semibold text-white transition hover:bg-[#1b0f4d] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 sm:flex-none sm:rounded-[4px] sm:px-0"
+          className="flex h-11 flex-1 items-center justify-center gap-1 rounded-[14px] bg-[#24135f] px-4 text-[13px] font-semibold text-white shadow-[0_12px_26px_rgba(36,19,95,0.12)] transition hover:bg-[#1b0f4d] disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10 sm:flex-none sm:px-0"
         >
           <span className="sm:hidden">Next</span>
           <ChevronRight size={16} />

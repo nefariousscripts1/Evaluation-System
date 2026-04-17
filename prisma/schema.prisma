@@ -26,18 +26,20 @@ model User {
 }
 
 model Evaluation {
-  id            Int       @id @default(autoincrement())
-  evaluatorId   Int
-  evaluatedId   Int
-  academicYear  String
+  id             Int       @id @default(autoincrement())
+  evaluatorId    Int
+  evaluatedId    Int
+  scheduleId     Int?
+  academicYear   String
   generalComment String?
-  createdAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
-  evaluator     User      @relation("Evaluator", fields: [evaluatorId], references: [id])
-  evaluated     User      @relation("Evaluated", fields: [evaluatedId], references: [id])
-  answers       EvaluationAnswer[]
+  evaluator User                @relation("Evaluator", fields: [evaluatorId], references: [id])
+  evaluated User                @relation("Evaluated", fields: [evaluatedId], references: [id])
+  schedule  Schedule?           @relation(fields: [scheduleId], references: [id])
+  answers   EvaluationAnswer[]
 
-  @@unique([evaluatorId, evaluatedId, academicYear])
+  @@unique([evaluatorId, evaluatedId, scheduleId])
 }
 
 model EvaluationAnswer {
@@ -63,14 +65,19 @@ model Questionnaire {
 }
 
 model Schedule {
-  id            Int       @id @default(autoincrement())
-  academicYear  String
-  startDate     DateTime
-  endDate       DateTime
-  isOpen        Boolean   @default(false)
-  createdAt     DateTime  @default(now())
+  id          Int       @id @default(autoincrement())
+  academicYear String
+  startDate   DateTime
+  endDate     DateTime
+  isOpen      Boolean   @default(false)
+  accessCode  String?   @db.VarChar(32)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  @@unique([academicYear])
+  evaluations Evaluation[]
+
+  @@index([isOpen, startDate, endDate])
+  @@index([academicYear, createdAt])
 }
 
 model Result {

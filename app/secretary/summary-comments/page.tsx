@@ -116,8 +116,8 @@ export default function SummaryCommentsPage() {
   }
 
   return (
-    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1380px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
+    <main className="app-page-with-topbar">
+      <div className="app-page-card max-w-[1380px]">
         <div className="pb-5">
           <h1 className="text-[26px] font-extrabold leading-none text-[#24135f] md:text-[30px]">
             View Director of Instruction
@@ -127,7 +127,7 @@ export default function SummaryCommentsPage() {
           </h2>
         </div>
 
-        <div className="space-y-5 rounded-[6px] border border-[#e3e3e3] bg-white p-5">
+        <div className="space-y-5 rounded-[24px] border border-[#e3e3e3] bg-white p-5 shadow-[0_14px_34px_rgba(36,19,95,0.06)]">
           {selectedInstructor ? (
             <ProfileInfoCard
               name={selectedInstructor.name}
@@ -157,14 +157,14 @@ export default function SummaryCommentsPage() {
                       handleSearch();
                     }
                   }}
-                  className="h-[40px] w-full rounded-[4px] border border-[#cfcadf] bg-white pl-10 pr-4 text-[14px] text-[#24135f] outline-none focus:border-[#24135f]"
+                  className="app-input h-[44px] rounded-[16px] pl-10 text-[14px]"
                 />
               </div>
 
               <button
                 type="button"
                 onClick={handleSearch}
-                className="min-h-[44px] rounded-[4px] bg-[#24135f] px-5 py-2 text-[14px] font-bold text-white transition hover:bg-[#1b0f4d]"
+                className="app-btn-primary min-h-[44px] px-5 py-2 text-[14px]"
               >
                 Search
               </button>
@@ -191,7 +191,7 @@ export default function SummaryCommentsPage() {
             </p>
           )}
 
-          <div className="rounded-[6px] border border-[#dcd7e7]">
+          <div className="rounded-[18px]">
             <SummaryCommentsTable
               comments={comments}
               startIndex={startDisplay}

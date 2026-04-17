@@ -1,0 +1,95 @@
+
+> digital-evaluation-system@1.0.0 dev
+> next dev --port 3001
+
+   ▲ Next.js 15.5.9
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.254.116:3001
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ✓ Compiled /middleware in 240ms (216 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2.4s (990 modules)
+(node:13620) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[next-auth][warn][DEBUG_ENABLED] 
+https://next-auth.js.org/warnings#debug_enabled
+ GET /login 200 in 3041ms
+ GET /login 200 in 3048ms
+ GET /login 200 in 3066ms
+ ✓ Compiled in 802ms (315 modules)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 614ms (984 modules)
+(node:21684) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[next-auth][warn][DEBUG_ENABLED] 
+https://next-auth.js.org/warnings#debug_enabled
+ GET /api/auth/csrf 200 in 1497ms
+ ✓ Compiled /_not-found in 341ms (977 modules)
+[next-auth][warn][DEBUG_ENABLED] 
+https://next-auth.js.org/warnings#debug_enabled
+ GET /api/auth/csrf 404 in 606ms
+ POST /api/auth/callback/credentials 200 in 61ms
+ ✓ Compiled /login in 153ms (683 modules)
+ ⨯ Failed to generate static paths for /api/auth/[...nextauth]:
+TypeError: Cannot read properties of undefined (reading 'call')
+    at __webpack_exec__ (C:\Users\Jing\Evaluation-System\.next\server\app\api\auth\[...nextauth]\route.js:294:39)
+    at <unknown> (C:\Users\Jing\Evaluation-System\.next\server\app\api\auth\[...nextauth]\route.js:295:472)
+    at <unknown> (C:\Users\Jing\Evaluation-System\.next\server\app\api\auth\[...nextauth]\route.js:295:47)
+    at Object.<anonymous> (C:\Users\Jing\Evaluation-System\.next\server\app\api\auth\[...nextauth]\route.js:298:3) {
+  type: 'TypeError'
+}
+[next-auth][warn][DEBUG_ENABLED] 
+https://next-auth.js.org/warnings#debug_enabled
+ GET /login 200 in 423ms
+ GET /login 200 in 50ms
+ ⨯ TypeError: Cannot read properties of undefined (reading 'call')
+    at __webpack_exec__ (C:\Users\Jing\Evaluation-System\.next\server\app\api\auth\[...nextauth]\route.js:294:39)
+    at <unknown> (C:\Users\Jing\Evaluation-System\.next\server\app\api\auth\[...nextauth]\route.js:295:472)
+    at <unknown> (C:\Users\Jing\Evaluation-System\.next\server\app\api\auth\[...nextauth]\route.js:295:47)
+    at Object.<anonymous> (C:\Users\Jing\Evaluation-System\.next\server\app\api\auth\[...nextauth]\route.js:298:3) {
+  type: 'TypeError',
+  page: '/api/auth/csrf'
+}
+ ✓ Compiled /_error in 484ms (1329 modules)
+ GET /api/auth/csrf 500 in 1307ms
+(node:7984) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[next-auth][warn][DEBUG_ENABLED] 
+https://next-auth.js.org/warnings#debug_enabled
+ POST /api/auth/callback/credentials 200 in 668ms
+ GET /login 200 in 184ms
+ GET /login 200 in 61ms
+ ✓ Compiled in 364ms (468 modules)
+ ✓ Compiled in 252ms (467 modules)
+ ✓ Compiled in 464ms (573 modules)
+ ✓ Compiled in 314ms (468 modules)
+ ⨯ ./app/globals.css
+Module not found: Can't resolve 'C:\Users\Jing\Evaluation-System\app\globals.css'
+
+https://nextjs.org/docs/messages/module-not-found
+ ✓ Compiled in 502ms (468 modules)
+ ✓ Compiled in 183ms (468 modules)
+ ✓ Compiled in 161ms (468 modules)
+ ✓ Compiled in 220ms (468 modules)
+ ✓ Compiled in 195ms (468 modules)
+ ✓ Compiled in 221ms (468 modules)
+ ✓ Compiled in 244ms (468 modules)
+ ✓ Compiled in 377ms (468 modules)
+ ✓ Compiled in 282ms (468 modules)
+ ✓ Compiled in 295ms (468 modules)
+ ✓ Compiled in 299ms (468 modules)
+ ✓ Compiled in 201ms (468 modules)
+ ✓ Compiled in 549ms (789 modules)
+ ✓ Compiled in 603ms (775 modules)
+ ✓ Compiled in 329ms (468 modules)
+ ✓ Compiled in 277ms (468 modules)
+ ✓ Compiled in 236ms (468 modules)
+ ✓ Compiled in 328ms (468 modules)
+ ✓ Compiled in 268ms (468 modules)
+ ✓ Compiled in 454ms (468 modules)
+ ✓ Compiled in 186ms (468 modules)
+ ✓ Compiled in 193ms (468 modules)
+^C^C

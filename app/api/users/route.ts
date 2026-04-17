@@ -1,22 +1,28 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import bcrypt from "bcrypt";
 import prisma from "@/lib/db";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
-    
+
     if (session.user.role !== "secretary") {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
-    
+
     const users = await prisma.user.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        role: {
+          not: "student",
+        },
+      },
       select: {
         id: true,
         name: true,
@@ -24,8 +30,9 @@ export async function GET() {
         role: true,
         department: true,
       },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
     });
-    
+
     return NextResponse.json(users);
   } catch (error) {
     console.error("API Error:", error);
@@ -36,27 +43,45 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session || session.user.role !== "secretary") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { name, email, password, role, department } = body;
-    
-    const bcrypt = require("bcrypt");
+    const role = String(body.role ?? "").trim();
+    const name = String(body.name ?? "").trim();
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const password = String(body.password ?? "");
+    const department = body.department ? String(body.department).trim() : null;
+
+    if (!role || role === "student") {
+      return NextResponse.json(
+        { error: "Users Management is for staff accounts only" },
+        { status: 400 }
+      );
+    }
+
+    if (!name || !email || !password) {
+      return NextResponse.json(
+        { error: "Name, email, and password are required" },
+        { status: 400 }
+      );
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role,
-        department: department || null,
+        role: role as never,
+        department,
+        studentId: null,
       },
     });
-    
+
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
     console.error("POST Error:", error);

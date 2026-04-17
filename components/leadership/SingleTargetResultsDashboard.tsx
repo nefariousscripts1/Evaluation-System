@@ -200,9 +200,9 @@ export default function SingleTargetResultsDashboard({
   }
 
   return (
-    <main className="px-4 pb-4 pt-16 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1200px] rounded-[10px] border border-[#dddddd] bg-white px-4 py-5 sm:px-8 sm:py-6">
-        <div className="border-b border-[#8e8e8e] pb-4">
+    <main className="app-page-with-topbar">
+      <div className="app-page-card max-w-[1200px]">
+        <div className="border-b border-[#ece7f6] pb-4">
           <h1 className="text-[28px] font-extrabold leading-tight text-[#24135f]">
             View Evaluation Results
           </h1>
@@ -210,13 +210,13 @@ export default function SingleTargetResultsDashboard({
         </div>
 
         {error ? (
-          <div className="mt-6 rounded-[10px] border border-red-200 bg-red-50 p-4 text-red-700">
+          <div className="app-alert-danger mt-6">
             {error}
           </div>
         ) : (
           <>
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-[12px] border border-[#e8e4f3] bg-white px-4 py-4 text-center sm:px-5">
+              <div className="app-stat-card text-center sm:px-5">
                 <p className="text-[14px] font-bold text-[#24135f]">Average Rating</p>
                 <div className="mt-2 text-[38px] font-extrabold leading-none text-[#24135f]">
                   {averageRating.toFixed(2)}
@@ -227,7 +227,7 @@ export default function SingleTargetResultsDashboard({
                 </p>
               </div>
 
-              <div className="rounded-[12px] border border-[#e8e4f3] bg-white px-4 py-4 text-center sm:px-5">
+              <div className="app-stat-card text-center sm:px-5">
                 <p className="text-[14px] font-bold text-[#24135f]">Completion Rate</p>
                 <div className="mt-2 text-[38px] font-extrabold leading-none text-[#24135f]">
                   {completionRate}%
@@ -264,11 +264,11 @@ export default function SingleTargetResultsDashboard({
                         handleSearch();
                       }
                     }}
-                    className="h-[38px] w-full rounded-[4px] border border-[#cfcadf] bg-white pl-9 pr-4 text-[13px] text-[#24135f] outline-none focus:border-[#24135f]"
+                    className="app-input h-[44px] rounded-[16px] pl-9 text-[13px]"
                   />
 
                   {showSuggestions && filteredSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 rounded-[8px] border border-[#d9d3e8] bg-white shadow-lg">
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 rounded-[18px] border border-[#d9d3e8] bg-white p-2 shadow-[0_18px_40px_rgba(36,19,95,0.14)]">
                       {filteredSuggestions.map((suggestion) => (
                         <button
                           key={suggestion.id}
@@ -277,7 +277,7 @@ export default function SingleTargetResultsDashboard({
                             event.preventDefault();
                             handleSuggestionSelect(suggestion);
                           }}
-                          className="flex w-full flex-col px-3 py-2 text-left transition hover:bg-[#f8f6ff]"
+                          className="flex w-full flex-col rounded-[12px] px-3 py-2 text-left transition hover:bg-[#f8f6ff]"
                         >
                           <span className="text-[13px] font-semibold text-[#24135f]">
                             {suggestion.label}
@@ -294,7 +294,7 @@ export default function SingleTargetResultsDashboard({
                 <button
                   type="button"
                   onClick={handleSearch}
-                  className="rounded-[4px] border border-[#d0cae5] bg-white px-4 py-2 text-[13px] font-semibold text-[#24135f] transition hover:bg-[#f8f6ff]"
+                  className="app-btn-secondary px-4 py-2 text-[13px]"
                 >
                   Search
                 </button>
@@ -311,22 +311,22 @@ export default function SingleTargetResultsDashboard({
               </div>
             </div>
 
-            <div className="mt-4 hidden overflow-x-auto rounded-[4px] border border-[#dddddd] sm:block">
+            <div className="app-table-shell mt-4 hidden overflow-x-auto sm:block">
               <table className="w-full min-w-[620px] text-left">
-                <thead className="bg-[#24135f] text-white">
+                <thead className="app-table-head">
                   <tr>
-                    <th className="px-5 py-4 text-[14px] font-bold">{targetPluralLabel}</th>
-                    <th className="px-5 py-4 text-[14px] font-bold">Rating</th>
+                    <th>{targetPluralLabel}</th>
+                    <th>Rating</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white">
                   {filteredResults.length > 0 ? (
                     filteredResults.map((result) => (
-                      <tr key={result.id} className="border-t border-[#e7e7e7]">
-                        <td className="px-5 py-4 text-[14px] text-[#2f2a57]">
+                      <tr key={result.id} className="app-table-row">
+                        <td className="app-table-cell text-[14px] text-[#2f2a57]">
                           {result.user.name || result.user.email}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="app-table-cell">
                           <div className="flex items-center gap-3">
                             {renderStars(result.averageRating)}
                             <span className="text-[14px] font-semibold text-[#24135f]">
@@ -352,7 +352,7 @@ export default function SingleTargetResultsDashboard({
                 filteredResults.map((result) => (
                   <article
                     key={result.id}
-                    className="rounded-[12px] border border-[#dddddd] bg-white p-4"
+                    className="rounded-[18px] border border-[#dddddd] bg-white p-4 shadow-[0_12px_28px_rgba(36,19,95,0.06)]"
                   >
                     <p className="text-[15px] font-semibold text-[#24135f]">
                       {result.user.name || result.user.email}
@@ -366,7 +366,7 @@ export default function SingleTargetResultsDashboard({
                   </article>
                 ))
               ) : (
-                <div className="rounded-[12px] border border-[#dddddd] bg-white px-5 py-8 text-center text-[#7d7d95]">
+                <div className="rounded-[18px] border border-[#dddddd] bg-white px-5 py-8 text-center text-[#7d7d95] shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
                   {emptyResultsMessage}
                 </div>
               )}

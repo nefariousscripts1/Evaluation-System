@@ -55,8 +55,8 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f3f3f3] px-4 py-8">
-      <div className="w-full max-w-[380px] rounded-[28px] border border-[#ddd7ea] bg-white shadow-[0_18px_45px_rgba(36,19,95,0.08)]">
+    <div className="app-auth-shell flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="w-full max-w-[400px] rounded-[30px] border border-[#ddd7ea] bg-white shadow-[0_22px_50px_rgba(36,19,95,0.1)]">
         <div className="rounded-t-[28px] bg-[#24135f] px-6 py-6 text-white">
           <div className="flex items-center gap-4">
             <AppLogo className="h-12 w-12 object-contain" />
@@ -81,7 +81,7 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="h-11 w-full rounded-[12px] border border-[#cfc7e2] px-4 text-sm outline-none transition focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/15"
+                className="app-input h-11 rounded-[14px]"
               />
             </div>
 
@@ -95,18 +95,18 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                className="h-11 w-full rounded-[12px] border border-[#cfc7e2] px-4 text-sm outline-none transition focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/15"
+                className="app-input h-11 rounded-[14px]"
               />
             </div>
 
             {message && (
-              <div className="rounded-[14px] border border-[#d6e9da] bg-[#effaf2] px-4 py-3 text-sm text-[#18794e]">
+              <div className="app-alert-success">
                 {message}
               </div>
             )}
 
             {error && (
-              <div className="rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="app-alert-danger">
                 {error}
               </div>
             )}
@@ -114,7 +114,7 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="h-11 w-full rounded-[14px] bg-[#24135f] text-sm font-bold text-white transition hover:bg-[#1b0f4d] disabled:cursor-not-allowed disabled:opacity-60"
+              className="app-btn-primary h-11 w-full rounded-[14px]"
             >
               {loading ? "Resetting..." : "Reset Password"}
             </button>

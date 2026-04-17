@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus, X, AlertTriangle, Pencil, Trash2, Search } from "lucide-react";
+import { getErrorMessage } from "@/lib/error-message";
 
 interface User {
   id: number;
-  name: string;
+  name: string | null;
   email: string;
   role: string;
-  department: string;
+  department: string | null;
 }
 
 const formRoles = [
@@ -24,7 +25,6 @@ const formRoles = [
 
 const roleFilterOptions = [
   { label: "All Roles", value: "all" },
-  { label: "Students", value: "student" },
   { label: "Faculty", value: "faculty" },
   { label: "Chairpersons", value: "chairperson" },
   { label: "Deans", value: "dean" },
@@ -34,7 +34,6 @@ const roleFilterOptions = [
 ];
 
 const roleLabels: Record<string, string> = {
-  student: "Student",
   faculty: "Faculty",
   chairperson: "Chairperson",
   dean: "Dean",
@@ -64,6 +63,7 @@ export default function UsersManagement() {
     role: "faculty",
     department: "",
   });
+  const errorMessage = error ? getErrorMessage(error) : "";
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -74,17 +74,22 @@ export default function UsersManagement() {
       router.push("/unauthorized");
       return;
     }
-    fetchUsers();
+    void fetchUsers();
   }, [status, session, router]);
 
   const fetchUsers = async () => {
     try {
       const res = await fetch("/api/users");
-      if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch users");
+      }
+
       setUsers(data);
-    } catch (error) {
-      console.error("Fetch error:", error);
+    } catch (fetchError) {
+      console.error("Fetch error:", fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch users");
     } finally {
       setLoading(false);
     }
@@ -100,7 +105,7 @@ export default function UsersManagement() {
   const handleEditUser = (user: User) => {
     setEditingUser(user);
     setFormData({
-      name: user.name,
+      name: user.name || "",
       email: user.email,
       password: "",
       role: user.role,
@@ -116,7 +121,6 @@ export default function UsersManagement() {
     setFormData({ name: "", email: "", password: "", role: "faculty", department: "" });
   };
 
-  // Delete with custom modal
   const openDeleteModal = (user: User) => {
     setDeletingUser(user);
     setIsDeleteModalOpen(true);
@@ -124,18 +128,25 @@ export default function UsersManagement() {
 
   const handleDeleteConfirm = async () => {
     if (!deletingUser) return;
-    
+
     setDeleteLoading(true);
-    const res = await fetch(`/api/users/${deletingUser.id}`, { method: "DELETE" });
-    
-    if (res.ok) {
+
+    try {
+      const res = await fetch(`/api/users/${deletingUser.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to delete user");
+      }
+
       setIsDeleteModalOpen(false);
       setDeletingUser(null);
-      fetchUsers();
-    } else {
-      alert("Failed to delete user");
+      await fetchUsers();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete user");
+    } finally {
+      setDeleteLoading(false);
     }
-    setDeleteLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -153,22 +164,19 @@ export default function UsersManagement() {
         body: JSON.stringify(formData),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Failed to save user");
+        throw new Error(data?.error || "Failed to save user");
       }
 
       handleCloseModal();
-      fetchUsers();
-    } catch (err: any) {
-      setError(err.message);
+      await fetchUsers();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Failed to save user");
     } finally {
       setFormLoading(false);
     }
-  };
-
-  const getRoleLabel = (roleValue: string) => {
-    return roleLabels[roleValue] || roleValue;
   };
 
   const filteredUsers = useMemo(() => {
@@ -177,7 +185,7 @@ export default function UsersManagement() {
       const normalizedSearch = searchTerm.trim().toLowerCase();
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        user.name.toLowerCase().includes(normalizedSearch) ||
+        (user.name || "").toLowerCase().includes(normalizedSearch) ||
         user.email.toLowerCase().includes(normalizedSearch);
 
       return matchesRole && matchesSearch;
@@ -188,23 +196,26 @@ export default function UsersManagement() {
 
   return (
     <>
-      <main className="px-4 py-4 sm:px-5 sm:py-6">
+      <main className="app-page">
         <div className="mx-auto max-w-[1400px]">
           <div className="mb-6">
             <h1 className="text-[28px] font-extrabold text-[#24135f]">Users Management</h1>
+            <p className="mt-2 text-sm text-[#6c6684]">
+              Manage staff accounts only. Student IDs are handled in Student Management.
+            </p>
           </div>
 
           <div className="mb-4 flex justify-end">
             <button
               onClick={handleAddUser}
-              className="inline-flex items-center gap-2 rounded-full bg-[#24135f] px-5 py-2.5 text-[14px] font-bold text-white hover:bg-[#1a0f4a] transition"
+              className="app-btn-primary px-5 py-2.5 text-[14px]"
             >
               <Plus size={18} />
               Create Account
             </button>
           </div>
 
-          <div className="mb-4 rounded-[18px] border border-[#dddddd] bg-white p-4 sm:p-5">
+          <div className="mb-4 rounded-[22px] border border-[#dddddd] bg-white p-4 shadow-[0_14px_34px_rgba(36,19,95,0.06)] sm:p-5">
             <div className="flex flex-col gap-4">
               <div className="relative w-full max-w-[420px]">
                 <Search
@@ -216,7 +227,7 @@ export default function UsersManagement() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by name or email"
-                  className="h-11 w-full rounded-[10px] border border-[#cfcadf] bg-white pl-10 pr-4 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f]"
+                  className="app-input h-11 rounded-[14px] pl-10 text-[14px]"
                 />
               </div>
 
@@ -242,43 +253,49 @@ export default function UsersManagement() {
               </div>
 
               <p className="text-[13px] text-[#6c6684]">
-                Showing <span className="font-bold text-[#24135f]">{filteredUsers.length}</span> user{filteredUsers.length === 1 ? "" : "s"}.
+                Showing <span className="font-bold text-[#24135f]">{filteredUsers.length}</span>{" "}
+                staff account{filteredUsers.length === 1 ? "" : "s"}.
               </p>
             </div>
           </div>
 
-          {/* Users Table */}
-          <div className="overflow-x-auto rounded-[18px] border border-[#dddddd] bg-white">
+          {error ? (
+            <div className="app-alert-danger mb-4">
+              {errorMessage}
+            </div>
+          ) : null}
+
+          <div className="app-table-shell overflow-x-auto">
             <table className="w-full min-w-[860px] text-left">
-              <thead className="bg-[#24135f] text-white">
+              <thead className="app-table-head">
                 <tr>
-                  <th className="px-6 py-4 text-[16px] font-bold">Name</th>
-                  <th className="px-6 py-4 text-[16px] font-bold">Email</th>
-                  <th className="px-6 py-4 text-[16px] font-bold">Role</th>
-                  <th className="px-6 py-4 text-[16px] font-bold">Department</th>
-                  <th className="px-6 py-4 text-[16px] font-bold text-center">Actions</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Department</th>
+                  <th className="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white">
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => (
-                    <tr key={user.id} className="border-t border-[#ececec]">
-                      <td className="px-6 py-4 text-[#3b3160]">{user.name}</td>
-                      <td className="px-6 py-4 text-[#3b3160]">{user.email}</td>
-                      <td className="px-6 py-4 text-[#3b3160]">{getRoleLabel(user.role)}</td>
-                      <td className="px-6 py-4 text-[#3b3160]">{user.department || "N/A"}</td>
-                      <td className="px-6 py-4">
+                    <tr key={user.id} className="app-table-row">
+                      <td className="app-table-cell">{user.name || "N/A"}</td>
+                      <td className="app-table-cell">{user.email}</td>
+                      <td className="app-table-cell">{roleLabels[user.role] || user.role}</td>
+                      <td className="app-table-cell">{user.department || "N/A"}</td>
+                      <td className="app-table-cell">
                         <div className="flex items-center justify-center gap-3">
                           <button
                             onClick={() => handleEditUser(user)}
-                            className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-[#24135f] text-white hover:bg-[#1a0f4a] transition"
+                            className="app-icon-btn h-9 w-9 border-0 bg-[#24135f] text-white hover:bg-[#1a0f4a] hover:text-white"
                             title="Edit"
                           >
                             <Pencil size={16} />
                           </button>
                           <button
                             onClick={() => openDeleteModal(user)}
-                            className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-[#ff2d2d] text-white hover:bg-[#cc0000] transition"
+                            className="app-icon-btn h-9 w-9 border-0 bg-[#c53b4f] text-white hover:bg-[#a93042] hover:text-white"
                             title="Delete"
                           >
                             <Trash2 size={16} />
@@ -290,7 +307,7 @@ export default function UsersManagement() {
                 ) : (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                      No users matched the selected role or search.
+                      No staff accounts matched the selected role or search.
                     </td>
                   </tr>
                 )}
@@ -300,16 +317,16 @@ export default function UsersManagement() {
         </div>
       </main>
 
-      {/* Create/Edit User Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-[400px] rounded-[22px] border border-[#d9d9d9] bg-white shadow-sm overflow-hidden">
+          <div className="w-full max-w-[400px] overflow-hidden rounded-[22px] border border-[#d9d9d9] bg-white shadow-sm">
             <div className="bg-[#24135f] px-6 py-5">
               <div className="flex items-center justify-between">
                 <h2 className="text-[20px] font-extrabold text-white">
                   {editingUser ? "Edit User Account" : "Create User Account"}
                 </h2>
                 <button
+                  type="button"
                   onClick={handleCloseModal}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition"
                 >
@@ -318,7 +335,7 @@ export default function UsersManagement() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="px-8 py-6 space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 px-8 py-6">
               <div>
                 <label className="mb-1 block text-[12px] font-bold text-[#24135f]">
                   Select Role
@@ -337,9 +354,7 @@ export default function UsersManagement() {
               </div>
 
               <div>
-                <label className="mb-1 block text-[12px] font-bold text-[#24135f]">
-                  Name
-                </label>
+                <label className="mb-1 block text-[12px] font-bold text-[#24135f]">Name</label>
                 <input
                   type="text"
                   required
@@ -391,11 +406,7 @@ export default function UsersManagement() {
                 />
               </div>
 
-              {error && (
-                <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">
-                  {error}
-                </div>
-              )}
+              {error ? <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">{errorMessage}</div> : null}
 
               <button
                 type="submit"
@@ -419,7 +430,6 @@ export default function UsersManagement() {
         </div>
       )}
 
-      {/* DELETE CONFIRMATION MODAL */}
       {isDeleteModalOpen && deletingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="relative w-full max-w-[400px] rounded-[18px] bg-white shadow-2xl">
@@ -431,6 +441,7 @@ export default function UsersManagement() {
                 <h2 className="text-[18px] font-bold text-[#24135f]">Delete User</h2>
               </div>
               <button
+                type="button"
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-100 transition"
               >
@@ -447,11 +458,11 @@ export default function UsersManagement() {
                 This action cannot be undone.
               </p>
 
-              <div className="flex justify-center gap-3 mt-6">
+              <div className="mt-6 flex justify-center gap-3">
                 <button
                   type="button"
                   onClick={() => setIsDeleteModalOpen(false)}
-                  className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition"
+                  className="rounded-lg border border-gray-300 px-6 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
                   Cancel
                 </button>
@@ -459,7 +470,7 @@ export default function UsersManagement() {
                   type="button"
                   onClick={handleDeleteConfirm}
                   disabled={deleteLoading}
-                  className="px-6 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50"
+                  className="rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
                 >
                   {deleteLoading ? "Deleting..." : "Delete"}
                 </button>

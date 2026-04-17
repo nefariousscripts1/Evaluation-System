@@ -30,6 +30,7 @@ export async function submitEvaluation(formData: FormData) {
 
   const evaluatorId = Number.parseInt(session.user.id ?? "", 10);
   const evaluatedId = formData.get("evaluatedId");
+  const scheduleId = formData.get("scheduleId");
   const academicYear = formData.get("academicYear");
   const answersData = JSON.parse(formData.get("answers") as string);
   const comment = formData.get("comment");
@@ -38,6 +39,7 @@ export async function submitEvaluation(formData: FormData) {
     evaluatorId,
     evaluatorRole: session.user.role ?? "",
     evaluatedId,
+    scheduleId,
     academicYear,
     answers: answersData,
     comment,
@@ -123,10 +125,11 @@ export async function setSchedule(data: { academicYear: string; startDate: Date;
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "admin") throw new Error("Unauthorized");
 
-  await prisma.schedule.upsert({
-    where: { academicYear: data.academicYear },
-    update: data,
-    create: data,
+  await prisma.schedule.create({
+    data: {
+      ...data,
+      isOpen: true,
+    },
   });
   revalidatePath("/admin/schedule");
 }

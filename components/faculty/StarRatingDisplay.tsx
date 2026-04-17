@@ -15,7 +15,7 @@ export default function StarRatingDisplay({ rating }: Props) {
             key={star}
             size={18}
             className={
-              star <= rounded ? "fill-[#f4c542] text-[#f4c542]" : "text-gray-300"
+              star <= rounded ? "fill-[#f4c542] text-[#f4c542]" : "text-[#d8d2ea]"
             }
           />
         ))}
