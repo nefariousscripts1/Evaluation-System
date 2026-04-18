@@ -30,7 +30,7 @@
 
   body {
     @apply bg-white text-[#111827] antialiased;
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-family: inherit;
   }
 
   * {
@@ -125,6 +125,49 @@
     border-color: var(--ui-border-strong);
     color: var(--ui-text);
     box-shadow: inset 0 1px 2px rgba(36, 19, 95, 0.04);
+  }
+
+  .app-select-trigger {
+    @apply flex min-h-[48px] w-full items-center justify-between gap-3 rounded-[16px] border bg-white px-4 py-2 text-sm outline-none transition;
+    border-color: var(--ui-border-strong);
+    color: var(--ui-text);
+    box-shadow:
+      inset 0 1px 2px rgba(36, 19, 95, 0.04),
+      0 12px 28px rgba(36, 19, 95, 0.04);
+  }
+
+  .app-select-trigger:hover {
+    border-color: #c5bbdf;
+    background: #fcfbff;
+  }
+
+  .app-select-trigger-open {
+    border-color: var(--ui-brand);
+    box-shadow:
+      inset 0 1px 2px rgba(36, 19, 95, 0.04),
+      0 0 0 4px rgba(36, 19, 95, 0.08),
+      0 18px 38px rgba(36, 19, 95, 0.12);
+  }
+
+  .app-select-menu {
+    @apply absolute left-0 right-0 top-[calc(100%+8px)] z-30 overflow-hidden rounded-[20px] border bg-white p-2;
+    border-color: var(--ui-border);
+    box-shadow: 0 24px 56px rgba(36, 19, 95, 0.16);
+  }
+
+  .app-select-option {
+    @apply flex w-full items-center justify-between gap-3 rounded-[14px] px-3 py-3 text-left text-[13px] font-semibold transition;
+    color: var(--ui-text);
+  }
+
+  .app-select-option:hover {
+    background: #f7f4ff;
+  }
+
+  .app-select-option-selected {
+    background: var(--ui-brand);
+    color: white;
+    box-shadow: 0 12px 24px rgba(36, 19, 95, 0.16);
   }
 
   .app-textarea {

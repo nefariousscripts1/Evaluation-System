@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import AppSelect from "@/components/ui/AppSelect";
 
 interface User {
   id: number;
@@ -119,17 +120,12 @@ export default function UserModal({ isOpen, onClose, onSave, editingUser }: User
             <label className="mb-1 block text-[12px] font-bold text-[#24135f]">
               Select Role
             </label>
-            <select
+            <AppSelect
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="h-10 w-full rounded-[8px] border border-[#6d63a3] px-3 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f]"
-            >
-              {roles.map((role) => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
+              onChange={(nextValue) => setFormData({ ...formData, role: nextValue })}
+              options={roles}
+              triggerClassName="min-h-10 rounded-[10px] border-[#6d63a3] text-[14px] shadow-none"
+            />
           </div>
 
           {/* Name */}

@@ -10,7 +10,7 @@ export default function AppLogo({ className = "" }: AppLogoProps) {
   return (
     <img
       src={evaluationLogo.src}
-      alt="Digital Evaluation System logo"
+      alt="Bohol Island State University logo"
       width={evaluationLogo.width}
       height={evaluationLogo.height}
       className={className}

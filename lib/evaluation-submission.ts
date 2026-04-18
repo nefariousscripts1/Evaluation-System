@@ -28,6 +28,7 @@ type NormalizedSubmission = {
   evaluatedId: number;
   scheduleId: number;
   academicYear: string;
+  semester: string;
   answers: NormalizedAnswer[];
   comment: string | null;
 };
@@ -181,6 +182,7 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
         select: {
           id: true,
           academicYear: true,
+          semester: true,
           startDate: true,
           endDate: true,
           isOpen: true,
@@ -196,6 +198,7 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
         select: {
           id: true,
           academicYear: true,
+          semester: true,
           startDate: true,
           endDate: true,
           isOpen: true,
@@ -216,6 +219,7 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
     evaluatedId: parsePositiveInt(input.evaluatedId, "evaluated instructor"),
     scheduleId: schedule.id,
     academicYear: schedule.academicYear,
+    semester: schedule.semester,
     answers: normalizeAnswers(input.answers),
     comment: normalizeComment(input.comment),
   };
@@ -282,6 +286,7 @@ export async function submitEvaluationRecord(input: SubmissionInput) {
         evaluatedId: submission.evaluatedId,
         scheduleId: submission.scheduleId,
         academicYear: submission.academicYear,
+        semester: submission.semester,
         generalComment: submission.comment,
         answers: {
           create: submission.answers.map((answer) => ({

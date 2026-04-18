@@ -86,8 +86,8 @@ export default function Sidebar() {
   // Campus Director Sidebar
   const campusDirectorNavItems = [
     { href: "/campus-director/evaluate", icon: <Star size={18} />, label: "Evaluate DOI" },
-    { href: "/campus-director/comments", icon: <FileText size={18} />, label: "View DOI Comments" },
-    { href: "/campus-director/results", icon: <BarChart3 size={18} />, label: "View DOI Rating" },
+    { href: "/campus-director/comments", icon: <FileText size={18} />, label: "View Comments" },
+    { href: "/campus-director/results", icon: <BarChart3 size={18} />, label: "View Ratings" },
   ];
 
   // Get sidebar items based on role
@@ -148,6 +148,17 @@ export default function Sidebar() {
 
   return (
     <>
+      {collapsed && (
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="fixed left-4 top-4 z-50 hidden h-12 w-12 items-center justify-center rounded-[18px] bg-[#24135f] text-white shadow-[0_18px_36px_rgba(36,19,95,0.18)] transition hover:bg-[#1b0f4d] lg:flex"
+          aria-label="Open sidebar"
+        >
+          <Menu size={20} />
+        </button>
+      )}
+
       <button
         type="button"
         onClick={() => setMobileOpen((prev) => !prev)}
@@ -166,33 +177,26 @@ export default function Sidebar() {
         />
       )}
 
-      <div className={`hidden shrink-0 transition-all duration-300 lg:block ${collapsed ? "w-20" : "w-64"}`} />
+      <div className={`hidden shrink-0 transition-all duration-300 lg:block ${collapsed ? "w-0" : "w-64"}`} />
 
       <aside
         className={`fixed left-0 top-0 z-40 flex h-screen w-[280px] max-w-[85vw] flex-col border-r border-[#ede8f7] bg-white transition-all duration-300 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:w-64 lg:max-w-none lg:translate-x-0 ${collapsed ? "lg:w-20 lg:items-center" : "lg:w-64"}`}
-        style={{ boxShadow: "var(--shadow-sidebar)" }}
+        } lg:w-64 lg:max-w-none ${collapsed ? "lg:-translate-x-full" : "lg:translate-x-0"}`}
       >
         {/* Header */}
-        <div
-          className={`w-full border-b border-white/10 bg-[#24135f] ${
-            collapsed ? "lg:flex lg:justify-center lg:px-2 lg:py-4" : "px-5 py-6"
-          }`}
-        >
-          <div className={`flex items-center justify-between gap-3 ${collapsed ? "lg:justify-center" : ""}`}>
-            {(!collapsed || mobileOpen) && (
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white/10">
-                  <AppLogo className="h-12 w-12 object-contain" />
-                </div>
-                <div className="leading-tight text-white">
-                  <h1 className="text-[16px] font-extrabold">Digital Evaluation</h1>
-                  <h1 className="text-[16px] font-extrabold">System</h1>
-                  <p className="mt-1 text-[11px] text-white/85">{portalTitle}</p>
-                </div>
+        <div className="w-full border-b border-white/10 bg-[#24135f] px-5 py-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white/10">
+                <AppLogo className="h-12 w-12 object-contain" />
               </div>
-            )}
+              <div className="leading-tight text-white">
+                <h1 className="text-[16px] font-extrabold">Digital Evaluation</h1>
+                <h1 className="text-[16px] font-extrabold">System</h1>
+                <p className="mt-1 text-[11px] text-white/85">{portalTitle}</p>
+              </div>
+            </div>
 
             <button
               type="button"
@@ -206,54 +210,46 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto py-6 ${collapsed ? "w-full px-3 lg:px-2" : "px-3"}`}>
+        <nav className="flex-1 overflow-y-auto px-3 py-6">
           {navItems.map((item) => (
             <Link
               key={`${item.href}-${item.label}`}
               href={item.href}
-              className={`mb-2 flex min-h-[46px] items-center rounded-[16px] py-3 text-[14px] font-semibold transition ${
-                collapsed ? "gap-3 px-4 lg:justify-center lg:px-0" : "gap-3 px-4"
-              } ${
+              className={`mb-2 flex min-h-[46px] items-center gap-3 rounded-[16px] px-4 py-3 text-[14px] font-semibold transition ${
                 isActive(item.href, item.label)
                   ? "bg-[#24135f] text-white shadow-[0_16px_32px_rgba(36,19,95,0.18)]"
                   : "text-[#24135f] hover:bg-[#f7f4ff]"
               }`}
-              title={collapsed && !mobileOpen ? item.label : undefined}
             >
               {item.icon}
-              {(!collapsed || mobileOpen) && <span>{item.label}</span>}
+              <span>{item.label}</span>
             </Link>
           ))}
         </nav>
 
         {/* Footer */}
-        <div className={`w-full border-t border-[#ede8f7] py-5 ${collapsed ? "px-5 lg:px-2" : "px-5"}`}>
-          <div className={`flex items-center ${collapsed ? "gap-3 lg:justify-center lg:gap-0" : "gap-3"}`}>
+        <div className="w-full border-t border-[#ede8f7] px-5 py-5">
+          <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f1edfb] text-[16px] font-bold text-[#24135f] shadow-[0_10px_22px_rgba(36,19,95,0.08)]">
               {initial}
             </div>
-            {(!collapsed || mobileOpen) && (
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-bold text-[#24135f]">
-                  {userName}
-                </p>
-                <p className="truncate text-[10px] text-[#9b9b9b]">
-                  {userEmail}
-                </p>
-              </div>
-            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-bold text-[#24135f]">
+                {userName}
+              </p>
+              <p className="truncate text-[10px] text-[#9b9b9b]">
+                {userEmail}
+              </p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className={`mt-4 flex rounded-[14px] border border-red-100 bg-red-50 py-2.5 text-[13px] font-bold text-red-600 transition hover:bg-red-100 ${
-              collapsed ? "w-full items-center justify-center gap-2 lg:mx-auto lg:h-10 lg:w-10 lg:px-0" : "w-full items-center justify-center gap-2"
-            }`}
-            title={collapsed && !mobileOpen ? "Sign Out" : undefined}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[14px] border border-red-100 bg-red-50 py-2.5 text-[13px] font-bold text-red-600 transition hover:bg-red-100"
           >
             <LogOut size={14} />
-            {(!collapsed || mobileOpen) && "Sign Out"}
+            Sign Out
           </button>
         </div>
       </aside>

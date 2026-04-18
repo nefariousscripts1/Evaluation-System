@@ -5,12 +5,12 @@ import { setStudentAccessCookie } from "@/lib/student-access";
 
 export async function POST(req: Request) {
   try {
-    const { accessCode, studentId } = await req.json();
-    const normalizedCode = String(accessCode ?? "").trim().toUpperCase();
+    const { accessCode, portalAccessCode, studentId } = await req.json();
+    const normalizedCode = String(accessCode ?? portalAccessCode ?? "").trim().toUpperCase();
     const normalizedStudentId = String(studentId ?? "").trim();
 
     if (!normalizedCode) {
-      return NextResponse.json({ message: "Access code is required" }, { status: 400 });
+      return NextResponse.json({ message: "Portal access code is required" }, { status: 400 });
     }
 
     if (!normalizedStudentId) {
@@ -20,7 +20,10 @@ export async function POST(req: Request) {
     const schedule = await getScheduleByAccessCode(normalizedCode);
 
     if (!schedule) {
-      return NextResponse.json({ message: "Invalid access code" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Invalid portal access code" },
+        { status: 401 }
+      );
     }
 
     const student = await prisma.user.findFirst({
@@ -44,6 +47,7 @@ export async function POST(req: Request) {
       studentUserId: student.id,
       studentId: student.studentId,
       scheduleId: schedule.id,
+      instructorId: null,
     });
 
     return NextResponse.json({
@@ -51,6 +55,7 @@ export async function POST(req: Request) {
       schedule: {
         id: schedule.id,
         academicYear: schedule.academicYear,
+        semester: schedule.semester,
         startDate: schedule.startDate,
         endDate: schedule.endDate,
       },

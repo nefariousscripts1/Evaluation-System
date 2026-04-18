@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getSingleTargetResultsData } from "@/lib/leadership-portal";
+import { getCampusDirectorResultsData } from "@/lib/leadership-portal";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +13,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const data = await getSingleTargetResultsData({
-      request,
-      targetRole: "director",
-    });
+    const data = await getCampusDirectorResultsData({ request });
 
     return NextResponse.json(data);
   } catch (error) {

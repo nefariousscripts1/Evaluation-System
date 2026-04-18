@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ChevronDown, Star, UserRound } from "lucide-react";
+import { Star, UserRound } from "lucide-react";
+import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 type EvaluationTarget = {
@@ -272,22 +273,17 @@ export default function RoleEvaluationPortal({
                       {copy.selectorLabel}
                     </label>
 
-                    <div className="relative">
-                      <select
+                    <div>
+                      <AppSelect
                         value={selectedTargetId}
-                        onChange={(e) => setSelectedTargetId(e.target.value)}
-                        className="h-12 w-full appearance-none rounded-[14px] border border-[#d2cae8] bg-white px-4 pr-12 text-sm text-[#24135f] outline-none transition focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/15"
-                      >
-                        <option value="">Select a person</option>
-                        {targets.map((target) => (
-                          <option key={target.id} value={target.id}>
-                            {(target.name || target.email) + " - " + target.role.replace(/_/g, " ")}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={18}
-                        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#24135f]"
+                        onChange={setSelectedTargetId}
+                        placeholder="Select a person"
+                        options={targets.map((target) => ({
+                          value: String(target.id),
+                          label: target.name || target.email,
+                          sublabel: `${target.role.replace(/_/g, " ")}${target.department ? ` • ${target.department}` : ""}`,
+                        }))}
+                        triggerClassName="min-h-12 rounded-[14px] text-sm"
                       />
                     </div>
 
@@ -300,21 +296,12 @@ export default function RoleEvaluationPortal({
                     <label className="mb-2 block text-sm font-semibold text-[#24135f]">
                       Academic Year
                     </label>
-                    <div className="relative">
-                      <select
+                    <div>
+                      <AppSelect
                         value={selectedYear}
-                        onChange={(e) => setSelectedYear(e.target.value)}
-                        className="h-12 w-full appearance-none rounded-[14px] border border-[#d2cae8] bg-white px-4 pr-12 text-sm font-semibold text-[#24135f] outline-none transition focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/15"
-                      >
-                        {academicYears.map((year) => (
-                          <option key={year} value={year}>
-                            {year}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={18}
-                        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#24135f]"
+                        onChange={setSelectedYear}
+                        options={academicYears.map((year) => ({ value: year, label: year }))}
+                        triggerClassName="min-h-12 rounded-[14px] text-sm"
                       />
                     </div>
                   </div>

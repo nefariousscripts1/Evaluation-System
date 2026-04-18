@@ -1,4 +1,11 @@
 import prisma from "@/lib/db";
+import {
+  getReportableRoleLabel,
+  isCampusDirectorRoleFilter,
+  reportableRoles,
+  type CampusDirectorRoleFilter,
+  type ReportableRole,
+} from "@/lib/reporting-roles";
 
 export type RatingBreakdown = {
   fiveStar: number;
@@ -95,6 +102,35 @@ export type SingleTargetCommentsResponse = {
   total: number;
 };
 
+export type CampusDirectorResultsResponse = {
+  academicYear: string;
+  years: string[];
+  role: CampusDirectorRoleFilter;
+  averageRating: number;
+  completionRate: number;
+  completedCount: number;
+  totalCount: number;
+  results: LeadershipTargetResult[];
+};
+
+export type CampusDirectorCommentsResponse = {
+  academicYear: string;
+  years: string[];
+  semesters: string[];
+  semester: string;
+  role: CampusDirectorRoleFilter;
+  selectedTarget: {
+    id: number;
+    name: string;
+    label: string;
+  } | null;
+  comments: Array<{
+    id: number;
+    comment: string;
+  }>;
+  total: number;
+};
+
 const semesterOptions = ["all"] as const;
 
 export function fallbackAcademicYear() {
@@ -104,10 +140,14 @@ export function fallbackAcademicYear() {
 
 export function formatRoleLabel(role: string) {
   switch (role) {
+    case "faculty":
+      return "Instructor";
     case "campus_director":
       return "Campus Director";
     case "chairperson":
       return "Chairperson";
+    case "director":
+      return "Director of Instructions";
     default:
       return role
         .split("_")
@@ -266,7 +306,7 @@ export async function getLeadershipResultsData(params: {
 
 export async function getSingleTargetResultsData(params: {
   request: Request;
-  targetRole: "faculty" | "chairperson" | "dean" | "director";
+  targetRole: ReportableRole;
 }) {
   const { request, targetRole } = params;
   const years = await resolveAcademicYears();
@@ -394,7 +434,7 @@ async function buildCommentItemsForUser(userId: number, academicYear: string) {
 
 async function buildTargetComments(params: {
   targetId: number;
-  targetLabel: string;
+  targetLabel?: string;
   academicYear: string;
   page: number;
   pageSize: number;
@@ -407,6 +447,7 @@ async function buildTargetComments(params: {
       id: true,
       name: true,
       email: true,
+      role: true,
     },
   });
 
@@ -437,7 +478,7 @@ async function buildTargetComments(params: {
     selectedTarget: {
       id: target.id,
       name: target.name || target.email,
-      label: targetLabel,
+      label: targetLabel || getReportableRoleLabel(target.role as ReportableRole),
     },
     comments: deduplicated.slice(startIndex, startIndex + pageSize).map((item) => ({
       id: item.id,
@@ -450,7 +491,7 @@ async function buildTargetComments(params: {
 export async function getLeadershipCommentsData(params: {
   request: Request;
   sessionUserId: number;
-  targetRole: "faculty" | "chairperson" | "dean" | "director";
+  targetRole: ReportableRole;
   targetLabel: string;
 }) {
   const { request, sessionUserId, targetRole, targetLabel } = params;
@@ -546,7 +587,7 @@ export async function getLeadershipCommentsData(params: {
 
 export async function getSingleTargetCommentsData(params: {
   request: Request;
-  targetRole: "faculty" | "chairperson" | "dean" | "director";
+  targetRole: ReportableRole;
   targetLabel: string;
 }) {
   const { request, targetRole, targetLabel } = params;
@@ -631,6 +672,183 @@ export async function getSingleTargetCommentsData(params: {
     years: years.length > 0 ? years : [academicYear],
     semesters: ["All Semesters"],
     semester: "all",
+    selectedTarget: targetComments.selectedTarget,
+    comments: targetComments.comments,
+    total: targetComments.total,
+  };
+
+  return response;
+}
+
+function resolveCampusDirectorRoleFilter(requestedRole: string | null) {
+  const normalizedRole = requestedRole?.trim().toLowerCase() ?? "all";
+  return isCampusDirectorRoleFilter(normalizedRole) ? normalizedRole : "all";
+}
+
+function getCampusDirectorRoles(role: CampusDirectorRoleFilter) {
+  return role === "all" ? [...reportableRoles] : [role];
+}
+
+export async function getCampusDirectorResultsData(params: {
+  request: Request;
+}) {
+  const { request } = params;
+  const years = await resolveAcademicYears();
+  const { searchParams } = new URL(request.url);
+  const requestedYear = searchParams.get("year")?.trim();
+  const academicYear =
+    requestedYear && years.includes(requestedYear)
+      ? requestedYear
+      : years[0] ?? fallbackAcademicYear();
+
+  const role = resolveCampusDirectorRoleFilter(searchParams.get("role"));
+  const roles = getCampusDirectorRoles(role);
+
+  const results = await prisma.result.findMany({
+    where: {
+      academicYear,
+      user: {
+        role: { in: roles },
+        deletedAt: null,
+      },
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true,
+        },
+      },
+    },
+    orderBy: [{ averageRating: "desc" }, { user: { role: "asc" } }, { userId: "asc" }],
+  });
+
+  const totalTargets = await prisma.user.count({
+    where: {
+      role: { in: roles },
+      deletedAt: null,
+    },
+  });
+
+  const averageRating =
+    results.length > 0
+      ? Number(
+          (results.reduce((sum, result) => sum + result.averageRating, 0) / results.length).toFixed(2)
+        )
+      : 0;
+
+  const completionRate =
+    totalTargets > 0 ? Math.round((results.length / totalTargets) * 100) : 0;
+
+  const response: CampusDirectorResultsResponse = {
+    academicYear,
+    years: years.length > 0 ? years : [academicYear],
+    role,
+    averageRating,
+    completionRate,
+    completedCount: results.length,
+    totalCount: totalTargets,
+    results,
+  };
+
+  return response;
+}
+
+export async function getCampusDirectorCommentsData(params: {
+  request: Request;
+}) {
+  const { request } = params;
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(Number.parseInt(searchParams.get("page") ?? "1", 10), 1);
+  const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "5", 10), 1);
+  const search = searchParams.get("search")?.trim() ?? "";
+  const selectedTargetId = Number.parseInt(searchParams.get("targetId") ?? "", 10);
+  const requestedSemester = searchParams.get("semester")?.trim().toLowerCase() ?? "all";
+
+  if (!semesterOptions.includes(requestedSemester as (typeof semesterOptions)[number])) {
+    throw new Error("Invalid semester filter");
+  }
+
+  const years = await resolveAcademicYears();
+  const requestedYear = searchParams.get("academicYear")?.trim() ?? "";
+  const academicYear =
+    requestedYear && years.includes(requestedYear)
+      ? requestedYear
+      : years[0] ?? fallbackAcademicYear();
+
+  const role = resolveCampusDirectorRoleFilter(searchParams.get("role"));
+  const roles = getCampusDirectorRoles(role);
+
+  const selectedTarget =
+    Number.isInteger(selectedTargetId) && selectedTargetId > 0
+      ? await prisma.user.findFirst({
+          where: {
+            id: selectedTargetId,
+            role: { in: roles },
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            role: true,
+          },
+        })
+      : search.length > 0
+      ? await prisma.user.findFirst({
+          where: {
+            role: { in: roles },
+            deletedAt: null,
+            OR: [{ name: { contains: search } }, { email: { contains: search } }],
+          },
+          orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }],
+          select: {
+            id: true,
+            role: true,
+          },
+        })
+      : await prisma.user.findFirst({
+          where: {
+            role: { in: roles },
+            deletedAt: null,
+            evaluationsReceived: {
+              some: {
+                academicYear,
+                OR: [
+                  { generalComment: { not: null } },
+                  { answers: { some: { comment: { not: null } } } },
+                ],
+              },
+            },
+          },
+          orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }],
+          select: {
+            id: true,
+            role: true,
+          },
+        });
+
+  const targetComments = selectedTarget
+    ? await buildTargetComments({
+        targetId: selectedTarget.id,
+        targetLabel: getReportableRoleLabel(selectedTarget.role as ReportableRole),
+        academicYear,
+        page,
+        pageSize,
+      })
+    : {
+        selectedTarget: null,
+        comments: [] as Array<{ id: number; comment: string }>,
+        total: 0,
+      };
+
+  const response: CampusDirectorCommentsResponse = {
+    academicYear,
+    years: years.length > 0 ? years : [academicYear],
+    semesters: ["All Semesters"],
+    semester: "all",
+    role,
     selectedTarget: targetComments.selectedTarget,
     comments: targetComments.comments,
     total: targetComments.total,

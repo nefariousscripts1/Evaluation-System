@@ -25,9 +25,15 @@ export async function GET() {
       schedule: {
         id: access.schedule.id,
         academicYear: access.schedule.academicYear,
+        semester: access.schedule.semester,
         startDate: access.schedule.startDate,
         endDate: access.schedule.endDate,
+        accessCode: access.schedule.accessCode,
       },
+      target: access.target,
+      hasSubmittedCurrentTarget: submittedTargetIds.some(
+        (item) => item.evaluatedId === access.target?.id
+      ),
       submittedTargetIds: submittedTargetIds.map((item) => item.evaluatedId),
     });
   } catch (error) {

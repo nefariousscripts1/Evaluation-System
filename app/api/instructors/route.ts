@@ -3,6 +3,8 @@ import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcrypt";
+import { getActiveSchedule } from "@/lib/evaluation-session";
+import { ensureInstructorAccessCodesForSchedule } from "@/lib/instructor-access";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,11 +12,43 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const activeSchedule = await getActiveSchedule();
+  if (activeSchedule) {
+    await ensureInstructorAccessCodesForSchedule(activeSchedule.id);
+  }
+
   const instructors = await prisma.user.findMany({
     where: { role: "faculty", deletedAt: null },
     select: { id: true, name: true, email: true, role: true, department: true },
+    orderBy: { name: "asc" },
   });
-  return NextResponse.json(instructors);
+
+  const activeCodes = activeSchedule
+    ? await prisma.instructorAccessCode.findMany({
+        where: { scheduleId: activeSchedule.id, instructorId: { in: instructors.map((item) => item.id) } },
+        select: { instructorId: true, code: true },
+      })
+    : [];
+
+  const activeCodeMap = new Map(activeCodes.map((item) => [item.instructorId, item.code]));
+
+  return NextResponse.json({
+    activeSchedule: activeSchedule
+      ? {
+          id: activeSchedule.id,
+          academicYear: activeSchedule.academicYear,
+          semester: activeSchedule.semester,
+        }
+      : null,
+    instructors: instructors.map((instructor) => ({
+      id: instructor.id,
+      name: instructor.name,
+      email: instructor.email,
+      role: instructor.role,
+      department: instructor.department,
+      activeInstructorCode: activeCodeMap.get(instructor.id) ?? null,
+    })),
+  });
 }
 
 export async function POST(req: Request) {
@@ -28,6 +62,12 @@ export async function POST(req: Request) {
   const instructor = await prisma.user.create({
     data: { name, email, password: hashed, department, role },
   });
+
+  const activeSchedule = await getActiveSchedule();
+  if (activeSchedule && instructor.role === "faculty") {
+    await ensureInstructorAccessCodesForSchedule(activeSchedule.id, [instructor.id]);
+  }
+
   return NextResponse.json(instructor);
 }
 

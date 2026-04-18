@@ -10,6 +10,7 @@ type StudentAccessPayload = {
   studentUserId: number;
   studentId: string;
   scheduleId: number;
+  instructorId: number | null;
   expiresAt: number;
 };
 
@@ -52,8 +53,9 @@ function decodePayload(token: string) {
       !parsed ||
       typeof parsed !== "object" ||
       !Number.isInteger(parsed.studentUserId) ||
-      !Number.isInteger(parsed.scheduleId) ||
       typeof parsed.studentId !== "string" ||
+      !Number.isInteger(parsed.scheduleId) ||
+      (parsed.instructorId !== null && !Number.isInteger(parsed.instructorId)) ||
       !Number.isInteger(parsed.expiresAt)
     ) {
       return null;
@@ -118,7 +120,7 @@ export async function getValidatedStudentAccess() {
     return null;
   }
 
-  const [student, schedule] = await Promise.all([
+  const [student, schedule, instructorAccess] = await Promise.all([
     prisma.user.findUnique({
       where: { id: payload.studentUserId },
       select: {
@@ -139,6 +141,29 @@ export async function getValidatedStudentAccess() {
         endDate: true,
         isOpen: true,
         accessCode: true,
+        semester: true,
+      },
+    }),
+    prisma.instructorAccessCode.findFirst({
+      where: payload.instructorId
+        ? {
+            scheduleId: payload.scheduleId,
+            instructorId: payload.instructorId,
+          }
+        : { id: -1 },
+      select: {
+        id: true,
+        code: true,
+        instructor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            department: true,
+            deletedAt: true,
+          },
+        },
       },
     }),
   ]);
@@ -163,5 +188,16 @@ export async function getValidatedStudentAccess() {
       studentId: student.studentId ?? payload.studentId,
     },
     schedule,
+    target:
+      instructorAccess && !instructorAccess.instructor.deletedAt && instructorAccess.instructor.role === "faculty"
+        ? {
+            id: instructorAccess.instructor.id,
+            name: instructorAccess.instructor.name,
+            email: instructorAccess.instructor.email,
+            role: instructorAccess.instructor.role,
+            department: instructorAccess.instructor.department,
+            code: instructorAccess.code,
+          }
+        : null,
   };
 }

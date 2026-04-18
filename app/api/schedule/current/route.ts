@@ -9,6 +9,7 @@ export async function GET() {
   return NextResponse.json({
     scheduleId: schedule?.id ?? null,
     academicYear: schedule?.academicYear ?? null,
+    semester: schedule?.semester ?? null,
     startDate: schedule?.startDate ?? null,
     endDate: schedule?.endDate ?? null,
     isOpen: Boolean(schedule),

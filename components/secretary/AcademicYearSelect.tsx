@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import AppSelect from "@/components/ui/AppSelect";
 
 type Props = {
   value: string;
@@ -25,22 +25,12 @@ export default function AcademicYearSelect({
         </label>
       )}
 
-      <div className="relative w-full min-w-0 sm:min-w-[170px]">
-        <select
+      <div className="w-full min-w-0 sm:min-w-[170px]">
+        <AppSelect
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="app-select h-[46px] rounded-[16px] text-[14px] sm:h-[44px]"
-        >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-
-        <ChevronDown
-          size={16}
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#24135f]"
+          onChange={onChange}
+          options={options.map((option) => ({ value: option, label: option }))}
+          triggerClassName="min-h-[46px] rounded-[16px] text-[14px] sm:min-h-[44px]"
         />
       </div>
     </div>

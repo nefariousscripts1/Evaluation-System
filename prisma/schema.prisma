@@ -22,6 +22,7 @@ model User {
 
   evaluationsGiven    Evaluation[] @relation("Evaluator")
   evaluationsReceived Evaluation[] @relation("Evaluated")
+  instructorAccessCodes InstructorAccessCode[]
   results             Result[]
 }
 
@@ -31,6 +32,7 @@ model Evaluation {
   evaluatedId    Int
   scheduleId     Int?
   academicYear   String
+  semester       String    @default("1st Semester")
   generalComment String?
   createdAt      DateTime  @default(now())
 
@@ -67,6 +69,7 @@ model Questionnaire {
 model Schedule {
   id          Int       @id @default(autoincrement())
   academicYear String
+  semester    String    @default("1st Semester")
   startDate   DateTime
   endDate     DateTime
   isOpen      Boolean   @default(false)
@@ -75,9 +78,26 @@ model Schedule {
   updatedAt   DateTime  @updatedAt
 
   evaluations Evaluation[]
+  instructorAccessCodes InstructorAccessCode[]
 
   @@index([isOpen, startDate, endDate])
   @@index([academicYear, createdAt])
+}
+
+model InstructorAccessCode {
+  id           Int      @id @default(autoincrement())
+  scheduleId    Int
+  instructorId  Int
+  code         String   @db.VarChar(32)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schedule     Schedule @relation(fields: [scheduleId], references: [id])
+  instructor   User     @relation(fields: [instructorId], references: [id])
+
+  @@unique([scheduleId, instructorId])
+  @@unique([scheduleId, code])
+  @@index([instructorId])
 }
 
 model Result {

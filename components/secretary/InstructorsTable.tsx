@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Copy, Pencil, Trash2 } from "lucide-react";
 
 interface Instructor {
   id: number;
@@ -8,6 +8,7 @@ interface Instructor {
   email: string;
   department: string;
   role: string;
+  activeInstructorCode: string | null;
 }
 
 interface InstructorsTableProps {
@@ -23,14 +24,23 @@ const formatDepartment = (dept: string) => {
 };
 
 export default function InstructorsTable({ instructors, onEdit, onDelete }: InstructorsTableProps) {
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch (error) {
+      console.error("Failed to copy instructor code:", error);
+    }
+  };
+
   return (
     <div className="overflow-x-auto rounded-[18px] border border-[#dddddd] bg-white">
-      <table className="w-full min-w-[720px] text-left">
+      <table className="w-full min-w-[860px] text-left">
         <thead className="bg-[#24135f] text-white">
           <tr>
             <th className="px-6 py-4 text-[16px] font-bold">Name</th>
             <th className="px-6 py-4 text-[16px] font-bold">Email</th>
             <th className="px-6 py-4 text-[16px] font-bold">Department</th>
+            <th className="px-6 py-4 text-[16px] font-bold">Active Code</th>
             <th className="px-6 py-4 text-[16px] font-bold text-center">Actions</th>
           </tr>
         </thead>
@@ -46,6 +56,25 @@ export default function InstructorsTable({ instructors, onEdit, onDelete }: Inst
                 </td>
                 <td className="px-6 py-4 text-[#3b3160]">
                   {formatDepartment(instructor.department || "N/A")}
+                </td>
+                <td className="px-6 py-4 text-[#3b3160]">
+                  {instructor.activeInstructorCode ? (
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-[#f7f4ff] px-3 py-1 font-semibold tracking-[0.14em] text-[#24135f]">
+                        {instructor.activeInstructorCode}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void copyCode(instructor.activeInstructorCode!)}
+                        className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[#ddd7ee] text-[#24135f] transition hover:bg-[#f7f4ff]"
+                        title="Copy active instructor code"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-[#8a82a7]">No active schedule</span>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-center gap-3">
@@ -69,7 +98,7 @@ export default function InstructorsTable({ instructors, onEdit, onDelete }: Inst
             ))
           ) : (
             <tr>
-              <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+              <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                 No instructors found.
               </td>
             </tr>

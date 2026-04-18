@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import SessionProvider from "@/components/sessionprovider";
 import Sidebar from "@/components/layout/Sidebar";
 import Navbar from "@/components/layout/Navbar";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Digital Evaluation System",
@@ -23,7 +30,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body>
+      <body className={poppins.className}>
         <SessionProvider session={session}>
           {session ? (
             <div className="app-shell-bg flex min-h-screen min-w-0">

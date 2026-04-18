@@ -4,7 +4,7 @@ import { signIn } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronDown, KeyRound, Lock, ShieldCheck, User, UserSquare2 } from "lucide-react";
+import { Check, ChevronDown, Lock, ShieldCheck, User, UserSquare2 } from "lucide-react";
 import AppLogo from "@/components/AppLogo";
 import { getErrorMessage } from "@/lib/error-message";
 
@@ -154,262 +154,218 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="app-auth-shell min-h-screen px-4 py-8">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center">
-        <div className="grid w-full overflow-visible rounded-[36px] border border-[#ece7f7] bg-white shadow-[0_30px_80px_rgba(36,19,95,0.14)] lg:grid-cols-[0.92fr_1.08fr]">
-          <section className="rounded-t-[36px] bg-[#24135f] px-8 py-10 text-white sm:px-10 sm:py-12 lg:rounded-l-[36px] lg:rounded-tr-none">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-white/10 bg-white/10 backdrop-blur">
-                <AppLogo className="h-14 w-14 object-contain" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">
-                  Access Portal
-                </p>
-                <h1 className="mt-2 text-3xl font-extrabold leading-tight">
-                  Digital Evaluation System
-                </h1>
-              </div>
-            </div>
+    <div className="app-auth-shell relative min-h-screen overflow-hidden px-4 py-8">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <AppLogo className="h-[88vw] max-h-[1100px] w-[88vw] max-w-[1100px] object-contain opacity-[0.05] blur-[1.4px]" />
+      </div>
 
-            <div className="mt-10 space-y-4">
-              <div className="rounded-[24px] border border-white/12 bg-white/10 p-5 shadow-[0_16px_34px_rgba(17,10,49,0.18)] backdrop-blur">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
-                    <ShieldCheck size={22} />
-                  </div>
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl items-center justify-center">
+        <div className="w-full max-w-[560px] rounded-[34px] border border-[#ece6f7] bg-white/95 px-6 py-7 shadow-[0_28px_80px_rgba(36,19,95,0.12)] backdrop-blur sm:px-10 sm:py-9">
+          <div className="flex flex-col items-center text-center">
+            <AppLogo className="h-16 w-16 object-contain sm:h-[74px] sm:w-[74px]" />
+            <h1 className="mt-4 text-[28px] font-extrabold leading-tight text-[#24135f] sm:text-[32px]">
+              Digital Evaluation System
+            </h1>
+          </div>
+
+          <div className="mx-auto mt-6 max-w-[360px] rounded-full border border-[#e3dbf0] bg-white p-1 shadow-[0_12px_30px_rgba(36,19,95,0.07)]">
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                onClick={() => switchMode("staff")}
+                className={`rounded-full px-4 py-3 text-sm font-bold transition ${
+                  mode === "staff"
+                    ? "bg-[#24135f] text-white shadow-[0_10px_24px_rgba(36,19,95,0.18)]"
+                    : "text-[#4d4668] hover:bg-[#f8f5ff]"
+                }`}
+              >
+                Staff Login
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode("student")}
+                className={`rounded-full px-4 py-3 text-sm font-bold transition ${
+                  mode === "student"
+                    ? "bg-[#24135f] text-white shadow-[0_10px_24px_rgba(36,19,95,0.18)]"
+                    : "text-[#4d4668] hover:bg-[#f8f5ff]"
+                }`}
+              >
+                Student Login
+              </button>
+            </div>
+          </div>
+
+          <div className="mx-auto mt-7 max-w-[420px]">
+            {mode === "staff" ? (
+              <>
+                <div>
+                  <h2 className="text-lg font-extrabold text-[#24135f]">Staff Login</h2>
+                  <p className="mt-1 text-sm text-[#6e6888]">
+                    Sign in using your BISU email, password, and assigned staff role.
+                  </p>
+                </div>
+
+                <form onSubmit={handleStaffSubmit} className="mt-5 space-y-4">
                   <div>
-                    <h2 className="font-bold">Staff Login</h2>
-                    <p className="text-sm text-white/75">
-                      Secure access for secretary, faculty, and leadership roles.
-                    </p>
+                    <label className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#24135f]">
+                      <User size={13} />
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      placeholder="name@bisu.edu.ph"
+                      className="app-input h-11 rounded-[14px] placeholder:text-[#b0abc4]"
+                    />
                   </div>
-                </div>
-              </div>
 
-              <div className="rounded-[24px] border border-white/12 bg-white/10 p-5 shadow-[0_16px_34px_rgba(17,10,49,0.18)] backdrop-blur">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
-                    <KeyRound size={22} />
-                  </div>
                   <div>
-                    <h2 className="font-bold">Student Access</h2>
-                    <p className="text-sm text-white/75">
-                      Students only need the secretary&apos;s access code and their Student ID.
-                    </p>
+                    <label className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#24135f]">
+                      <Lock size={13} />
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      required
+                      placeholder="Enter your password"
+                      className="app-input h-11 rounded-[14px] placeholder:text-[#b0abc4]"
+                    />
                   </div>
-                </div>
-              </div>
-            </div>
-          </section>
 
-          <section className="relative z-30 overflow-visible rounded-b-[36px] px-6 py-8 sm:px-10 sm:py-10 lg:rounded-bl-none lg:rounded-r-[36px]">
-            <div className="mx-auto max-w-[460px]">
-              <div className="rounded-full border border-[#ece7f7] bg-[#f8f5ff] p-1 shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
-                <div className="grid grid-cols-2 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => switchMode("staff")}
-                    className={`rounded-full px-4 py-3 text-sm font-bold transition ${
-                      mode === "staff"
-                        ? "bg-[#24135f] text-white shadow-[0_12px_26px_rgba(36,19,95,0.16)]"
-                        : "text-[#5f5880] hover:bg-white"
-                    }`}
-                  >
-                    Staff Login
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => switchMode("student")}
-                    className={`rounded-full px-4 py-3 text-sm font-bold transition ${
-                      mode === "student"
-                        ? "bg-[#24135f] text-white shadow-[0_12px_26px_rgba(36,19,95,0.16)]"
-                        : "text-[#5f5880] hover:bg-white"
-                    }`}
-                  >
-                    Student Access
-                  </button>
-                </div>
-              </div>
+                  <div ref={dropdownRef} className="relative z-20">
+                    <label className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#24135f]">
+                      <ShieldCheck size={13} />
+                      Staff Role
+                    </label>
 
-              <div className="mt-8">
-                {mode === "staff" ? (
-                  <>
-                    <div>
-                      <h2 className="text-[30px] font-extrabold text-[#24135f]">Staff Sign In</h2>
-                      <p className="mt-2 text-sm text-[#6e6888]">
-                        Use your email, password, and role to continue.
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOpenRoleDropdown((prev) => !prev)}
+                      className="app-input flex h-11 items-center justify-between rounded-[14px]"
+                    >
+                      <span className={selectedRole ? "font-semibold" : "text-[#8d88a5]"}>
+                        {staffRoles.find((role) => role.value === selectedRole)?.label || "Select your role"}
+                      </span>
+                      <ChevronDown
+                        size={18}
+                        className={`transition ${openRoleDropdown ? "rotate-180" : ""}`}
+                      />
+                    </button>
 
-                    <form onSubmit={handleStaffSubmit} className="mt-8 space-y-5">
-                      <div>
-                        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#24135f]">
-                          Email Address
-                        </label>
-                        <input
-                          type="email"
-                          name="email"
-                          required
-                          placeholder="name@bisu.edu.ph"
-                          className="app-input placeholder:text-[#b0abc4]"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#24135f]">
-                          Password
-                        </label>
-                        <input
-                          type="password"
-                          name="password"
-                          required
-                          placeholder="Enter your password"
-                          className="app-input placeholder:text-[#b0abc4]"
-                        />
-                      </div>
-
-                      <div ref={dropdownRef} className="relative z-20">
-                        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#24135f]">
-                          Staff Role
-                        </label>
-
-                        <button
-                          type="button"
-                          onClick={() => setOpenRoleDropdown((prev) => !prev)}
-                          className="app-input flex items-center justify-between"
-                        >
-                          <span className={selectedRole ? "font-bold" : "text-[#8d88a5]"}>
-                            {staffRoles.find((role) => role.value === selectedRole)?.label || "Select your role"}
-                          </span>
-                          <ChevronDown
-                            size={18}
-                            className={`transition ${openRoleDropdown ? "rotate-180" : ""}`}
-                          />
-                        </button>
-
-                        {openRoleDropdown && (
-                          <div
-                            className={`absolute left-0 right-0 max-h-[220px] overflow-y-auto rounded-[20px] border border-[#e2dceb] bg-white p-2 shadow-[0_22px_50px_rgba(36,19,95,0.14)] ${
-                              openRoleDropdownUpward
-                                ? "bottom-[calc(100%+10px)]"
-                                : "top-[calc(100%+10px)]"
-                            }`}
-                          >
-                            {staffRoles.map((role) => {
-                              const isSelected = selectedRole === role.value;
-
-                              return (
-                                <button
-                                  key={role.value}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedRole(role.value);
-                                    setOpenRoleDropdown(false);
-                                  }}
-                                  className={`flex w-full items-center justify-between rounded-[14px] px-4 py-3 text-left text-sm transition ${
-                                    isSelected
-                                      ? "bg-[#24135f] font-bold text-white"
-                                      : "text-[#24135f] hover:bg-[#f7f4ff]"
-                                  }`}
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <User size={16} />
-                                    {role.label}
-                                  </span>
-                                  {isSelected ? <Check size={16} /> : null}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-
-                      {error ? (
-                        <p className="app-alert-danger">
-                          {errorMessage}
-                        </p>
-                      ) : null}
-
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="app-btn-primary h-12 w-full"
+                    {openRoleDropdown && (
+                      <div
+                        className={`absolute left-0 right-0 max-h-[220px] overflow-y-auto rounded-[18px] border border-[#e2dceb] bg-white p-2 shadow-[0_22px_50px_rgba(36,19,95,0.14)] ${
+                          openRoleDropdownUpward
+                            ? "bottom-[calc(100%+10px)]"
+                            : "top-[calc(100%+10px)]"
+                        }`}
                       >
-                        {loading ? "Signing in..." : "Sign In"}
-                      </button>
-                    </form>
+                        {staffRoles.map((role) => {
+                          const isSelected = selectedRole === role.value;
 
-                    <div className="mt-6 flex items-center justify-between gap-4 text-sm">
-                      <Link href="/forgot-password" className="font-semibold text-[#3a2d72] hover:underline">
-                        Forgot Password?
-                      </Link>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <h2 className="text-[30px] font-extrabold text-[#24135f]">Student Access</h2>
-                      <p className="mt-2 text-sm text-[#6e6888]">
-                        Enter the active access code from the secretary and your Student ID.
-                      </p>
-                    </div>
-
-                    <form onSubmit={handleStudentSubmit} className="mt-8 space-y-5">
-                      <div>
-                        <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#24135f]">
-                          <Lock size={14} />
-                          Access Code
-                        </label>
-                        <input
-                          type="text"
-                          name="accessCode"
-                          required
-                          autoComplete="off"
-                          placeholder="Enter access code"
-                          className="app-input font-semibold uppercase tracking-[0.12em] placeholder:font-normal placeholder:tracking-normal placeholder:text-[#b0abc4]"
-                        />
+                          return (
+                            <button
+                              key={role.value}
+                              type="button"
+                              onClick={() => {
+                                setSelectedRole(role.value);
+                                setOpenRoleDropdown(false);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-[14px] px-4 py-3 text-left text-sm transition ${
+                                isSelected
+                                  ? "bg-[#24135f] font-bold text-white"
+                                  : "text-[#24135f] hover:bg-[#f7f4ff]"
+                              }`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <User size={16} />
+                                {role.label}
+                              </span>
+                              {isSelected ? <Check size={16} /> : null}
+                            </button>
+                          );
+                        })}
                       </div>
+                    )}
+                  </div>
 
-                      <div>
-                        <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#24135f]">
-                          <UserSquare2 size={14} />
-                          Student ID
-                        </label>
-                        <input
-                          type="text"
-                          name="studentId"
-                          required
-                          autoComplete="off"
-                          placeholder="Enter your Student ID"
-                          className="app-input placeholder:text-[#b0abc4]"
-                        />
-                      </div>
+                  {error ? <p className="app-alert-danger">{errorMessage}</p> : null}
 
-                      {error ? (
-                        <p className="app-alert-danger">
-                          {errorMessage}
-                        </p>
-                      ) : null}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="app-btn-primary h-12 w-full rounded-[14px]"
+                  >
+                    {loading ? "Signing in..." : "Log In"}
+                  </button>
+                </form>
 
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="app-btn-primary h-12 w-full"
-                      >
-                        {loading ? "Verifying..." : "Continue to Evaluation"}
-                      </button>
-                    </form>
+                <div className="mt-4 text-center text-sm">
+                  <Link href="/forgot-password" className="font-semibold text-[#3a2d72] hover:underline">
+                    Forgot Password?
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-lg font-extrabold text-[#24135f]">Student Access</h2>
+                  <p className="mt-1 text-sm text-[#6e6888]">
+                    Enter the active access code from the secretary and your Student ID.
+                  </p>
+                </div>
 
-                    <div className="mt-6 rounded-[20px] border border-[#ece7f7] bg-white p-4 text-sm text-[#6e6888] shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
-                      Student accounts no longer need username/password login. Access is limited to
-                      the currently open evaluation session.
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </section>
+                <form onSubmit={handleStudentSubmit} className="mt-5 space-y-4">
+                  <div>
+                    <label className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#24135f]">
+                      <Lock size={13} />
+                      Access Code
+                    </label>
+                    <input
+                      type="text"
+                      name="accessCode"
+                      required
+                      autoComplete="off"
+                      placeholder="Enter access code"
+                      className="app-input h-11 rounded-[14px] font-semibold uppercase tracking-[0.08em] placeholder:font-normal placeholder:tracking-normal placeholder:text-[#b0abc4]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#24135f]">
+                      <UserSquare2 size={13} />
+                      Student ID
+                    </label>
+                    <input
+                      type="text"
+                      name="studentId"
+                      required
+                      autoComplete="off"
+                      placeholder="Enter your Student ID"
+                      className="app-input h-11 rounded-[14px] placeholder:text-[#b0abc4]"
+                    />
+                  </div>
+
+                  {error ? <p className="app-alert-danger">{errorMessage}</p> : null}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="app-btn-primary h-12 w-full rounded-[14px]"
+                  >
+                    {loading ? "Verifying..." : "Continue to Evaluation"}
+                  </button>
+                </form>
+
+                <div className="mt-5 rounded-[16px] border border-[#ece7f7] bg-white px-4 py-4 text-sm leading-6 text-[#6e6888] shadow-[0_10px_24px_rgba(36,19,95,0.05)]">
+                  Student accounts no longer need username/password login. Access is limited to the
+                  currently open evaluation session.
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

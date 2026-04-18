@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import RoleCommentsPanel from "@/components/comments/RoleCommentsPanel";
 import { SummaryComment } from "@/components/secretary/SummaryCommentsTable";
+import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 type CommentItem = {
@@ -222,23 +223,20 @@ export default function RoleCommentsView({
             <div className="mb-4 flex justify-end">
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                 <label className="text-[14px] font-semibold text-[#24135f]">Semester</label>
-                <select
+                <div className="sm:w-[200px]">
+                  <AppSelect
                   value={semester}
-                  onChange={(event) => {
-                    setSemester(event.target.value);
+                  onChange={(nextValue) => {
+                    setSemester(nextValue);
                     setTargetPage(1);
                   }}
-                  className="app-select h-[44px] rounded-[16px] px-3 text-[13px] sm:h-[44px] sm:w-auto"
-                >
-                  {semesterOptions.map((option) => {
-                    const normalized = option.toLowerCase() === "all semesters" ? "all" : option;
-                    return (
-                      <option key={option} value={normalized}>
-                        {option}
-                      </option>
-                    );
-                  })}
-                </select>
+                  options={semesterOptions.map((option) => ({
+                    value: option.toLowerCase() === "all semesters" ? "all" : option,
+                    label: option,
+                  }))}
+                  triggerClassName="min-h-[44px] rounded-[16px] text-[13px]"
+                />
+                </div>
               </div>
             </div>
 

@@ -1,12 +1,5 @@
-import SingleTargetCommentsView from "@/components/leadership/SingleTargetCommentsView";
+import CampusDirectorCommentsView from "@/components/campus-director/CampusDirectorCommentsView";
 
 export default function CampusDirectorCommentsPage() {
-  return (
-    <SingleTargetCommentsView
-      apiEndpoint="/api/campus-director/comments"
-      title="View Director of Instruction Summary Comments"
-      targetLabel="DOI"
-      searchPlaceholder="Search DOI"
-    />
-  );
+  return <CampusDirectorCommentsView />;
 }

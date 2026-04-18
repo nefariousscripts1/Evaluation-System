@@ -1,17 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, Star, UserRound } from "lucide-react";
+import { Loader2, LogOut, Search, Star, UserRound } from "lucide-react";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
-
-type EvaluationTarget = {
-  id: number;
-  name: string | null;
-  email: string;
-  role: string;
-  department: string | null;
-};
 
 type Question = {
   id: number;
@@ -29,22 +21,45 @@ type StudentSession = {
   schedule: {
     id: number;
     academicYear: string;
+    semester: string;
     startDate: string;
     endDate: string;
+    accessCode: string | null;
   };
+  target: {
+    id: number;
+    name: string | null;
+    email: string;
+    role: string;
+    department: string | null;
+    code: string;
+  } | null;
+  hasSubmittedCurrentTarget: boolean;
   submittedTargetIds: number[];
+};
+
+type TargetValidationResponse = {
+  target: {
+    id: number;
+    name: string | null;
+    email: string;
+    role: string;
+    department: string | null;
+  };
+  code: string;
+  hasSubmittedCurrentTarget: boolean;
 };
 
 export default function StudentAccessPortal() {
   const router = useRouter();
   const [session, setSession] = useState<StudentSession | null>(null);
-  const [selectedTargetId, setSelectedTargetId] = useState("");
-  const [targets, setTargets] = useState<EvaluationTarget[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<number, { rating: number }>>({});
   const [finalComment, setFinalComment] = useState("");
+  const [instructorCode, setInstructorCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
 
@@ -66,23 +81,15 @@ export default function StudentAccessPortal() {
 
         setSession(sessionData);
 
-        const [targetsRes, questionsRes] = await Promise.all([
-          fetch("/api/student-access/targets", { cache: "no-store" }),
-          fetch("/api/student-access/questionnaire", { cache: "no-store" }),
-        ]);
-
-        const targetsData = await targetsRes.json();
+        const questionsRes = await fetch("/api/student-access/questionnaire", {
+          cache: "no-store",
+        });
         const questionsData = await questionsRes.json();
-
-        if (!targetsRes.ok) {
-          throw new Error(targetsData.message || "Failed to load evaluation targets");
-        }
 
         if (!questionsRes.ok) {
           throw new Error(questionsData.message || "Failed to load questionnaire");
         }
 
-        setTargets(targetsData);
         setQuestions(questionsData.filter((question: Question) => question.isActive !== false));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load student evaluation portal");
@@ -94,23 +101,85 @@ export default function StudentAccessPortal() {
     void loadPortal();
   }, [router]);
 
-  const submittedTargetIds = useMemo(
-    () => new Set(session?.submittedTargetIds ?? []),
-    [session?.submittedTargetIds]
-  );
-
-  const selectedTarget = targets.find((target) => String(target.id) === selectedTargetId);
   const answeredCount = questions.filter((question) => answers[question.id]?.rating).length;
-  const remainingTargets = targets.filter((target) => !submittedTargetIds.has(target.id));
+  const targetName = session?.target?.name || session?.target?.email || "Instructor";
 
-  function handleNext() {
-    if (!selectedTargetId) {
-      setError("Please select an instructor to evaluate");
+  async function handleValidateInstructorCode() {
+    if (!instructorCode.trim()) {
+      setError("Instructor code is required");
       return;
     }
 
-    if (submittedTargetIds.has(Number(selectedTargetId))) {
-      setError("You have already submitted this evaluation");
+    setVerifyingCode(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/student-access/targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instructorCode,
+        }),
+      });
+
+      const data: (TargetValidationResponse & { message?: string }) | null = await res
+        .json()
+        .catch(() => null);
+
+      if (!res.ok || !data) {
+        throw new Error(data?.message || "Failed to validate instructor code");
+      }
+
+      setSession((current) =>
+        current
+          ? {
+              ...current,
+              target: {
+                ...data.target,
+                code: data.code,
+              },
+              hasSubmittedCurrentTarget: data.hasSubmittedCurrentTarget,
+            }
+          : current
+      );
+      setInstructorCode("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to validate instructor code");
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
+
+  async function handleResetInstructorSelection() {
+    setError("");
+
+    await fetch("/api/student-access/targets", {
+      method: "DELETE",
+    }).catch(() => null);
+
+    setSession((current) =>
+      current
+        ? {
+            ...current,
+            target: null,
+            hasSubmittedCurrentTarget: false,
+          }
+        : current
+    );
+    setInstructorCode("");
+    setAnswers({});
+    setFinalComment("");
+    setStep(1);
+  }
+
+  function handleNext() {
+    if (!session?.target) {
+      setError("Please validate an instructor code first");
+      return;
+    }
+
+    if (session.hasSubmittedCurrentTarget) {
+      setError("You have already submitted an evaluation for this instructor in this portal session.");
       return;
     }
 
@@ -124,8 +193,8 @@ export default function StudentAccessPortal() {
   }
 
   async function handleSubmit() {
-    if (!selectedTargetId) {
-      setError("Please select an instructor to evaluate");
+    if (!session?.target) {
+      setError("Please validate an instructor code first");
       return;
     }
 
@@ -143,7 +212,6 @@ export default function StudentAccessPortal() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          evaluatedId: Number.parseInt(selectedTargetId, 10),
           answers: questions.map((question) => ({
             questionId: question.id,
             rating: answers[question.id].rating,
@@ -166,9 +234,10 @@ export default function StudentAccessPortal() {
         current
           ? {
               ...current,
-              submittedTargetIds: Array.from(
-                new Set([...current.submittedTargetIds, Number.parseInt(selectedTargetId, 10)])
-              ),
+              hasSubmittedCurrentTarget: true,
+              submittedTargetIds: current.target
+                ? Array.from(new Set([...current.submittedTargetIds, current.target.id]))
+                : current.submittedTargetIds,
             }
           : current
       );
@@ -180,28 +249,20 @@ export default function StudentAccessPortal() {
     }
   }
 
-  function resetFlow() {
-    setStep(1);
-    setSelectedTargetId("");
-    setAnswers({});
-    setFinalComment("");
-    setError("");
-  }
-
-  async function handleLeaveSession() {
+  async function handleLeaveSession(nextPath = "/login?mode=student") {
     await fetch("/api/student-access/end", {
       method: "POST",
     }).catch(() => null);
 
-    router.push("/login?mode=student");
+    router.push(nextPath);
     router.refresh();
   }
 
   if (loading) {
     return (
       <PortalPageLoader
-        title="Student Evaluation Access"
-        description="Loading your temporary evaluation session..."
+        title="Student Evaluation Portal"
+        description="Loading the current evaluation portal session..."
         cards={2}
       />
     );
@@ -211,9 +272,9 @@ export default function StudentAccessPortal() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-xl rounded-[24px] border border-[#e7e0f3] bg-white p-8 text-center shadow-[0_14px_40px_rgba(36,19,95,0.08)]">
-          <h1 className="text-2xl font-extrabold text-[#24135f]">Student access required</h1>
+          <h1 className="text-2xl font-extrabold text-[#24135f]">Portal access required</h1>
           <p className="mt-3 text-sm text-[#6f678d]">
-            Please enter your access code and Student ID first.
+            Please enter the portal access code first.
           </p>
           <button
             type="button"
@@ -240,20 +301,22 @@ export default function StudentAccessPortal() {
                 Evaluate Instructor
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-white/80 sm:text-[15px]">
-                Your access code is valid only for this evaluation opening. Each instructor can be
-                evaluated once during this session.
+                You are inside the evaluation portal for the active Academic Year and Semester.
+                Enter an instructor code to begin.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:items-end">
               <div className="rounded-[20px] border border-white/15 bg-white/10 px-4 py-3 text-sm text-white/85 shadow-[0_14px_30px_rgba(17,10,49,0.16)] backdrop-blur">
                 <p className="font-semibold">{session.student.name || "Student"}</p>
+                <p className="text-white/70">
+                  {session.schedule.academicYear} • {session.schedule.semester}
+                </p>
                 <p className="text-white/70">Student ID: {session.student.studentId}</p>
-                <p className="text-white/70">{session.schedule.academicYear}</p>
               </div>
               <button
                 type="button"
-                onClick={handleLeaveSession}
+                onClick={() => void handleLeaveSession()}
                 className="inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
               >
                 <LogOut size={16} />
@@ -265,7 +328,7 @@ export default function StudentAccessPortal() {
 
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           {[
-            { label: "Select Instructor", active: step === 1, complete: step > 1 },
+            { label: "Validate Instructor Code", active: step === 1, complete: step > 1 },
             { label: "Answer Questions", active: step === 2, complete: step > 2 },
             { label: "Submit", active: step === 3, complete: false },
           ].map((item, index) => (
@@ -286,95 +349,157 @@ export default function StudentAccessPortal() {
 
         {step === 1 && (
           <section className="rounded-[28px] border border-[#e7e0f3] bg-white px-4 py-5 shadow-[0_18px_42px_rgba(36,19,95,0.08)] sm:px-8 sm:py-8">
-            <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-              <div>
-                <h2 className="text-[22px] font-bold text-[#24135f]">Choose an Instructor</h2>
-                <p className="mt-2 text-sm text-[#6f678d]">
-                  Pick the instructor you want to evaluate for this evaluation opening.
-                </p>
+            {!session.target ? (
+              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                <div>
+                  <h2 className="text-[22px] font-bold text-[#24135f]">Enter Instructor Code</h2>
+                  <p className="mt-2 text-sm text-[#6f678d]">
+                    Use the instructor code provided for the current Academic Year and Semester.
+                  </p>
 
-                <div className="mt-6 space-y-5">
-                  <div>
+                  <div className="mt-6">
                     <label className="mb-2 block text-sm font-semibold text-[#24135f]">
-                      Instructor
+                      Instructor Code
                     </label>
-
-                    <div className="relative">
-                      <select
-                        value={selectedTargetId}
-                        onChange={(e) => setSelectedTargetId(e.target.value)}
-                        className="h-12 w-full appearance-none rounded-[14px] border border-[#d2cae8] bg-white px-4 pr-12 text-sm text-[#24135f] outline-none transition focus:border-[#24135f] focus:ring-2 focus:ring-[#24135f]/15"
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <div className="relative flex-1">
+                        <Search
+                          size={18}
+                          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#7b7498]"
+                        />
+                        <input
+                          value={instructorCode}
+                          onChange={(event) => setInstructorCode(event.target.value.toUpperCase())}
+                          placeholder="Enter instructor code"
+                          className="app-input h-12 pl-11 font-semibold uppercase tracking-[0.14em]"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleValidateInstructorCode()}
+                        disabled={verifyingCode}
+                        className="app-btn-primary min-h-[48px] px-6 py-3"
                       >
-                        <option value="">Select an instructor</option>
-                        {targets.map((target) => {
-                          const alreadySubmitted = submittedTargetIds.has(target.id);
-                          return (
-                            <option key={target.id} value={target.id} disabled={alreadySubmitted}>
-                              {`${target.name || target.email} - ${alreadySubmitted ? "Already submitted" : target.role.replace(/_/g, " ")}`}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      <ChevronDown
-                        size={18}
-                        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#24135f]"
-                      />
+                        {verifyingCode ? (
+                          <span className="inline-flex items-center gap-2">
+                            <Loader2 size={16} className="animate-spin" />
+                            Validating...
+                          </span>
+                        ) : (
+                          "Validate Code"
+                        )}
+                      </button>
                     </div>
-
-                    {remainingTargets.length === 0 && (
-                      <p className="mt-3 text-sm text-[#18794e]">
-                        You have already submitted all available instructor evaluations for this
-                        session.
-                      </p>
-                    )}
                   </div>
                 </div>
-              </div>
 
-              <div className="rounded-[24px] border border-[#efe7fb] bg-white p-5 shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#24135f] text-white shadow-[0_12px_24px_rgba(36,19,95,0.14)]">
-                  <UserRound size={28} />
-                </div>
-
-                {selectedTarget ? (
-                  <div className="mt-4 space-y-2">
-                    <h3 className="text-xl font-bold text-[#24135f]">
-                      {selectedTarget.name || selectedTarget.email}
-                    </h3>
-                    <p className="text-sm text-[#6f678d]">
-                      {selectedTarget.role.replace(/_/g, " ")}
-                    </p>
-                    <p className="text-sm text-[#6f678d]">
-                      {selectedTarget.department || "No department listed"}
-                    </p>
-                    <p className="text-sm text-[#6f678d]">{selectedTarget.email}</p>
+                <div className="rounded-[24px] border border-[#efe7fb] bg-white p-5 shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#24135f] text-white shadow-[0_12px_24px_rgba(36,19,95,0.14)]">
+                    <UserRound size={28} />
                   </div>
-                ) : (
                   <div className="mt-4">
-                    <h3 className="text-lg font-bold text-[#24135f]">Ready when you are</h3>
+                    <h3 className="text-lg font-bold text-[#24135f]">Ready to validate</h3>
                     <p className="mt-2 text-sm text-[#6f678d]">
-                      Choose an instructor to preview the evaluation target before continuing.
+                      Once the instructor code is valid, the portal will show the instructor name
+                      before you continue to the questionnaire.
                     </p>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                <div>
+                  <h2 className="text-[22px] font-bold text-[#24135f]">Instructor Confirmed</h2>
+                  <p className="mt-2 text-sm text-[#6f678d]">
+                    The instructor code is valid for the current evaluation period.
+                  </p>
 
-            {error && (
-              <div className="mt-6 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
+                  <div className="mt-6 rounded-[20px] border border-[#e8e0f6] bg-[#faf8ff] p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a7199]">
+                      Instructor Code
+                    </p>
+                    <p className="mt-2 text-2xl font-extrabold tracking-[0.18em] text-[#24135f]">
+                      {session.target.code}
+                    </p>
+
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a7199]">
+                          Academic Year
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-[#24135f]">
+                          {session.schedule.academicYear}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a7199]">
+                          Semester
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-[#24135f]">
+                          {session.schedule.semester}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-[#efe7fb] bg-white p-5 shadow-[0_12px_28px_rgba(36,19,95,0.06)]">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#24135f] text-white shadow-[0_12px_24px_rgba(36,19,95,0.14)]">
+                    <UserRound size={28} />
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <h3 className="text-xl font-bold text-[#24135f]">{targetName}</h3>
+                    <p className="text-sm text-[#6f678d]">
+                      {session.target.role.replace(/_/g, " ")}
+                    </p>
+                    <p className="text-sm text-[#6f678d]">
+                      {session.target.department || "No department listed"}
+                    </p>
+                    <p className="text-sm text-[#6f678d]">{session.target.email}</p>
+                  </div>
+
+                  {session.hasSubmittedCurrentTarget ? (
+                    <div className="mt-5 rounded-[16px] border border-[#f0d6d8] bg-[#fff6f6] px-4 py-3 text-sm text-[#b42318]">
+                      This instructor has already been evaluated in the current portal session.
+                    </div>
+                  ) : (
+                    <p className="mt-5 text-sm text-[#6f678d]">
+                      The instructor name is now confirmed. Continue when you are ready to answer
+                      the questionnaire.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={handleNext}
-                disabled={remainingTargets.length === 0}
-                className="app-btn-primary min-h-[44px] w-full px-6 py-3 sm:w-auto"
-              >
-                Continue
-              </button>
+            {error ? (
+              <div className="mt-6 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              {session.target ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void handleResetInstructorSelection()}
+                    className="app-btn-secondary min-h-[44px] px-6 py-3"
+                  >
+                    Enter Another Code
+                  </button>
+                  {!session.hasSubmittedCurrentTarget ? (
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      className="app-btn-primary min-h-[44px] px-6 py-3"
+                    >
+                      Continue
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
             </div>
           </section>
         )}
@@ -383,9 +508,7 @@ export default function StudentAccessPortal() {
           <section className="rounded-[28px] border border-[#e7e0f3] bg-white px-4 py-5 shadow-[0_18px_42px_rgba(36,19,95,0.08)] sm:px-8 sm:py-8">
             <div className="flex flex-col gap-3 border-b border-[#eee7fb] pb-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-[24px] font-bold text-[#24135f]">
-                  Evaluating {selectedTarget?.name || selectedTarget?.email}
-                </h2>
+                <h2 className="text-[24px] font-bold text-[#24135f]">Evaluating {targetName}</h2>
                 <p className="mt-2 text-sm text-[#6f678d]">
                   Rate each statement from strongly disagree to strongly agree.
                 </p>
@@ -435,7 +558,7 @@ export default function StudentAccessPortal() {
                       </button>
                     ))}
 
-                    {answers[question.id]?.rating && (
+                    {answers[question.id]?.rating ? (
                       <span className="text-sm font-semibold text-[#24135f]">
                         {
                           ["", "Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"][
@@ -443,7 +566,7 @@ export default function StudentAccessPortal() {
                           ]
                         }
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -462,11 +585,11 @@ export default function StudentAccessPortal() {
               </div>
             </div>
 
-            {error && (
+            {error ? (
               <div className="mt-6 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
-            )}
+            ) : null}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
               <button
@@ -497,21 +620,20 @@ export default function StudentAccessPortal() {
               Evaluation Submitted Successfully!
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-[#6f678d] sm:text-base">
-              Your feedback has been recorded for this evaluation session.
+              Your feedback for {targetName} has been recorded for {session.schedule.academicYear},{" "}
+              {session.schedule.semester}.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              {remainingTargets.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={resetFlow}
-                  className="app-btn-primary px-6 py-3"
-                >
-                  Evaluate Another Instructor
-                </button>
-              ) : null}
               <button
                 type="button"
-                onClick={handleLeaveSession}
+                onClick={() => void handleResetInstructorSelection()}
+                className="app-btn-primary px-6 py-3"
+              >
+                Evaluate Another Instructor
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleLeaveSession("/login?mode=student")}
                 className="app-btn-secondary px-6 py-3"
               >
                 Finish

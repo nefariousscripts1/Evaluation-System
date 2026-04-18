@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Search, Star, ChevronDown } from "lucide-react";
+import { Search, Star } from "lucide-react";
+import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 interface Result {
@@ -189,22 +190,15 @@ export default function ReportsPage() {
               Select Academic Year:
             </label>
 
-            <div className="relative w-full min-w-0 md:min-w-[165px]">
-              <select
+            <div className="w-full min-w-0 md:min-w-[165px]">
+              <AppSelect
                 value={academicYear}
-                onChange={(e) => setAcademicYear(e.target.value)}
-                className="app-select h-[46px] rounded-[16px] text-[15px]"
-              >
-                <option value="">All Years</option>
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={16}
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#24135f]"
+                onChange={setAcademicYear}
+                options={[
+                  { value: "", label: "All Years" },
+                  ...years.map((year) => ({ value: year, label: year })),
+                ]}
+                triggerClassName="min-h-[46px] rounded-[16px] text-[15px]"
               />
             </div>
           </div>

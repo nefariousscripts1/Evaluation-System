@@ -13,11 +13,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    if (!access.target) {
+      return NextResponse.json({ message: "Instructor code validation is required" }, { status: 400 });
+    }
+
     const payload = await req.json();
     const evaluation = await submitEvaluationRecord({
       evaluatorId: access.student.id,
       evaluatorRole: "student",
-      evaluatedId: payload?.evaluatedId,
+      evaluatedId: access.target.id,
       scheduleId: access.schedule.id,
       academicYear: access.schedule.academicYear,
       answers: payload?.answers,

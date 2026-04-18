@@ -15,7 +15,17 @@ interface Instructor {
   email: string;
   department: string;
   role: string;
+  activeInstructorCode: string | null;
 }
+
+type InstructorsResponse = {
+  activeSchedule: {
+    id: number;
+    academicYear: string;
+    semester: string;
+  } | null;
+  instructors: Instructor[];
+};
 
 export default function InstructorManagement() {
   const { data: session, status } = useSession();
@@ -26,6 +36,7 @@ export default function InstructorManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedInstructor, setSelectedInstructor] = useState<Instructor | null>(null);
+  const [activeScheduleLabel, setActiveScheduleLabel] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -41,8 +52,13 @@ export default function InstructorManagement() {
 
   const fetchInstructors = async () => {
     const res = await fetch("/api/instructors");
-    const data = await res.json();
-    setInstructors(data);
+    const data: InstructorsResponse = await res.json();
+    setInstructors(data.instructors ?? []);
+    setActiveScheduleLabel(
+      data.activeSchedule
+        ? `${data.activeSchedule.academicYear} • ${data.activeSchedule.semester}`
+        : ""
+    );
     setLoading(false);
   };
 
@@ -68,6 +84,11 @@ export default function InstructorManagement() {
         <div className="mx-auto max-w-[1200px]">
           <div className="mb-6">
             <h1 className="text-[28px] font-extrabold text-[#24135f]">Manage Instructors</h1>
+            <p className="mt-2 text-sm text-[#6f678d]">
+              {activeScheduleLabel
+                ? `Active instructor codes are shown for ${activeScheduleLabel}.`
+                : "Open an evaluation schedule to generate instructor codes for the current period."}
+            </p>
           </div>
 
           <div className="mb-4 flex justify-end">

@@ -2,6 +2,7 @@ import { randomInt } from "crypto";
 import prisma from "@/lib/db";
 
 const ACCESS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+export const SEMESTER_OPTIONS = ["1st Semester", "2nd Semester", "Summer"] as const;
 
 type ScheduleLike = {
   isOpen: boolean;
@@ -16,6 +17,17 @@ export function isScheduleActive(schedule: ScheduleLike, now = new Date()) {
 export function getAcademicYearForDate(date: Date) {
   const year = date.getFullYear();
   return `${year}-${year + 1}`;
+}
+
+export function buildAcademicYearOptions(baseYear = new Date().getFullYear(), count = 6) {
+  return Array.from({ length: count }, (_, index) => {
+    const year = baseYear - 1 + index;
+    return `${year}-${year + 1}`;
+  });
+}
+
+export function isValidSemester(value: string): value is (typeof SEMESTER_OPTIONS)[number] {
+  return SEMESTER_OPTIONS.includes(value as (typeof SEMESTER_OPTIONS)[number]);
 }
 
 export function generateAccessCode(length = 6) {

@@ -5,9 +5,10 @@ import prisma from "@/lib/db";
 import {
   closeAllActiveSchedules,
   generateAccessCode,
-  getAcademicYearForDate,
   getActiveSchedule,
+  isValidSemester,
 } from "@/lib/evaluation-session";
+import { ensureInstructorAccessCodesForSchedule } from "@/lib/instructor-access";
 
 async function getScheduleSnapshot() {
   const [activeSchedule, recentSchedules] = await Promise.all([
@@ -18,6 +19,7 @@ async function getScheduleSnapshot() {
       select: {
         id: true,
         academicYear: true,
+        semester: true,
         startDate: true,
         endDate: true,
         isOpen: true,
@@ -37,6 +39,7 @@ async function getScheduleSnapshot() {
         select: {
           evaluator: {
             select: {
+              id: true,
               studentId: true,
             },
           },
@@ -50,8 +53,7 @@ async function getScheduleSnapshot() {
     recentSchedules,
     submissionCount: submittedStudentIds.length,
     submittedStudentIds: submittedStudentIds
-      .map((item) => item.evaluator.studentId)
-      .filter((studentId): studentId is string => Boolean(studentId)),
+      .map((item) => item.evaluator.studentId || `Anonymous Session ${item.evaluator.id}`),
   };
 }
 
@@ -70,13 +72,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { startDate, endDate, isOpen, scheduleId } = await req.json();
+  const { academicYear, semester, startDate, endDate, isOpen, scheduleId } = await req.json();
 
   const parsedStartDate = new Date(startDate);
   const parsedEndDate = new Date(endDate);
+  const normalizedAcademicYear = String(academicYear ?? "").trim();
+  const normalizedSemester = String(semester ?? "").trim();
 
   if (Number.isNaN(parsedStartDate.getTime()) || Number.isNaN(parsedEndDate.getTime())) {
     return NextResponse.json({ error: "Invalid schedule dates" }, { status: 400 });
+  }
+
+  if (!normalizedAcademicYear) {
+    return NextResponse.json({ error: "Academic Year is required" }, { status: 400 });
+  }
+
+  if (!isValidSemester(normalizedSemester)) {
+    return NextResponse.json({ error: "Invalid semester" }, { status: 400 });
   }
 
   if (parsedEndDate < parsedStartDate) {
@@ -90,15 +102,22 @@ export async function POST(req: Request) {
 
   if (isOpen) {
     let persistedSchedule;
+    const shouldUpdateCurrentSchedule =
+      activeSchedule &&
+      Number(scheduleId) === activeSchedule.id &&
+      activeSchedule.academicYear === normalizedAcademicYear &&
+      activeSchedule.semester === normalizedSemester;
 
-    if (activeSchedule && Number(scheduleId) === activeSchedule.id) {
+    if (shouldUpdateCurrentSchedule) {
       persistedSchedule = await prisma.schedule.update({
         where: { id: activeSchedule.id },
         data: {
-          academicYear: getAcademicYearForDate(parsedStartDate),
+          academicYear: normalizedAcademicYear,
+          semester: normalizedSemester,
           startDate: parsedStartDate,
           endDate: parsedEndDate,
           isOpen: true,
+          accessCode: activeSchedule.accessCode || generateAccessCode(8),
         },
       });
     } else {
@@ -106,14 +125,17 @@ export async function POST(req: Request) {
 
       persistedSchedule = await prisma.schedule.create({
         data: {
-          academicYear: getAcademicYearForDate(parsedStartDate),
+          academicYear: normalizedAcademicYear,
+          semester: normalizedSemester,
           startDate: parsedStartDate,
           endDate: parsedEndDate,
           isOpen: true,
-          accessCode: generateAccessCode(),
+          accessCode: generateAccessCode(8),
         },
       });
     }
+
+    await ensureInstructorAccessCodesForSchedule(persistedSchedule.id);
 
     return NextResponse.json({
       message: "Evaluation session is now open",

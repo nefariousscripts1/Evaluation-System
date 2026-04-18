@@ -4,11 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Copy, RefreshCw } from "lucide-react";
+import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
+import AppSelect from "@/components/ui/AppSelect";
 import { getErrorMessage } from "@/lib/error-message";
+import { buildAcademicYearOptions, SEMESTER_OPTIONS } from "@/lib/evaluation-session";
 
 type ScheduleSummary = {
   id: number;
   academicYear: string;
+  semester: string;
   startDate: string;
   endDate: string;
   isOpen: boolean;
@@ -23,6 +27,17 @@ type ScheduleResponse = {
   submittedStudentIds: string[];
 };
 
+type ScheduleFormState = {
+  academicYear: string;
+  semester: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  scheduleId: number | null;
+};
+
+const academicYearOptions = buildAcademicYearOptions();
+
 export default function ScheduleManagement() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -33,7 +48,9 @@ export default function ScheduleManagement() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ScheduleFormState>({
+    academicYear: academicYearOptions[academicYearOptions.length - 2] ?? academicYearOptions[0],
+    semester: SEMESTER_OPTIONS[0],
     startDate: "",
     endDate: "",
     status: "Closed",
@@ -51,10 +68,12 @@ export default function ScheduleManagement() {
       router.push("/login");
       return;
     }
+
     if (status === "authenticated" && session?.user?.role !== "secretary") {
       router.push("/unauthorized");
       return;
     }
+
     void fetchSchedule();
   }, [status, session, router]);
 
@@ -66,22 +85,25 @@ export default function ScheduleManagement() {
 
     if (data.activeSchedule) {
       setFormData({
+        academicYear: data.activeSchedule.academicYear,
+        semester: data.activeSchedule.semester,
         startDate: new Date(data.activeSchedule.startDate).toISOString().slice(0, 10),
         endDate: new Date(data.activeSchedule.endDate).toISOString().slice(0, 10),
         status: "Open",
         scheduleId: data.activeSchedule.id,
       });
-    } else {
-      const latest = data.recentSchedules?.[0];
-      setFormData({
-        startDate: latest?.startDate
-          ? new Date(latest.startDate).toISOString().slice(0, 10)
-          : "",
-        endDate: latest?.endDate ? new Date(latest.endDate).toISOString().slice(0, 10) : "",
-        status: "Closed",
-        scheduleId: latest?.id ?? null,
-      });
+      return;
     }
+
+    const latest = data.recentSchedules?.[0];
+    setFormData({
+      academicYear: latest?.academicYear ?? academicYearOptions[academicYearOptions.length - 2] ?? academicYearOptions[0],
+      semester: latest?.semester ?? SEMESTER_OPTIONS[0],
+      startDate: latest?.startDate ? new Date(latest.startDate).toISOString().slice(0, 10) : "",
+      endDate: latest?.endDate ? new Date(latest.endDate).toISOString().slice(0, 10) : "",
+      status: "Closed",
+      scheduleId: latest?.id ?? null,
+    });
   };
 
   const fetchSchedule = async () => {
@@ -103,14 +125,17 @@ export default function ScheduleManagement() {
   };
 
   const openPicker = (ref: React.RefObject<HTMLInputElement | null>) => {
-    if (!ref.current) return;
+    if (!ref.current) {
+      return;
+    }
 
     if (typeof ref.current.showPicker === "function") {
       ref.current.showPicker();
-    } else {
-      ref.current.focus();
-      ref.current.click();
+      return;
     }
+
+    ref.current.focus();
+    ref.current.click();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -123,6 +148,8 @@ export default function ScheduleManagement() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          academicYear: formData.academicYear,
+          semester: formData.semester,
           startDate: formData.startDate,
           endDate: formData.endDate,
           isOpen: formData.status === "Open",
@@ -147,7 +174,9 @@ export default function ScheduleManagement() {
   };
 
   const copyAccessCode = async () => {
-    if (!activeSchedule?.accessCode) return;
+    if (!activeSchedule?.accessCode) {
+      return;
+    }
 
     try {
       await navigator.clipboard.writeText(activeSchedule.accessCode);
@@ -168,10 +197,13 @@ export default function ScheduleManagement() {
         <div className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h1 className="text-[28px] font-extrabold text-[#24135f]">Evaluation Session Access</h1>
+              <h1 className="text-[28px] font-extrabold text-[#24135f]">
+                Evaluation Session Access
+              </h1>
               <p className="mt-2 max-w-2xl text-sm text-[#6d6686]">
-                Opening a session generates a new student access code. Closing the session makes
-                that code invalid immediately.
+                Opening a session activates one Academic Year and Semester. Students first enter the
+                shared portal access code, then use instructor codes generated per instructor for
+                that period.
               </p>
             </div>
             <button
@@ -193,12 +225,17 @@ export default function ScheduleManagement() {
                   Active Session
                 </p>
                 <h2 className="mt-2 text-[24px] font-extrabold text-[#24135f]">
-                  Student Access Code: {activeSchedule.accessCode}
+                  {activeSchedule.academicYear} • {activeSchedule.semester}
                 </h2>
                 <p className="mt-2 text-sm text-[#6d6686]">
                   {new Date(activeSchedule.startDate).toLocaleDateString("en-PH")} to{" "}
-                  {new Date(activeSchedule.endDate).toLocaleDateString("en-PH")} •{" "}
-                  {activeSchedule.academicYear}
+                  {new Date(activeSchedule.endDate).toLocaleDateString("en-PH")}
+                </p>
+                <p className="mt-3 text-sm font-semibold text-[#24135f]">
+                  Portal Access Code:{" "}
+                  <span className="rounded-full bg-[#f7f4ff] px-3 py-1 tracking-[0.16em]">
+                    {activeSchedule.accessCode || "Unavailable"}
+                  </span>
                 </p>
               </div>
 
@@ -208,7 +245,7 @@ export default function ScheduleManagement() {
                 className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#24135f] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#1b0f4d]"
               >
                 <Copy size={16} />
-                {copied ? "Copied" : "Copy Code"}
+                {copied ? "Copied" : "Copy Portal Code"}
               </button>
             </div>
 
@@ -217,25 +254,23 @@ export default function ScheduleManagement() {
                 <p className="text-sm font-semibold text-[#18794e]">Student submissions</p>
                 <p className="mt-2 text-3xl font-extrabold text-[#24135f]">{submissionCount}</p>
                 <p className="mt-1 text-sm text-[#6d6686]">
-                  Distinct Student IDs recorded in the current session
+                  Distinct student evaluation sessions recorded in the current period
                 </p>
               </div>
 
               <div className="rounded-[18px] border border-[#ece7f7] bg-[#faf8ff] p-5">
-                <p className="text-sm font-semibold text-[#24135f]">Submitted Student IDs</p>
+                <p className="text-sm font-semibold text-[#24135f]">Instructor code management</p>
+                <p className="mt-3 text-sm text-[#6d6686]">
+                  Active instructor codes are available from Manage Instructors for this Academic
+                  Year and Semester.
+                </p>
                 {submittedStudentIds.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {submittedStudentIds.map((studentId) => (
-                      <span
-                        key={studentId}
-                        className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#24135f] shadow-sm"
-                      >
-                        {studentId}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="mt-4 text-sm text-[#6d6686]">
+                    Recent student activity includes: {submittedStudentIds.slice(0, 8).join(", ")}
+                    {submittedStudentIds.length > 8 ? "..." : ""}
+                  </p>
                 ) : (
-                  <p className="mt-3 text-sm text-[#6d6686]">
+                  <p className="mt-4 text-sm text-[#6d6686]">
                     No student submissions recorded yet for this session.
                   </p>
                 )}
@@ -248,11 +283,29 @@ export default function ScheduleManagement() {
           <section className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm">
             <h2 className="text-[22px] font-extrabold text-[#24135f]">Open or Close Session</h2>
             <p className="mt-2 text-sm text-[#6d6686]">
-              Keep the status on Open to create a new session or update the active one. Switch to
-              Closed to end the active session and invalidate its access code.
+              Keep the status on Open to create or update the active evaluation period. Switch to
+              Closed to end the current Academic Year and Semester session and invalidate all
+              related instructor codes.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+              <AcademicYearSelect
+                value={formData.academicYear}
+                options={academicYearOptions}
+                onChange={(value) => setFormData((current) => ({ ...current, academicYear: value }))}
+                className="items-start"
+              />
+
+              <div>
+                <label className="mb-2 block text-[14px] font-bold text-[#24135f]">Semester</label>
+                <AppSelect
+                  value={formData.semester}
+                  onChange={(nextValue) => setFormData({ ...formData, semester: nextValue })}
+                  options={SEMESTER_OPTIONS.map((option) => ({ value: option, label: option }))}
+                  triggerClassName="min-h-[46px] rounded-[12px] text-[15px]"
+                />
+              </div>
+
               <div>
                 <label className="mb-2 block text-[14px] font-bold text-[#24135f]">Start Date</label>
                 <div className="relative">
@@ -342,7 +395,8 @@ export default function ScheduleManagement() {
               {message ? (
                 <div
                   className={`rounded-md px-4 py-3 text-sm ${
-                    messageText.toLowerCase().includes("error") || messageText.toLowerCase().includes("invalid")
+                    messageText.toLowerCase().includes("error") ||
+                    messageText.toLowerCase().includes("invalid")
                       ? "bg-red-50 text-red-600"
                       : "bg-green-50 text-green-600"
                   }`}
@@ -356,7 +410,11 @@ export default function ScheduleManagement() {
                 disabled={submitting}
                 className="h-[52px] w-full rounded-[12px] bg-[#24135f] text-[16px] font-bold text-white transition hover:bg-[#1b0f4d] disabled:opacity-50"
               >
-                {submitting ? "Saving..." : formData.status === "Open" ? "Save Session" : "Close Session"}
+                {submitting
+                  ? "Saving..."
+                  : formData.status === "Open"
+                  ? "Save Session"
+                  : "Close Session"}
               </button>
             </form>
           </section>
@@ -364,7 +422,7 @@ export default function ScheduleManagement() {
           <section className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm">
             <h2 className="text-[22px] font-extrabold text-[#24135f]">Recent Sessions</h2>
             <p className="mt-2 text-sm text-[#6d6686]">
-              Every new opening creates a separate access code and session record.
+              Every new opening creates a separate Academic Year and Semester session record.
             </p>
 
             <div className="mt-6 space-y-3">
@@ -376,7 +434,9 @@ export default function ScheduleManagement() {
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-sm font-bold text-[#24135f]">{schedule.academicYear}</p>
+                        <p className="text-sm font-bold text-[#24135f]">
+                          {schedule.academicYear} • {schedule.semester}
+                        </p>
                         <p className="mt-1 text-sm text-[#6d6686]">
                           {new Date(schedule.startDate).toLocaleDateString("en-PH")} to{" "}
                           {new Date(schedule.endDate).toLocaleDateString("en-PH")}
@@ -391,9 +451,6 @@ export default function ScheduleManagement() {
                           }`}
                         >
                           {activeSchedule?.id === schedule.id ? "Active" : "Closed"}
-                        </span>
-                        <span className="rounded-full bg-white px-3 py-1 text-[#24135f]">
-                          Code: {schedule.accessCode || "None"}
                         </span>
                       </div>
                     </div>
