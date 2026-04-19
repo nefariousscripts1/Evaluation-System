@@ -13,38 +13,67 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [totalStudents, totalFaculty, totalQuestionnaires, displaySchedules, latestQuestionnaires, latestFaculty] =
-      await Promise.all([
-        prisma.user.count({
-          where: { role: "student", deletedAt: null },
-        }),
-        prisma.user.count({
-          where: {
-            role: { in: ["faculty", "chairperson", "dean", "director", "campus_director"] },
-            deletedAt: null,
-          },
-        }),
-        prisma.questionnaire.count({
-          where: { isActive: true },
-        }),
-        prisma.schedule.findMany({
-          orderBy: { createdAt: "desc" },
-          take: 2,
-        }),
-        prisma.questionnaire.findMany({
-          orderBy: { createdAt: "desc" },
-          take: 5,
-        }),
-        prisma.user.findMany({
-          where: {
-            role: { in: ["faculty", "chairperson", "dean", "director", "campus_director"] },
-            deletedAt: null,
-          },
-          select: { id: true, name: true, email: true, role: true, department: true },
-          orderBy: { createdAt: "desc" },
-          take: 5,
-        }),
-      ]);
+    const [
+      totalStudentsResult,
+      totalFacultyResult,
+      totalQuestionnairesResult,
+      displaySchedulesResult,
+      latestQuestionnairesResult,
+      latestFacultyResult,
+    ] = await Promise.allSettled([
+      prisma.user.count({
+        where: { role: "student", deletedAt: null },
+      }),
+      prisma.user.count({
+        where: {
+          role: { in: ["faculty", "chairperson", "dean", "director", "campus_director"] },
+          deletedAt: null,
+        },
+      }),
+      prisma.questionnaire.count({
+        where: { isActive: true },
+      }),
+      prisma.schedule.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 2,
+      }),
+      prisma.questionnaire.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+      prisma.user.findMany({
+        where: {
+          role: { in: ["faculty", "chairperson", "dean", "director", "campus_director"] },
+          deletedAt: null,
+        },
+        select: { id: true, name: true, email: true, role: true, department: true },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+    ]);
+
+    const logSettledError = (label: string, result: PromiseSettledResult<unknown>) => {
+      if (result.status === "rejected") {
+        console.error(`Secretary dashboard ${label} failed:`, result.reason);
+      }
+    };
+
+    logSettledError("totalStudents", totalStudentsResult);
+    logSettledError("totalFaculty", totalFacultyResult);
+    logSettledError("totalQuestionnaires", totalQuestionnairesResult);
+    logSettledError("displaySchedules", displaySchedulesResult);
+    logSettledError("latestQuestionnaires", latestQuestionnairesResult);
+    logSettledError("latestFaculty", latestFacultyResult);
+
+    const totalStudents = totalStudentsResult.status === "fulfilled" ? totalStudentsResult.value : 0;
+    const totalFaculty = totalFacultyResult.status === "fulfilled" ? totalFacultyResult.value : 0;
+    const totalQuestionnaires =
+      totalQuestionnairesResult.status === "fulfilled" ? totalQuestionnairesResult.value : 0;
+    const displaySchedules =
+      displaySchedulesResult.status === "fulfilled" ? displaySchedulesResult.value : [];
+    const latestQuestionnaires =
+      latestQuestionnairesResult.status === "fulfilled" ? latestQuestionnairesResult.value : [];
+    const latestFaculty = latestFacultyResult.status === "fulfilled" ? latestFacultyResult.value : [];
 
     const now = new Date();
 
@@ -66,6 +95,17 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Secretary dashboard API failed:", error);
-    return NextResponse.json({ error: "Failed to load dashboard data" }, { status: 500 });
+    return NextResponse.json(
+      {
+        totalStudents: 0,
+        totalFaculty: 0,
+        totalQuestionnaires: 0,
+        displaySchedules: [],
+        latestQuestionnaires: [],
+        latestFaculty: [],
+        error: "Failed to load dashboard data",
+      },
+      { status: 200 }
+    );
   }
 }

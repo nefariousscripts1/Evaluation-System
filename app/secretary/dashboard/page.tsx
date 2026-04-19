@@ -50,12 +50,16 @@ export default function SecretaryDashboard() {
           signal: controller.signal,
         });
         const data = await res.json().catch(() => null);
+        console.log("Dashboard API status:", res.status, data);
 
-        if (!res.ok || !data) {
+        if (!data) {
           throw new Error(data?.error || "Failed to load dashboard data");
         }
 
         setPayload(data as DashboardPayload);
+        if (!res.ok && data.error) {
+          setError(data.error);
+        }
       } catch (fetchError) {
         if (controller.signal.aborted) {
           return;
