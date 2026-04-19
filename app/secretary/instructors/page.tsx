@@ -32,6 +32,7 @@ export default function InstructorManagement() {
   const router = useRouter();
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -43,23 +44,46 @@ export default function InstructorManagement() {
       router.push("/login");
       return;
     }
+
     if (status === "authenticated" && session?.user?.role !== "secretary") {
       router.push("/unauthorized");
       return;
     }
-    fetchInstructors();
-  }, [status, session, router]);
+
+    if (status === "authenticated" && session?.user?.role === "secretary") {
+      void fetchInstructors();
+    }
+  }, [status, session?.user?.role, router]);
 
   const fetchInstructors = async () => {
-    const res = await fetch("/api/instructors");
-    const data: InstructorsResponse = await res.json();
-    setInstructors(data.instructors ?? []);
-    setActiveScheduleLabel(
-      data.activeSchedule
-        ? `${data.activeSchedule.academicYear} • ${data.activeSchedule.semester}`
-        : ""
-    );
-    setLoading(false);
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await fetch("/api/instructors", { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data) {
+        throw new Error(data?.error || `Failed to load instructors (${res.status})`);
+      }
+
+      const typedData = data as InstructorsResponse;
+      setInstructors(typedData.instructors ?? []);
+      setActiveScheduleLabel(
+        typedData.activeSchedule
+          ? `${typedData.activeSchedule.academicYear} • ${typedData.activeSchedule.semester}`
+          : ""
+      );
+    } catch (fetchError) {
+      console.error("Instructor fetch error:", fetchError);
+      setInstructors([]);
+      setActiveScheduleLabel("");
+      setError(
+        fetchError instanceof Error ? fetchError.message : "Failed to load instructor records"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEdit = (instructor: Instructor) => {
@@ -73,10 +97,10 @@ export default function InstructorManagement() {
   };
 
   const handleSuccess = () => {
-    fetchInstructors();
+    void fetchInstructors();
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) return <div className="p-8 text-center text-[#24135f]">Loading...</div>;
 
   return (
     <>
@@ -94,18 +118,20 @@ export default function InstructorManagement() {
           <div className="mb-4 flex justify-end">
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full bg-[#24135f] px-5 py-2.5 text-[14px] font-bold text-white hover:bg-[#1a0f4a] transition"
+              className="inline-flex items-center gap-2 rounded-full bg-[#24135f] px-5 py-2.5 text-[14px] font-bold text-white transition hover:bg-[#1a0f4a]"
             >
               <Plus size={18} />
               Add Instructor
             </button>
           </div>
 
-          <InstructorsTable
-            instructors={instructors}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+          {error ? (
+            <div className="mb-4 rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
+
+          <InstructorsTable instructors={instructors} onEdit={handleEdit} onDelete={handleDelete} />
         </div>
       </main>
 

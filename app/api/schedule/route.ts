@@ -12,7 +12,7 @@ import { ensureInstructorAccessCodesForSchedule } from "@/lib/instructor-access"
 import { sendEvaluationOpenAnnouncement } from "@/lib/mailer";
 
 async function getScheduleSnapshot() {
-  const [activeSchedule, recentSchedules] = await Promise.all([
+  const [activeScheduleResult, recentSchedulesResult] = await Promise.allSettled([
     getActiveSchedule(),
     prisma.schedule.findMany({
       orderBy: { createdAt: "desc" },
@@ -30,21 +30,39 @@ async function getScheduleSnapshot() {
     }),
   ]);
 
+  if (activeScheduleResult.status === "rejected") {
+    console.error("Schedule snapshot active schedule lookup failed:", activeScheduleResult.reason);
+  }
+
+  if (recentSchedulesResult.status === "rejected") {
+    console.error("Schedule snapshot recent schedules lookup failed:", recentSchedulesResult.reason);
+  }
+
+  const activeSchedule =
+    activeScheduleResult.status === "fulfilled" ? activeScheduleResult.value : null;
+  const recentSchedules =
+    recentSchedulesResult.status === "fulfilled" ? recentSchedulesResult.value : [];
+
   const submittedStudentIds = activeSchedule
-    ? await prisma.evaluation.findMany({
-        where: {
-          scheduleId: activeSchedule.id,
-          evaluator: { role: "student" },
-        },
-        select: {
-          evaluator: {
-            select: {
-              id: true,
-              studentId: true,
+    ? await prisma.evaluation
+        .findMany({
+          where: {
+            scheduleId: activeSchedule.id,
+            evaluator: { role: "student" },
+          },
+          select: {
+            evaluator: {
+              select: {
+                id: true,
+                studentId: true,
+              },
             },
           },
-        },
-      })
+        })
+        .catch((error) => {
+          console.error("Schedule snapshot submission lookup failed:", error);
+          return [];
+        })
     : [];
 
   const uniqueSubmittedStudentIds = new Map<number, string>();
@@ -74,11 +92,28 @@ export async function GET() {
       return NextResponse.json({ error: "Secretary access required" }, { status: 401 });
     }
 
-    const snapshot = await getScheduleSnapshot();
+    const snapshot = await getScheduleSnapshot().catch((error) => {
+      console.error("Schedule snapshot build failed:", error);
+      return {
+        activeSchedule: null,
+        recentSchedules: [],
+        submissionCount: 0,
+        submittedStudentIds: [],
+      };
+    });
     return NextResponse.json(snapshot);
   } catch (error) {
     console.error("Schedule API error:", error);
-    return NextResponse.json({ error: "Server error loading schedule" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Server error loading schedule",
+        activeSchedule: null,
+        recentSchedules: [],
+        submissionCount: 0,
+        submittedStudentIds: [],
+      },
+      { status: 200 }
+    );
   }
 }
 

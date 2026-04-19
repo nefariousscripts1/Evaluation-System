@@ -121,12 +121,16 @@ export default function ScheduleManagement() {
       
       const data = await res.json().catch(() => null);
 
-      if (!res.ok || !data) {
+      if (!data) {
         throw new Error(data?.error || `Schedule API failed (${res.status})`);
       }
 
       hydrateFromResponse(data);
-      setMessage("");
+      if (!res.ok && data.error) {
+        setMessage(data.error);
+      } else {
+        setMessage("");
+      }
     } catch (error) {
       console.error("❌ Schedule fetch error:", error);
       setMessage(error instanceof Error ? error.message : "Failed to load schedule data");
@@ -156,7 +160,7 @@ export default function ScheduleManagement() {
 
       const data = await res.json().catch(() => null);
 
-      if (!res.ok || !data) {
+      if (!data) {
         throw new Error(data?.error || "Error saving schedule");
       }
 
