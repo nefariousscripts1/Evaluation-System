@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { buildPasswordResetUrl, createPasswordResetToken } from "@/lib/password-reset";
-import { sendPasswordResetEmail } from "@/lib/mailer";
+import { getEmailDeliveryProvider, sendPasswordResetEmail } from "@/lib/mailer";
 
 export async function POST(req: Request) {
   try {
     const { email } = await req.json();
+    const isDevelopment = process.env.NODE_ENV !== "production";
+    const deliveryProvider = getEmailDeliveryProvider();
 
     if (typeof email !== "string" || email.trim().length === 0) {
       return NextResponse.json({ message: "Email is required" }, { status: 400 });
@@ -20,21 +22,30 @@ export async function POST(req: Request) {
     if (user && !user.deletedAt) {
       const token = createPasswordResetToken(user.email);
       const resetUrl = buildPasswordResetUrl(token);
-      await sendPasswordResetEmail({ email: user.email, resetUrl });
+      const deliveryResult = await sendPasswordResetEmail({ email: user.email, resetUrl });
 
       return NextResponse.json({
-        message: "If an account exists for that email, a reset link has been sent.",
-        ...(process.env.NODE_ENV !== "production" &&
-        !process.env.RESEND_API_KEY &&
-        !process.env.GMAIL_USER &&
-        !process.env.GMAIL_APP_PASSWORD
-          ? { resetUrl }
-          : {}),
+        message: deliveryResult.delivered
+          ? "If an account exists for that email, a reset link has been sent."
+          : isDevelopment
+            ? "Email delivery is not configured in this environment. Use the dev reset link below."
+            : "Password reset email is not configured yet. Please contact the administrator.",
+        delivered: deliveryResult.delivered,
+        deliveryConfigured: deliveryResult.provider !== "console",
+        provider: deliveryResult.provider,
+        ...(!deliveryResult.delivered && isDevelopment ? { resetUrl } : {}),
       });
     }
 
     return NextResponse.json({
-      message: "If an account exists for that email, a reset link has been sent.",
+      message: deliveryProvider
+        ? "If an account exists for that email, a reset link has been sent."
+        : isDevelopment
+          ? "Email delivery is not configured in this environment."
+          : "Password reset email is not configured yet. Please contact the administrator.",
+      delivered: false,
+      deliveryConfigured: Boolean(deliveryProvider),
+      provider: deliveryProvider ?? "console",
     });
   } catch (error) {
     console.error("Forgot password error:", error);

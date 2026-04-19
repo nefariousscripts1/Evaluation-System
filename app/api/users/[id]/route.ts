@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcrypt";
 
@@ -12,6 +13,25 @@ async function requireSecretary() {
   }
 
   return session;
+}
+
+function getUniqueConstraintMessage(error: Prisma.PrismaClientKnownRequestError) {
+  const targetMeta = error.meta?.target;
+  const target = Array.isArray(targetMeta)
+    ? targetMeta
+    : typeof targetMeta === "string"
+      ? [targetMeta]
+      : [];
+
+  if (target.includes("email") || target.includes("User_email_key")) {
+    return "An account with this email address already exists";
+  }
+
+  if (target.includes("studentId") || target.includes("User_studentId_key")) {
+    return "This student ID is already in use";
+  }
+
+  return "A record with this information already exists";
 }
 
 export async function DELETE(
@@ -122,6 +142,14 @@ export async function PUT(
     return NextResponse.json({ success: true, user });
   } catch (error) {
     console.error("PUT error:", error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: getUniqueConstraintMessage(error) },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
 }

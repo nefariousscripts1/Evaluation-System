@@ -51,6 +51,7 @@ export default function ScheduleManagement() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [resultsNotifyLoadingId, setResultsNotifyLoadingId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState<ScheduleFormState>({
     academicYear: academicYearOptions[academicYearOptions.length - 2] ?? academicYearOptions[0],
@@ -78,8 +79,11 @@ export default function ScheduleManagement() {
       return;
     }
 
-    void fetchSchedule();
-  }, [status, session, router]);
+    // Only fetch for authenticated secretary
+    if (status === "authenticated" && session?.user?.role === "secretary") {
+      void fetchSchedule();
+    }
+  }, [status, session?.user?.role, router]);
 
   const hydrateFromResponse = (data: ScheduleResponse) => {
     setActiveSchedule(data.activeSchedule);
@@ -111,18 +115,21 @@ export default function ScheduleManagement() {
   };
 
   const fetchSchedule = async () => {
+    console.log("🔍 fetchSchedule - status:", status, "role:", session?.user?.role);
     try {
       const res = await fetch("/api/schedule", { cache: "no-store" });
-      const data = await res.json();
+      
+      const data = await res.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to load schedule");
+      if (!res.ok || !data) {
+        throw new Error(data?.error || `Schedule API failed (${res.status})`);
       }
 
       hydrateFromResponse(data);
+      setMessage("");
     } catch (error) {
-      console.error("Schedule fetch error:", error);
-      setMessage("Error loading schedule data");
+      console.error("❌ Schedule fetch error:", error);
+      setMessage(error instanceof Error ? error.message : "Failed to load schedule data");
     } finally {
       setLoading(false);
     }
@@ -147,10 +154,10 @@ export default function ScheduleManagement() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data.error || "Error saving schedule");
+      if (!res.ok || !data) {
+        throw new Error(data?.error || "Error saving schedule");
       }
 
       hydrateFromResponse(data);
@@ -180,6 +187,40 @@ export default function ScheduleManagement() {
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error("Copy failed:", error);
+    }
+  };
+
+  const handleNotifyResults = async (schedule: ScheduleSummary) => {
+    setResultsNotifyLoadingId(schedule.id);
+    setMessage("");
+
+    try {
+      const res = await fetch("/api/schedule/results-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          academicYear: schedule.academicYear,
+          semester: schedule.semester,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to send staff results notification");
+      }
+
+      setMessage(
+        data?.announcement?.delivered
+          ? `${data.message}. Sent to ${data.announcement.recipientCount} staff recipient(s) via ${data.announcement.provider}.`
+          : "Staff results notification could not be delivered from this environment."
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Failed to send staff results notification"
+      );
+    } finally {
+      setResultsNotifyLoadingId(null);
     }
   };
 
@@ -399,6 +440,7 @@ export default function ScheduleManagement() {
                   : "Close Session"}
               </button>
             </form>
+
           </section>
 
           <section className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm">
@@ -435,6 +477,22 @@ export default function ScheduleManagement() {
                           {activeSchedule?.id === schedule.id ? "Active" : "Closed"}
                         </span>
                       </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-[#6d6686]">
+                        Send a private email to faculty when their results for this session are ready.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void handleNotifyResults(schedule)}
+                        disabled={resultsNotifyLoadingId === schedule.id}
+                        className="inline-flex items-center justify-center rounded-[12px] border border-[#d8d2e6] bg-white px-4 py-2 text-sm font-bold text-[#24135f] transition hover:bg-[#f7f4ff] disabled:opacity-50"
+                      >
+                        {resultsNotifyLoadingId === schedule.id
+                          ? "Sending..."
+                          : "Notify Staff Results"}
+                      </button>
                     </div>
                   </div>
                 ))

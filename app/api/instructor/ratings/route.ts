@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { ResultsNotReleasedError, assertResultsReleasedForAcademicYear, filterReleasedAcademicYears, isResultsNotReleasedError } from "@/lib/results-release";
 
 export const dynamic = "force-dynamic";
 
@@ -95,15 +96,17 @@ export async function GET(request: Request) {
       orderBy: { academicYear: "desc" },
     });
 
-    const years =
-      yearsData.length > 0
-        ? yearsData.map((item) => item.academicYear)
-        : [fallbackAcademicYear()];
+    const years = await filterReleasedAcademicYears(yearsData.map((item) => item.academicYear));
 
     const { searchParams } = new URL(request.url);
     const requestedYear = searchParams.get("year");
-    const academicYear =
-      requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
+    const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
+
+    if (!academicYear) {
+      throw new ResultsNotReleasedError(requestedYear || undefined);
+    }
+
+    await assertResultsReleasedForAcademicYear(academicYear);
 
     const [studentEvaluations, chairpersonEvaluation] = await Promise.all([
       getSummaryForRole(userId, academicYear, "student"),
@@ -118,6 +121,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Instructor ratings API error:", error);
+    if (isResultsNotReleasedError(error)) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
     return NextResponse.json(
       { message: "Failed to fetch instructor ratings" },
       { status: 500 }

@@ -8,76 +8,78 @@ datasource db {
 }
 
 model User {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  password      String
-  name          String?
-  role          Role
-  department    String?
-  studentId     String?   @unique
-  agreedToTerms Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
-
-  evaluationsGiven    Evaluation[] @relation("Evaluator")
-  evaluationsReceived Evaluation[] @relation("Evaluated")
+  id                    Int                    @id @default(autoincrement())
+  email                 String                 @unique
+  password              String
+  name                  String?
+  role                  Role
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
+  agreedToTerms         Boolean                @default(false)
+  department            String?
+  studentId             String?                @unique
+  evaluationsReceived   Evaluation[]           @relation("Evaluated")
+  evaluationsGiven      Evaluation[]           @relation("Evaluator")
   instructorAccessCodes InstructorAccessCode[]
-  results             Result[]
+  results               Result[]
 }
 
 model Evaluation {
-  id             Int       @id @default(autoincrement())
+  id             Int                @id @default(autoincrement())
   evaluatorId    Int
   evaluatedId    Int
-  scheduleId     Int?
   academicYear   String
-  semester       String    @default("1st Semester")
+  createdAt      DateTime           @default(now())
   generalComment String?
-  createdAt      DateTime  @default(now())
-
-  evaluator User                @relation("Evaluator", fields: [evaluatorId], references: [id])
-  evaluated User                @relation("Evaluated", fields: [evaluatedId], references: [id])
-  schedule  Schedule?           @relation(fields: [scheduleId], references: [id])
-  answers   EvaluationAnswer[]
+  scheduleId     Int?
+  semester       String             @default("1st Semester")
+  evaluated      User               @relation("Evaluated", fields: [evaluatedId], references: [id])
+  evaluator      User               @relation("Evaluator", fields: [evaluatorId], references: [id])
+  schedule       Schedule?          @relation(fields: [scheduleId], references: [id])
+  answers        EvaluationAnswer[]
 
   @@unique([evaluatorId, evaluatedId, scheduleId])
+  @@index([evaluatedId], map: "Evaluation_evaluatedId_fkey")
+  @@index([evaluatorId], map: "Evaluation_evaluatorId_fkey")
+  @@index([scheduleId], map: "Evaluation_scheduleId_fkey")
 }
 
 model EvaluationAnswer {
-  id            Int       @id @default(autoincrement())
+  id            Int           @id @default(autoincrement())
   evaluationId  Int
   questionId    Int
   rating        Int
   comment       String?
-
   evaluation    Evaluation    @relation(fields: [evaluationId], references: [id])
   questionnaire Questionnaire @relation(fields: [questionId], references: [id])
+
+  @@index([evaluationId], map: "EvaluationAnswer_evaluationId_fkey")
+  @@index([questionId], map: "EvaluationAnswer_questionId_fkey")
 }
 
 model Questionnaire {
-  id            Int       @id @default(autoincrement())
-  questionText  String
-  category      String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  answers       EvaluationAnswer[]
+  id           Int                @id @default(autoincrement())
+  questionText String
+  category     String?
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  answers      EvaluationAnswer[]
 }
 
 model Schedule {
-  id          Int       @id @default(autoincrement())
-  academicYear String
-  semester    String    @default("1st Semester")
-  startDate   DateTime
-  endDate     DateTime
-  isOpen      Boolean   @default(false)
-  accessCode  String?   @db.VarChar(32)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  evaluations Evaluation[]
+  id                    Int                    @id @default(autoincrement())
+  academicYear          String
+  startDate             DateTime
+  endDate               DateTime
+  createdAt             DateTime               @default(now())
+  isOpen                Boolean                @default(false)
+  resultsReleased       Boolean                @default(false)
+  accessCode            String?                @db.VarChar(32)
+  updatedAt             DateTime               @default(now()) @updatedAt
+  semester              String                 @default("1st Semester")
+  evaluations           Evaluation[]
   instructorAccessCodes InstructorAccessCode[]
 
   @@index([isOpen, startDate, endDate])
@@ -86,14 +88,13 @@ model Schedule {
 
 model InstructorAccessCode {
   id           Int      @id @default(autoincrement())
-  scheduleId    Int
-  instructorId  Int
+  scheduleId   Int
+  instructorId Int
   code         String   @db.VarChar(32)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  schedule     Schedule @relation(fields: [scheduleId], references: [id])
+  updatedAt    DateTime @default(now()) @updatedAt
   instructor   User     @relation(fields: [instructorId], references: [id])
+  schedule     Schedule @relation(fields: [scheduleId], references: [id])
 
   @@unique([scheduleId, instructorId])
   @@unique([scheduleId, code])
@@ -101,15 +102,13 @@ model InstructorAccessCode {
 }
 
 model Result {
-  id            Int       @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   userId        Int
   academicYear  String
   averageRating Float
   summary       String?
-
-  createdAt     DateTime  @default(now())
-
-  user          User      @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, academicYear])
 }

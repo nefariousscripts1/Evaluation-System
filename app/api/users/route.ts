@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import bcrypt from "bcrypt";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db";
 import { authOptions } from "@/lib/auth";
 
@@ -38,6 +39,25 @@ export async function GET() {
     console.error("API Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
+}
+
+function getUniqueConstraintMessage(error: Prisma.PrismaClientKnownRequestError) {
+  const targetMeta = error.meta?.target;
+  const target = Array.isArray(targetMeta)
+    ? targetMeta
+    : typeof targetMeta === "string"
+      ? [targetMeta]
+      : [];
+
+  if (target.includes("email") || target.includes("User_email_key")) {
+    return "An account with this email address already exists";
+  }
+
+  if (target.includes("studentId") || target.includes("User_studentId_key")) {
+    return "This student ID is already in use";
+  }
+
+  return "A record with this information already exists";
 }
 
 export async function POST(request: Request) {
@@ -85,6 +105,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
     console.error("POST Error:", error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: getUniqueConstraintMessage(error) },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

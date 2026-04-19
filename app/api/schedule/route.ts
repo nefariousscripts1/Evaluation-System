@@ -36,7 +36,6 @@ async function getScheduleSnapshot() {
           scheduleId: activeSchedule.id,
           evaluator: { role: "student" },
         },
-        distinct: ["evaluatorId"],
         select: {
           evaluator: {
             select: {
@@ -45,26 +44,42 @@ async function getScheduleSnapshot() {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
       })
     : [];
+
+  const uniqueSubmittedStudentIds = new Map<number, string>();
+  for (const item of submittedStudentIds) {
+    const evaluatorId = item.evaluator.id;
+    if (!uniqueSubmittedStudentIds.has(evaluatorId)) {
+      uniqueSubmittedStudentIds.set(
+        evaluatorId,
+        item.evaluator.studentId || `Anonymous Session ${item.evaluator.id}`
+      );
+    }
+  }
 
   return {
     activeSchedule,
     recentSchedules,
-    submissionCount: submittedStudentIds.length,
-    submittedStudentIds: submittedStudentIds
-      .map((item) => item.evaluator.studentId || `Anonymous Session ${item.evaluator.id}`),
+    submissionCount: uniqueSubmittedStudentIds.size,
+    submittedStudentIds: Array.from(uniqueSubmittedStudentIds.values()),
   };
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const session = await getServerSession(authOptions);
+    console.log("API /schedule session:", !!session, session?.user?.role);
+    if (!session || session.user.role !== "secretary") {
+      return NextResponse.json({ error: "Secretary access required" }, { status: 401 });
+    }
 
-  return NextResponse.json(await getScheduleSnapshot());
+    const snapshot = await getScheduleSnapshot();
+    return NextResponse.json(snapshot);
+  } catch (error) {
+    console.error("Schedule API error:", error);
+    return NextResponse.json({ error: "Server error loading schedule" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
@@ -163,7 +178,6 @@ export async function POST(req: Request) {
           semester: persistedSchedule.semester,
           startDate: persistedSchedule.startDate,
           endDate: persistedSchedule.endDate,
-          accessCode: persistedSchedule.accessCode,
         });
       } catch (error) {
         console.error("Evaluation-open announcement failed:", error);
@@ -197,6 +211,6 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     message: "Evaluation session has been closed",
-    ...(await getScheduleSnapshot()),
+    ...(await getScheduleSnapshot()), 
   });
 }

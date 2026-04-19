@@ -1,4 +1,5 @@
 import prisma from "@/lib/db";
+import { ResultsNotReleasedError, assertResultsReleasedForAcademicYear, filterReleasedAcademicYears } from "@/lib/results-release";
 import {
   getReportableRoleLabel,
   isCampusDirectorRoleFilter,
@@ -166,7 +167,7 @@ export function buildBreakdown(ratings: number[]): RatingBreakdown {
   };
 }
 
-export async function resolveAcademicYears() {
+export async function resolveAcademicYears(options?: { releasedOnly?: boolean }) {
   const yearsFromResults = await prisma.result.findMany({
     distinct: ["academicYear"],
     select: { academicYear: true },
@@ -185,13 +186,19 @@ export async function resolveAcademicYears() {
     orderBy: { academicYear: "desc" },
   });
 
-  return Array.from(
+  const years = Array.from(
     new Set([
       ...yearsFromResults.map((item) => item.academicYear),
       ...yearsFromEvaluations.map((item) => item.academicYear),
       ...yearsFromSchedules.map((item) => item.academicYear),
     ])
   );
+
+  if (!options?.releasedOnly) {
+    return years;
+  }
+
+  return filterReleasedAcademicYears(years);
 }
 
 export async function getLeadershipResultsData(params: {
@@ -205,13 +212,16 @@ export async function getLeadershipResultsData(params: {
   const { request, sessionUserId, sessionUserName, sessionUserEmail, viewerRoleLabel, targetRole } =
     params;
 
-  const years = await resolveAcademicYears();
+  const years = await resolveAcademicYears({ releasedOnly: true });
   const { searchParams } = new URL(request.url);
   const requestedYear = searchParams.get("year")?.trim();
-  const academicYear =
-    requestedYear && years.includes(requestedYear)
-      ? requestedYear
-      : years[0] ?? fallbackAcademicYear();
+  const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
+
+  if (!academicYear) {
+    throw new ResultsNotReleasedError(requestedYear || undefined);
+  }
+
+  await assertResultsReleasedForAcademicYear(academicYear);
 
   const userEvaluations = await prisma.evaluation.findMany({
     where: {
@@ -284,7 +294,7 @@ export async function getLeadershipResultsData(params: {
 
   const response: LeadershipResultsResponse = {
     academicYear,
-    years: years.length > 0 ? years : [academicYear],
+    years,
     myRatings: {
       evaluatorName: sessionUserName || sessionUserEmail || viewerRoleLabel,
       evaluatorRole: viewerRoleLabel,
@@ -309,13 +319,16 @@ export async function getSingleTargetResultsData(params: {
   targetRole: ReportableRole;
 }) {
   const { request, targetRole } = params;
-  const years = await resolveAcademicYears();
+  const years = await resolveAcademicYears({ releasedOnly: true });
   const { searchParams } = new URL(request.url);
   const requestedYear = searchParams.get("year")?.trim();
-  const academicYear =
-    requestedYear && years.includes(requestedYear)
-      ? requestedYear
-      : years[0] ?? fallbackAcademicYear();
+  const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
+
+  if (!academicYear) {
+    throw new ResultsNotReleasedError(requestedYear || undefined);
+  }
+
+  await assertResultsReleasedForAcademicYear(academicYear);
 
   const targetResults = await prisma.result.findMany({
     where: {
@@ -361,7 +374,7 @@ export async function getSingleTargetResultsData(params: {
 
   const response: SingleTargetResultsResponse = {
     academicYear,
-    years: years.length > 0 ? years : [academicYear],
+    years,
     averageRating,
     completionRate,
     completedCount: targetResults.length,
@@ -506,12 +519,15 @@ export async function getLeadershipCommentsData(params: {
     throw new Error("Invalid semester filter");
   }
 
-  const years = await resolveAcademicYears();
+  const years = await resolveAcademicYears({ releasedOnly: true });
   const requestedYear = searchParams.get("academicYear")?.trim() ?? "";
-  const academicYear =
-    requestedYear && years.includes(requestedYear)
-      ? requestedYear
-      : years[0] ?? fallbackAcademicYear();
+  const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
+
+  if (!academicYear) {
+    throw new ResultsNotReleasedError(requestedYear || undefined);
+  }
+
+  await assertResultsReleasedForAcademicYear(academicYear);
 
   const mySummaryComments = await buildCommentItemsForUser(sessionUserId, academicYear);
 
@@ -575,7 +591,7 @@ export async function getLeadershipCommentsData(params: {
 
   const response: LeadershipCommentsResponse = {
     academicYear,
-    years: years.length > 0 ? years : [academicYear],
+    years,
     semesters: ["All Semesters"],
     semester: "all",
     mySummaryComments,
@@ -602,12 +618,15 @@ export async function getSingleTargetCommentsData(params: {
     throw new Error("Invalid semester filter");
   }
 
-  const years = await resolveAcademicYears();
+  const years = await resolveAcademicYears({ releasedOnly: true });
   const requestedYear = searchParams.get("academicYear")?.trim() ?? "";
-  const academicYear =
-    requestedYear && years.includes(requestedYear)
-      ? requestedYear
-      : years[0] ?? fallbackAcademicYear();
+  const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
+
+  if (!academicYear) {
+    throw new ResultsNotReleasedError(requestedYear || undefined);
+  }
+
+  await assertResultsReleasedForAcademicYear(academicYear);
 
   const selectedTarget =
     Number.isInteger(selectedTargetId) && selectedTargetId > 0
@@ -669,7 +688,7 @@ export async function getSingleTargetCommentsData(params: {
 
   const response: SingleTargetCommentsResponse = {
     academicYear,
-    years: years.length > 0 ? years : [academicYear],
+    years,
     semesters: ["All Semesters"],
     semester: "all",
     selectedTarget: targetComments.selectedTarget,
@@ -693,13 +712,16 @@ export async function getCampusDirectorResultsData(params: {
   request: Request;
 }) {
   const { request } = params;
-  const years = await resolveAcademicYears();
+  const years = await resolveAcademicYears({ releasedOnly: true });
   const { searchParams } = new URL(request.url);
   const requestedYear = searchParams.get("year")?.trim();
-  const academicYear =
-    requestedYear && years.includes(requestedYear)
-      ? requestedYear
-      : years[0] ?? fallbackAcademicYear();
+  const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
+
+  if (!academicYear) {
+    throw new ResultsNotReleasedError(requestedYear || undefined);
+  }
+
+  await assertResultsReleasedForAcademicYear(academicYear);
 
   const role = resolveCampusDirectorRoleFilter(searchParams.get("role"));
   const roles = getCampusDirectorRoles(role);
@@ -745,7 +767,7 @@ export async function getCampusDirectorResultsData(params: {
 
   const response: CampusDirectorResultsResponse = {
     academicYear,
-    years: years.length > 0 ? years : [academicYear],
+    years,
     role,
     averageRating,
     completionRate,
@@ -772,12 +794,15 @@ export async function getCampusDirectorCommentsData(params: {
     throw new Error("Invalid semester filter");
   }
 
-  const years = await resolveAcademicYears();
+  const years = await resolveAcademicYears({ releasedOnly: true });
   const requestedYear = searchParams.get("academicYear")?.trim() ?? "";
-  const academicYear =
-    requestedYear && years.includes(requestedYear)
-      ? requestedYear
-      : years[0] ?? fallbackAcademicYear();
+  const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
+
+  if (!academicYear) {
+    throw new ResultsNotReleasedError(requestedYear || undefined);
+  }
+
+  await assertResultsReleasedForAcademicYear(academicYear);
 
   const role = resolveCampusDirectorRoleFilter(searchParams.get("role"));
   const roles = getCampusDirectorRoles(role);
@@ -845,7 +870,7 @@ export async function getCampusDirectorCommentsData(params: {
 
   const response: CampusDirectorCommentsResponse = {
     academicYear,
-    years: years.length > 0 ? years : [academicYear],
+    years,
     semesters: ["All Semesters"],
     semester: "all",
     role,
