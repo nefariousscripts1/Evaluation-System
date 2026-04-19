@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Copy, RefreshCw } from "lucide-react";
+import { Copy, RefreshCw } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
+import AppDatePicker from "@/components/ui/AppDatePicker";
 import AppSelect from "@/components/ui/AppSelect";
 import { getErrorMessage } from "@/lib/error-message";
 import { buildAcademicYearOptions, SEMESTER_OPTIONS } from "@/lib/evaluation-session";
@@ -25,6 +26,12 @@ type ScheduleResponse = {
   recentSchedules: ScheduleSummary[];
   submissionCount: number;
   submittedStudentIds: string[];
+  announcement?: {
+    delivered: boolean;
+    provider: string;
+    recipientCount: number;
+  };
+  message?: string;
 };
 
 type ScheduleFormState = {
@@ -41,9 +48,6 @@ const academicYearOptions = buildAcademicYearOptions();
 export default function ScheduleManagement() {
   const { data: session, status } = useSession();
   const router = useRouter();
-
-  const startDateRef = useRef<HTMLInputElement>(null);
-  const endDateRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -124,20 +128,6 @@ export default function ScheduleManagement() {
     }
   };
 
-  const openPicker = (ref: React.RefObject<HTMLInputElement | null>) => {
-    if (!ref.current) {
-      return;
-    }
-
-    if (typeof ref.current.showPicker === "function") {
-      ref.current.showPicker();
-      return;
-    }
-
-    ref.current.focus();
-    ref.current.click();
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -164,7 +154,13 @@ export default function ScheduleManagement() {
       }
 
       hydrateFromResponse(data);
-      setMessage(data.message || "Schedule saved successfully!");
+      const nextMessage =
+        data.message === "Evaluation session is now open" && data.announcement
+          ? data.announcement.delivered
+            ? `${data.message}. Announcement sent to ${data.announcement.recipientCount} recipient(s) via ${data.announcement.provider}.`
+            : `${data.message}. The session opened, but announcement email delivery is not configured yet.`
+          : data.message || "Schedule saved successfully!";
+      setMessage(nextMessage);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error saving schedule");
@@ -193,7 +189,7 @@ export default function ScheduleManagement() {
 
   return (
     <main className="px-4 py-4 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1180px] space-y-5">
+      <div className="mx-auto max-w-[1600px] space-y-5">
         <div className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -307,47 +303,33 @@ export default function ScheduleManagement() {
               </div>
 
               <div>
-                <label className="mb-2 block text-[14px] font-bold text-[#24135f]">Start Date</label>
-                <div className="relative">
-                  <input
-                    ref={startDateRef}
-                    type="date"
-                    required
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="h-[46px] w-full rounded-[12px] border border-[#cfc8e2] bg-white px-4 pr-12 text-[15px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f] [&::-webkit-calendar-picker-indicator]:opacity-0"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => openPicker(startDateRef)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2b2b2b]"
-                    aria-label="Open start date calendar"
-                  >
-                    <CalendarDays size={20} />
-                  </button>
-                </div>
+                <AppDatePicker
+                  label="Start Date"
+                  required
+                  value={formData.startDate}
+                  onChange={(nextValue) =>
+                    setFormData((current) => ({
+                      ...current,
+                      startDate: nextValue,
+                      endDate:
+                        current.endDate && nextValue && current.endDate < nextValue
+                          ? nextValue
+                          : current.endDate,
+                    }))
+                  }
+                />
               </div>
 
               <div>
-                <label className="mb-2 block text-[14px] font-bold text-[#24135f]">End Date</label>
-                <div className="relative">
-                  <input
-                    ref={endDateRef}
-                    type="date"
-                    required
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="h-[46px] w-full rounded-[12px] border border-[#cfc8e2] bg-white px-4 pr-12 text-[15px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f] [&::-webkit-calendar-picker-indicator]:opacity-0"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => openPicker(endDateRef)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2b2b2b]"
-                    aria-label="Open end date calendar"
-                  >
-                    <CalendarDays size={20} />
-                  </button>
-                </div>
+                <AppDatePicker
+                  label="End Date"
+                  required
+                  value={formData.endDate}
+                  min={formData.startDate || undefined}
+                  onChange={(nextValue) =>
+                    setFormData((current) => ({ ...current, endDate: nextValue }))
+                  }
+                />
               </div>
 
               <div>

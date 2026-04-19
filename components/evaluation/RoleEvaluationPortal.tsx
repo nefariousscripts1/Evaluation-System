@@ -215,7 +215,7 @@ export default function RoleEvaluationPortal({
 
   return (
     <div className="app-shell-bg min-h-screen">
-      <div className="mx-auto max-w-6xl px-4 pb-5 pt-16 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-[1600px] px-4 pb-5 pt-16 sm:px-6 sm:py-8">
         <div className="mb-6 rounded-[28px] bg-[#24135f] px-5 py-6 text-white shadow-[0_22px_52px_rgba(36,19,95,0.18)] sm:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>

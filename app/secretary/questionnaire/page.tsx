@@ -102,7 +102,7 @@ export default function QuestionnaireManagement() {
   return (
     <>
       <main className="px-4 py-4 sm:px-5 sm:py-6">
-        <div className="mx-auto max-w-[1400px]">
+        <div className="mx-auto max-w-[1600px]">
           {/* Header */}
           <div className="mb-6">
             <h1 className="text-[28px] font-extrabold text-[#24135f]">Manage Questionnaires</h1>

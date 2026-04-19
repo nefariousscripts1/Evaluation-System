@@ -24,7 +24,10 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         message: "If an account exists for that email, a reset link has been sent.",
-        ...(process.env.NODE_ENV !== "production" && !process.env.RESEND_API_KEY
+        ...(process.env.NODE_ENV !== "production" &&
+        !process.env.RESEND_API_KEY &&
+        !process.env.GMAIL_USER &&
+        !process.env.GMAIL_APP_PASSWORD
           ? { resetUrl }
           : {}),
       });

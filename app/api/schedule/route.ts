@@ -9,6 +9,7 @@ import {
   isValidSemester,
 } from "@/lib/evaluation-session";
 import { ensureInstructorAccessCodesForSchedule } from "@/lib/instructor-access";
+import { sendEvaluationOpenAnnouncement } from "@/lib/mailer";
 
 async function getScheduleSnapshot() {
   const [activeSchedule, recentSchedules] = await Promise.all([
@@ -137,9 +138,47 @@ export async function POST(req: Request) {
 
     await ensureInstructorAccessCodesForSchedule(persistedSchedule.id);
 
+    let announcement:
+      | {
+          delivered: boolean;
+          provider: string;
+          recipientCount: number;
+        }
+      | undefined;
+
+    if (!shouldUpdateCurrentSchedule) {
+      try {
+        const recipients = await prisma.user.findMany({
+          where: {
+            deletedAt: null,
+            role: { not: "secretary" },
+            email: { not: "" },
+          },
+          select: { email: true },
+        });
+
+        announcement = await sendEvaluationOpenAnnouncement({
+          recipients: Array.from(new Set(recipients.map((user) => user.email.trim()).filter(Boolean))),
+          academicYear: persistedSchedule.academicYear,
+          semester: persistedSchedule.semester,
+          startDate: persistedSchedule.startDate,
+          endDate: persistedSchedule.endDate,
+          accessCode: persistedSchedule.accessCode,
+        });
+      } catch (error) {
+        console.error("Evaluation-open announcement failed:", error);
+        announcement = {
+          delivered: false,
+          provider: "failed",
+          recipientCount: 0,
+        };
+      }
+    }
+
     return NextResponse.json({
       message: "Evaluation session is now open",
       schedule: persistedSchedule,
+      announcement,
       ...(await getScheduleSnapshot()),
     });
   }

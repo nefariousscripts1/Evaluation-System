@@ -1,6 +1,6 @@
 import { Role } from "@prisma/client";
 
-export type Department = "CSM" | "CTE";
+export type Department = "CSM" | "CTE" | "SAS";
 
 export const VALID_ROLES: Role[] = [
   "student",
@@ -12,7 +12,7 @@ export const VALID_ROLES: Role[] = [
   "secretary",
 ];
 
-export const VALID_DEPARTMENTS: Department[] = ["CSM", "CTE"];
+export const VALID_DEPARTMENTS: Department[] = ["CSM", "CTE", "SAS"];
 
 export function isValidRole(role: string): role is Role {
   return VALID_ROLES.includes(role as Role);

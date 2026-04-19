@@ -207,7 +207,7 @@ export default function RoleCommentsView({
 
   return (
     <main className="app-page-with-topbar">
-      <div className="app-page-card max-w-[1380px]">
+      <div className="app-page-card max-w-[1600px]">
         <div className="pb-5">
           <h1 className="text-[28px] font-extrabold leading-tight text-[#24135f]">
             View Comments

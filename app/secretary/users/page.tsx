@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus, X, AlertTriangle, Pencil, Trash2, Search } from "lucide-react";
 import AppSelect from "@/components/ui/AppSelect";
+import AppMultiSelect from "@/components/ui/AppMultiSelect";
 import { getErrorMessage } from "@/lib/error-message";
 
 interface User {
@@ -43,6 +44,12 @@ const roleLabels: Record<string, string> = {
   secretary: "Secretary",
 };
 
+const departmentOptions = [
+  { label: "CSM", value: "CSM", sublabel: "College of Science and Management" },
+  { label: "CTE", value: "CTE", sublabel: "College of Teacher Education" },
+  { label: "SAS", value: "SAS", sublabel: "School of Advanced Studies" },
+];
+
 export default function UsersManagement() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -62,7 +69,7 @@ export default function UsersManagement() {
     email: "",
     password: "",
     role: "faculty",
-    department: "",
+    departments: [] as string[],
   });
   const errorMessage = error ? getErrorMessage(error) : "";
 
@@ -98,7 +105,7 @@ export default function UsersManagement() {
 
   const handleAddUser = () => {
     setEditingUser(null);
-    setFormData({ name: "", email: "", password: "", role: "faculty", department: "" });
+    setFormData({ name: "", email: "", password: "", role: "faculty", departments: [] });
     setError("");
     setIsModalOpen(true);
   };
@@ -110,7 +117,9 @@ export default function UsersManagement() {
       email: user.email,
       password: "",
       role: user.role,
-      department: user.department || "",
+      departments: user.department
+        ? user.department.split(", ").filter(Boolean)
+        : [],
     });
     setError("");
     setIsModalOpen(true);
@@ -119,7 +128,7 @@ export default function UsersManagement() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
-    setFormData({ name: "", email: "", password: "", role: "faculty", department: "" });
+    setFormData({ name: "", email: "", password: "", role: "faculty", departments: [] });
   };
 
   const openDeleteModal = (user: User) => {
@@ -157,12 +166,16 @@ export default function UsersManagement() {
 
     const url = editingUser ? `/api/users/${editingUser.id}` : "/api/users";
     const method = editingUser ? "PUT" : "POST";
+    const department = formData.departments.length > 0 ? formData.departments.join(", ") : null;
 
     try {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          department,
+        }),
       });
 
       const data = await res.json().catch(() => null);
@@ -198,7 +211,7 @@ export default function UsersManagement() {
   return (
     <>
       <main className="app-page">
-        <div className="mx-auto max-w-[1400px]">
+        <div className="mx-auto max-w-[1600px]">
           <div className="mb-6">
             <h1 className="text-[28px] font-extrabold text-[#24135f]">Users Management</h1>
             <p className="mt-2 text-sm text-[#6c6684]">
@@ -319,9 +332,9 @@ export default function UsersManagement() {
       </main>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-[400px] overflow-hidden rounded-[22px] border border-[#d9d9d9] bg-white shadow-sm">
-            <div className="bg-[#24135f] px-6 py-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 px-4 py-6">
+          <div className="w-full max-w-[400px] rounded-[22px] border border-[#d9d9d9] bg-white shadow-sm">
+            <div className="rounded-t-[22px] bg-[#24135f] px-6 py-5">
               <div className="flex items-center justify-between">
                 <h2 className="text-[20px] font-extrabold text-white">
                   {editingUser ? "Edit User Account" : "Create User Account"}
@@ -393,13 +406,19 @@ export default function UsersManagement() {
                 <label className="mb-1 block text-[12px] font-bold text-[#24135f]">
                   Department
                 </label>
-                <input
-                  type="text"
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  placeholder="e.g., CSM, CTE, CAS"
-                  className="h-10 w-full rounded-[8px] border border-[#6d63a3] px-3 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f] placeholder:text-[#9d98b8]"
+                <AppMultiSelect
+                  values={formData.departments}
+                  onChange={(nextDepartments) =>
+                    setFormData({ ...formData, departments: nextDepartments })
+                  }
+                  options={departmentOptions}
+                  placeholder="Select one, two, or three departments"
+                  triggerClassName="min-h-[38px] rounded-[8px] border-[#6d63a3] px-3 py-2 text-[14px] shadow-none"
+                  menuClassName="rounded-[16px]"
                 />
+                <p className="mt-1 text-[11px] text-[#8a84a4]">
+                  You can select up to three departments for the same account.
+                </p>
               </div>
 
               {error ? <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">{errorMessage}</div> : null}

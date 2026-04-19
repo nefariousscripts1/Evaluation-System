@@ -201,7 +201,7 @@ export default function SingleTargetResultsDashboard({
 
   return (
     <main className="app-page-with-topbar">
-      <div className="app-page-card max-w-[1200px]">
+      <div className="app-page-card max-w-[1600px]">
         <div className="border-b border-[#ece7f6] pb-4">
           <h1 className="text-[28px] font-extrabold leading-tight text-[#24135f]">
             View Evaluation Results

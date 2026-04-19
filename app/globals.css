@@ -60,7 +60,7 @@
   }
 
   .app-page-card {
-    @apply mx-auto max-w-[1400px] rounded-[24px] border bg-white p-5 sm:p-8;
+    @apply mx-auto max-w-[1600px] rounded-[24px] border bg-white p-5 sm:p-8;
     border-color: var(--ui-border);
     box-shadow: var(--shadow-soft);
   }
@@ -168,6 +168,11 @@
     background: var(--ui-brand);
     color: white;
     box-shadow: 0 12px 24px rgba(36, 19, 95, 0.16);
+  }
+
+  .app-select-option-selected:hover {
+    background: var(--ui-brand);
+    color: white;
   }
 
   .app-textarea {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { SEMESTER_OPTIONS } from "@/lib/evaluation-session";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +32,11 @@ function normalizeCommentKey(comment: string) {
 async function buildInstructorComments(params: {
   instructorId: number;
   academicYear: string;
+  semester: string;
   page: number;
   pageSize: number;
 }) {
-  const { instructorId, academicYear, page, pageSize } = params;
+  const { instructorId, academicYear, semester, page, pageSize } = params;
 
   const instructor = await prisma.user.findUnique({
     where: { id: instructorId },
@@ -58,6 +60,7 @@ async function buildInstructorComments(params: {
     where: {
       evaluatedId: instructorId,
       ...(academicYear ? { academicYear } : {}),
+      ...(semester ? { semester } : {}),
     },
     include: {
       answers: {
@@ -129,6 +132,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim() ?? "";
     const academicYear = searchParams.get("academicYear")?.trim() ?? "";
+    const semester = searchParams.get("semester")?.trim() ?? "";
     const page = Math.max(Number.parseInt(searchParams.get("page") ?? "1", 10), 1);
     const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "5", 10), 1);
 
@@ -176,6 +180,7 @@ export async function GET(request: Request) {
             evaluationsReceived: {
               some: {
                 ...(academicYear ? { academicYear } : {}),
+                ...(semester ? { semester } : {}),
                 OR: [
                   { generalComment: { not: null } },
                   { answers: { some: { comment: { not: null } } } },
@@ -195,6 +200,7 @@ export async function GET(request: Request) {
     if (!selectedInstructor) {
       return NextResponse.json({
         years,
+        semesters: SEMESTER_OPTIONS.filter((item) => item !== "Summer"),
         selectedInstructor: null,
         comments: [],
         total: 0,
@@ -204,12 +210,14 @@ export async function GET(request: Request) {
     const instructorComments = await buildInstructorComments({
       instructorId: selectedInstructor.id,
       academicYear,
+      semester,
       page,
       pageSize,
     });
 
     return NextResponse.json({
       years,
+      semesters: SEMESTER_OPTIONS.filter((item) => item !== "Summer"),
       ...instructorComments,
     });
   } catch (error) {
@@ -218,6 +226,7 @@ export async function GET(request: Request) {
       {
         message: "Failed to fetch summary comments",
         years: [],
+        semesters: [],
         selectedInstructor: null,
         comments: [],
         total: 0,

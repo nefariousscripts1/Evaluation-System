@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { SEMESTER_OPTIONS } from "@/lib/evaluation-session";
 
 export const dynamic = "force-dynamic";
 
@@ -15,41 +16,72 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const academicYear = searchParams.get("academicYear");
+    const semester = searchParams.get("semester");
 
-    // Build where clause
-    const where: any = {};
+    const where: Record<string, string> = {};
     if (academicYear) {
       where.academicYear = academicYear;
     }
+    if (semester) {
+      where.semester = semester;
+    }
 
-    // Get all results for faculty members only
-    const results = await prisma.result.findMany({
+    const users = await prisma.user.findMany({
       where: {
-        ...where,
-        user: {
-          role: {
-            in: ["faculty", "chairperson", "dean", "director", "campus_director"]
-          },
-          deletedAt: null
-        }
+        role: {
+          in: ["faculty", "chairperson", "dean", "director", "campus_director"],
+        },
+        deletedAt: null,
+        evaluationsReceived: {
+          some: where,
+        },
       },
-      include: {
-        user: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        evaluationsReceived: {
+          where,
           select: {
-            name: true,
-            email: true,
-            role: true,
-            department: true,
+            id: true,
+            academicYear: true,
+            semester: true,
+            answers: {
+              select: {
+                rating: true,
+              },
+            },
           },
         },
       },
-      orderBy: {
-        averageRating: "desc",
-      },
     });
 
-    // Get unique academic years from all results
-    const yearsData = await prisma.result.findMany({
+    const results = users
+      .map((user) => {
+        const ratings = user.evaluationsReceived.flatMap((evaluation) =>
+          evaluation.answers.map((answer) => answer.rating)
+        );
+
+        const averageRating =
+          ratings.length > 0
+            ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+            : 0;
+
+        return {
+          id: user.id,
+          user: {
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+          academicYear: academicYear || user.evaluationsReceived[0]?.academicYear || "",
+          averageRating,
+        };
+      })
+      .sort((left, right) => right.averageRating - left.averageRating);
+
+    const yearsData = await prisma.evaluation.findMany({
       distinct: ["academicYear"],
       select: { academicYear: true },
       orderBy: { academicYear: "desc" },
@@ -60,11 +92,12 @@ export async function GET(request: Request) {
     return NextResponse.json({
       results,
       years,
+      semesters: SEMESTER_OPTIONS.filter((item) => item !== "Summer"),
     });
   } catch (error) {
     console.error("Reports API error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch reports", results: [], years: [] },
+      { error: "Failed to fetch reports", results: [], years: [], semesters: [] },
       { status: 500 }
     );
   }

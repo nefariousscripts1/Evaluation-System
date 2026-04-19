@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Calendar,
+  Copy,
   Home,
   Monitor,
   Pencil,
@@ -16,11 +17,22 @@ import { useRouter } from "next/navigation";
 import EditInstructorModal from "@/components/secretary/EditInstructorModal";
 import DeleteInstructorModal from "@/components/secretary/DeleteInstructorModal";
 
+type ScheduleSummary = {
+  id: number;
+  academicYear?: string | null;
+  semester?: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  isOpen?: boolean;
+  isActiveNow: boolean;
+  accessCode?: string | null;
+};
+
 type Props = {
   totalStudents: number;
   totalFaculty: number;
   totalQuestionnaires: number;
-  displaySchedules: any[];
+  displaySchedules: ScheduleSummary[];
   latestQuestionnaires: any[];
   latestFaculty: any[];
 };
@@ -56,6 +68,7 @@ export default function DashboardContent({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedInstructor, setSelectedInstructor] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleEdit = (instructor: any) => {
     setSelectedInstructor(instructor);
@@ -82,6 +95,20 @@ export default function DashboardContent({
 
   const handleSuccess = () => {
     router.refresh();
+  };
+
+  const copyAccessCode = async () => {
+    if (!activeSchedule?.accessCode) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(activeSchedule.accessCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Copy failed:", error);
+    }
   };
 
   // Check if there's an open schedule
@@ -156,13 +183,38 @@ export default function DashboardContent({
 
           {/* Evaluation Schedule Section */}
           <section className="rounded-[18px] border border-[#dddddd] bg-white px-4 py-10">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="w-full">
-                <h2 className="text-[16px] font-extrabold text-[#24135f]">
-                  Evaluation Schedule
-                </h2>
+            <h2 className="text-[16px] font-extrabold text-[#24135f]">
+              Evaluation Schedule
+            </h2>
 
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {activeSchedule?.accessCode ? (
+              <div className="mt-5 flex flex-col gap-3 rounded-[16px] border border-[#ece7f7] bg-[#faf8ff] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[12px] font-bold uppercase tracking-[0.22em] text-[#18794e]">
+                    Active Session
+                  </p>
+                  <p className="mt-2 text-[14px] font-bold text-[#24135f]">
+                    Portal Access Code:{" "}
+                    <span className="rounded-full bg-white px-3 py-1 tracking-[0.18em]">
+                      {activeSchedule.accessCode}
+                    </span>
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={copyAccessCode}
+                  className="inline-flex min-w-[200px] self-end items-center justify-center gap-2 rounded-full bg-[#24135f] px-5 py-3 text-[14px] font-extrabold text-white transition hover:bg-[#1a0f4a] sm:self-auto"
+                >
+                  <Copy size={16} />
+                  {copied ? "Copied" : "Copy Portal Code"}
+                </button>
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex flex-col gap-4 rounded-[16px] border border-[#ece7f7] px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="w-full">
+                <div className="grid gap-4 md:grid-cols-2">
                   {displaySchedules.length > 0 ? (
                     displaySchedules.map((schedule, index) => (
                       <div
@@ -205,10 +257,10 @@ export default function DashboardContent({
                 </div>
               </div>
 
-              <div className="shrink-0">
+              <div className="flex shrink-0 justify-end">
                 <Link
                   href="/secretary/schedule"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#24135f] px-8 py-3 text-[14px] font-extrabold text-white hover:bg-[#1a0f4a] transition"
+                  className="inline-flex min-w-[200px] items-center justify-center gap-2 rounded-full bg-[#24135f] px-8 py-3 text-[14px] font-extrabold text-white transition hover:bg-[#1a0f4a]"
                 >
                   <Pencil size={16} />
                   Edit Schedule

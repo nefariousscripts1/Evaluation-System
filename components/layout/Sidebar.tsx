@@ -20,7 +20,6 @@ import {
   LayoutDashboard,
   ChevronLeft,
   ChevronRight,
-  MessageSquareText,
   Menu,
   X,
 } from "lucide-react";
@@ -46,8 +45,7 @@ export default function Sidebar() {
     { href: "/secretary/schedule", icon: <Calendar size={18} />, label: "Evaluation Schedule" },
     { href: "/secretary/students", icon: <IdCard size={18} />, label: "Student Management" },
     { href: "/secretary/users", icon: <Users size={18} />, label: "Users Management" },
-    { href: "/secretary/reports", icon: <FileText size={18} />, label: "View Evaluation Results" },
-    { href: "/secretary/summary-comments", icon: <MessageSquareText size={18} />, label: "View Summary Comments" },
+    { href: "/secretary/reports", icon: <FileText size={18} />, label: "Results" },
   ];
 
   // Student Sidebar
@@ -141,6 +139,10 @@ export default function Sidebar() {
   const isActive = (href: string, label?: string) => {
     if (role === "faculty" && pathname === "/results") {
       return label === "Results";
+    }
+
+    if (role === "secretary" && href === "/secretary/reports") {
+      return pathname?.startsWith("/secretary/reports") || pathname?.startsWith("/secretary/summary-comments");
     }
 
     return pathname?.startsWith(href);

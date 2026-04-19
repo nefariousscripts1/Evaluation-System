@@ -1,21 +1,34 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+const PUBLIC_ROUTES = [
+  "/",
+  "/login",
+  "/register",
+  "/student/evaluate",
+  "/forgot-password",
+  "/reset-password",
+];
+
+function withPathnameHeader(req: { headers: Headers; nextUrl: { pathname: string } }) {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", req.nextUrl.pathname);
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+}
+
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
     // Allow public routes
-    if (
-      path === "/login" ||
-      path === "/register" ||
-      path === "/" ||
-      path === "/student/evaluate" ||
-      path === "/forgot-password" ||
-      path === "/reset-password"
-    ) {
-      return NextResponse.next();
+    if (PUBLIC_ROUTES.includes(path)) {
+      return withPathnameHeader(req);
     }
 
     if (!token) {
@@ -28,14 +41,14 @@ export default withAuth(
     // Legacy STUDENT session support
     if (role === "student") {
       if (path === "/student/evaluate" || path === "/student" || path === "/") {
-        return NextResponse.next();
+        return withPathnameHeader(req);
       }
       if (path.startsWith("/secretary") || path.startsWith("/faculty") ||
           path.startsWith("/chairperson") || path.startsWith("/dean") ||
           path.startsWith("/director") || path.startsWith("/campus-director")) {
         return NextResponse.redirect(new URL("/unauthorized", req.url));
       }
-      return NextResponse.next();
+      return withPathnameHeader(req);
     }
 
     // Secretary routes
@@ -78,7 +91,7 @@ export default withAuth(
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    return NextResponse.next();
+    return withPathnameHeader(req);
   },
   {
     callbacks: {
