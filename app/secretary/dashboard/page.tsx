@@ -4,9 +4,17 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DashboardContent from "./DashboardContent";
-import { getErrorMessage } from "@/lib/error-message";
 
 type DashboardPayload = React.ComponentProps<typeof DashboardContent>;
+
+const emptyPayload: DashboardPayload = {
+  totalStudents: 0,
+  totalFaculty: 0,
+  totalQuestionnaires: 0,
+  displaySchedules: [],
+  latestQuestionnaires: [],
+  latestFaculty: [],
+};
 
 export default function SecretaryDashboard() {
   const { data: session, status } = useSession();
@@ -14,7 +22,6 @@ export default function SecretaryDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [payload, setPayload] = useState<DashboardPayload | null>(null);
-  const errorMessage = error ? getErrorMessage(error) : "";
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -58,6 +65,7 @@ export default function SecretaryDashboard() {
         setError(
           fetchError instanceof Error ? fetchError.message : "Failed to load dashboard data"
         );
+        setPayload(emptyPayload);
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -75,14 +83,7 @@ export default function SecretaryDashboard() {
   }
 
   if (error) {
-    return (
-      <main className="px-4 py-4 sm:px-5 sm:py-6">
-        <div className="mx-auto max-w-[1750px] rounded-[18px] border border-red-200 bg-red-50 p-6 text-red-800">
-          <h1 className="text-[24px] font-extrabold">Dashboard unavailable</h1>
-          <p className="mt-2 text-sm">{errorMessage}</p>
-        </div>
-      </main>
-    );
+    return <DashboardContent {...(payload ?? emptyPayload)} />;
   }
 
   if (!payload) {
