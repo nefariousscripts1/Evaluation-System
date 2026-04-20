@@ -2,7 +2,7 @@ import { randomInt } from "crypto";
 import prisma from "@/lib/db";
 
 const ACCESS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-export const SEMESTER_OPTIONS = ["1st Semester", "2nd Semester", "Summer"] as const;
+export const SEMESTER_OPTIONS = ["1st Semester", "2nd Semester"] as const;
 
 type ScheduleLike = {
   isOpen: boolean;

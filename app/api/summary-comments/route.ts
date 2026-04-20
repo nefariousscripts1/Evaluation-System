@@ -200,7 +200,7 @@ export async function GET(request: Request) {
     if (!selectedInstructor) {
       return NextResponse.json({
         years,
-        semesters: SEMESTER_OPTIONS.filter((item) => item !== "Summer"),
+        semesters: SEMESTER_OPTIONS,
         selectedInstructor: null,
         comments: [],
         total: 0,
@@ -217,7 +217,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       years,
-      semesters: SEMESTER_OPTIONS.filter((item) => item !== "Summer"),
+      semesters: SEMESTER_OPTIONS,
       ...instructorComments,
     });
   } catch (error) {

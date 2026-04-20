@@ -92,7 +92,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       results,
       years,
-      semesters: SEMESTER_OPTIONS.filter((item) => item !== "Summer"),
+      semesters: SEMESTER_OPTIONS,
     });
   } catch (error) {
     console.error("Reports API error:", error);
