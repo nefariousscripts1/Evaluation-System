@@ -1,36 +1,34 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { ApiRouteError, apiSuccess, handleApiError } from "@/lib/api";
 import { getAllowedEvaluatedRoles } from "@/lib/role-evaluation";
+import { requireApiSession } from "@/lib/server-auth";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  try {
+    const session = await requireApiSession();
+    const allowedRoles = getAllowedEvaluatedRoles(session.user.role ?? "");
 
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (allowedRoles.length === 0) {
+      throw new ApiRouteError("Unauthorized", { status: 401 });
+    }
+
+    const targets = await prisma.user.findMany({
+      where: {
+        role: { in: allowedRoles },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+      },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+    });
+
+    return apiSuccess(targets, { preserveRoot: false });
+  } catch (error) {
+    return handleApiError(error, "Failed to load evaluation targets");
   }
-
-  const allowedRoles = getAllowedEvaluatedRoles(session.user.role ?? "");
-
-  if (allowedRoles.length === 0) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
-  const targets = await prisma.user.findMany({
-    where: {
-      role: { in: allowedRoles },
-      deletedAt: null,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      department: true,
-    },
-    orderBy: [{ role: "asc" }, { name: "asc" }],
-  });
-
-  return NextResponse.json(targets);
 }

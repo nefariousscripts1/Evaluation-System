@@ -1,17 +1,17 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { ResultsNotReleasedError, assertResultsReleasedForAcademicYear, filterReleasedAcademicYears, isResultsNotReleasedError } from "@/lib/results-release";
+import { apiError, apiSuccess, handleApiError, parseSearchParams } from "@/lib/api";
+import { requireApiUserId } from "@/lib/server-auth";
+import { yearQuerySchema } from "@/lib/validation";
+import {
+  ResultsNotReleasedError,
+  assertResultsReleasedForAcademicYear,
+  filterReleasedAcademicYears,
+  isResultsNotReleasedError,
+} from "@/lib/results-release";
 
 export const dynamic = "force-dynamic";
 
 type SummaryRole = "student" | "chairperson";
-
-function fallbackAcademicYear() {
-  const year = new Date().getFullYear();
-  return `${year}-${year + 1}`;
-}
 
 function getBreakdown(ratings: number[]) {
   return {
@@ -78,16 +78,7 @@ async function getSummaryForRole(userId: number, academicYear: string, role: Sum
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== "faculty") {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = Number.parseInt(session.user.id ?? "", 10);
-    if (!Number.isInteger(userId)) {
-      return NextResponse.json({ message: "Invalid session user" }, { status: 401 });
-    }
+    const { userId } = await requireApiUserId(["faculty"]);
 
     const yearsData = await prisma.evaluation.findMany({
       where: { evaluatedId: userId },
@@ -97,9 +88,7 @@ export async function GET(request: Request) {
     });
 
     const years = await filterReleasedAcademicYears(yearsData.map((item) => item.academicYear));
-
-    const { searchParams } = new URL(request.url);
-    const requestedYear = searchParams.get("year");
+    const { year: requestedYear } = parseSearchParams(request, yearQuerySchema);
     const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
 
     if (!academicYear) {
@@ -113,20 +102,17 @@ export async function GET(request: Request) {
       getSummaryForRole(userId, academicYear, "chairperson"),
     ]);
 
-    return NextResponse.json({
+    return apiSuccess({
       academicYear,
       years,
       studentEvaluations,
       chairpersonEvaluation,
     });
   } catch (error) {
-    console.error("Instructor ratings API error:", error);
     if (isResultsNotReleasedError(error)) {
-      return NextResponse.json({ message: error.message }, { status: 403 });
+      return apiError(error.message, 403);
     }
-    return NextResponse.json(
-      { message: "Failed to fetch instructor ratings" },
-      { status: 500 }
-    );
+
+    return handleApiError(error, "Failed to fetch instructor ratings");
   }
 }

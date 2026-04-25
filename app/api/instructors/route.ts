@@ -1,20 +1,18 @@
-import { NextResponse } from "next/server";
-import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import bcrypt from "bcrypt";
 import { Prisma } from "@prisma/client";
+import prisma from "@/lib/db";
+import { apiError, apiSuccess, handleApiError, parseJsonBody } from "@/lib/api";
 import { getActiveSchedule } from "@/lib/evaluation-session";
 import { ensureInstructorAccessCodesForSchedule } from "@/lib/instructor-access";
+import { requireApiSession } from "@/lib/server-auth";
+import { instructorCreateSchema } from "@/lib/validation";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "secretary") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    await requireApiSession(["secretary"]);
 
     const activeSchedule = await getActiveSchedule();
+
     if (activeSchedule) {
       await ensureInstructorAccessCodesForSchedule(activeSchedule.id);
     }
@@ -37,7 +35,7 @@ export async function GET() {
 
     const activeCodeMap = new Map(activeCodes.map((item) => [item.instructorId, item.code]));
 
-    return NextResponse.json({
+    return apiSuccess({
       activeSchedule: activeSchedule
         ? {
             id: activeSchedule.id,
@@ -55,70 +53,54 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error("Failed to load instructors:", error);
-
     if (
       error instanceof Prisma.PrismaClientInitializationError ||
       error instanceof Prisma.PrismaClientRustPanicError
     ) {
-      return NextResponse.json(
-        { error: "Database connection failed. Check DATABASE_URL and run Prisma migrations." },
-        { status: 500 }
+      return apiError(
+        "Database connection failed. Check DATABASE_URL and run Prisma migrations.",
+        500
       );
     }
 
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to load instructors from the database",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to load instructors");
   }
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await requireApiSession(["secretary"]);
+    const payload = await parseJsonBody(req, instructorCreateSchema);
+    const hashedPassword = await bcrypt.hash(payload.password, 10);
+
+    const instructor = await prisma.user.create({
+      data: {
+        name: payload.name,
+        email: payload.email,
+        password: hashedPassword,
+        department: payload.department,
+        role: payload.role,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        department: true,
+        role: true,
+      },
+    });
+
+    const activeSchedule = await getActiveSchedule();
+    if (activeSchedule) {
+      await ensureInstructorAccessCodesForSchedule(activeSchedule.id, [instructor.id]);
+    }
+
+    return apiSuccess({ instructor }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return apiError("An instructor with this email address already exists", 400);
+    }
+
+    return handleApiError(error, "Failed to create instructor");
   }
-
-  const { name, email, password, department, role } = await req.json();
-  const hashed = await bcrypt.hash(password, 10);
-  const instructor = await prisma.user.create({
-    data: { name, email, password: hashed, department, role },
-  });
-
-  const activeSchedule = await getActiveSchedule();
-  if (activeSchedule && instructor.role === "faculty") {
-    await ensureInstructorAccessCodesForSchedule(activeSchedule.id, [instructor.id]);
-  }
-
-  return NextResponse.json(instructor);
-}
-
-export async function PUT(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id, name, email, department, role } = await req.json();
-  const instructor = await prisma.user.update({
-    where: { id },
-    data: { name, email, department, role },
-  });
-  return NextResponse.json(instructor);
-}
-
-export async function DELETE(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const id = parseInt(searchParams.get("id") || "0");
-  await prisma.user.update({ where: { id }, data: { deletedAt: new Date() } });
-  return NextResponse.json({ success: true });
 }

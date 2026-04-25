@@ -8,8 +8,10 @@ import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import AppDatePicker from "@/components/ui/AppDatePicker";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import AppSelect from "@/components/ui/AppSelect";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { getErrorMessage } from "@/lib/error-message";
 import { buildAcademicYearOptions, SEMESTER_OPTIONS } from "@/lib/evaluation-session";
+import { scheduleMutationSchema } from "@/lib/validation";
 
 type ScheduleSummary = {
   id: number;
@@ -118,25 +120,15 @@ export default function ScheduleManagement() {
   };
 
   const fetchSchedule = async () => {
-    console.log("🔍 fetchSchedule - status:", status, "role:", session?.user?.role);
     try {
       const res = await fetch("/api/schedule", { cache: "no-store" });
-      
-      const data = await res.json().catch(() => null);
-
-      if (!data) {
-        throw new Error(data?.error || `Schedule API failed (${res.status})`);
-      }
+      const data = await readApiResponse<ScheduleResponse>(res);
 
       hydrateFromResponse(data);
-      if (!res.ok && data.error) {
-        setMessage(data.error);
-      } else {
-        setMessage("");
-      }
+      setMessage("");
     } catch (error) {
-      console.error("❌ Schedule fetch error:", error);
-      setMessage(error instanceof Error ? error.message : "Failed to load schedule data");
+      console.error("Schedule fetch error:", error);
+      setMessage(getApiErrorMessage(error, "Failed to load schedule data"));
     } finally {
       setLoading(false);
     }
@@ -147,25 +139,29 @@ export default function ScheduleManagement() {
     setSubmitting(true);
     setMessage("");
 
+    const parsedSchedule = scheduleMutationSchema.safeParse({
+      academicYear: formData.academicYear,
+      semester: formData.semester,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      isOpen: formData.status === "Open",
+      scheduleId: formData.scheduleId,
+    });
+
+    if (!parsedSchedule.success) {
+      setMessage(parsedSchedule.error.issues[0]?.message || "Enter a valid schedule");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          academicYear: formData.academicYear,
-          semester: formData.semester,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          isOpen: formData.status === "Open",
-          scheduleId: formData.scheduleId,
-        }),
+        body: JSON.stringify(parsedSchedule.data),
       });
 
-      const data = await res.json().catch(() => null);
-
-      if (!data) {
-        throw new Error(data?.error || "Error saving schedule");
-      }
+      const data = await readApiResponse<ScheduleResponse>(res);
 
       hydrateFromResponse(data);
       const nextMessage =
@@ -177,7 +173,7 @@ export default function ScheduleManagement() {
       setMessage(nextMessage);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Error saving schedule");
+      setMessage(getApiErrorMessage(error, "Error saving schedule"));
     } finally {
       setSubmitting(false);
     }
@@ -211,11 +207,14 @@ export default function ScheduleManagement() {
         }),
       });
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to send staff results notification");
-      }
+      const data = await readApiResponse<{
+        message?: string;
+        announcement?: {
+          delivered: boolean;
+          provider: string;
+          recipientCount: number;
+        };
+      }>(res);
 
       setMessage(
         data?.announcement?.delivered
@@ -223,9 +222,7 @@ export default function ScheduleManagement() {
           : "Staff results notification could not be delivered from this environment."
       );
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Failed to send staff results notification"
-      );
+      setMessage(getApiErrorMessage(error, "Failed to send staff results notification"));
     } finally {
       setResultsNotifyLoadingId(null);
     }
@@ -240,18 +237,14 @@ export default function ScheduleManagement() {
         method: "DELETE",
       });
 
-      const data = await res.json().catch(() => null);
+      const data = await readApiResponse<ScheduleResponse>(res);
 
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to delete session");
-      }
-
-      hydrateFromResponse(data as ScheduleResponse);
+      hydrateFromResponse(data);
       setMessage(data?.message || "Session deleted successfully");
       setSchedulePendingDelete(null);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to delete session");
+      setMessage(getApiErrorMessage(error, "Failed to delete session"));
     } finally {
       setDeleteLoadingId(null);
     }
@@ -622,3 +615,5 @@ export default function ScheduleManagement() {
     </main>
   );
 }
+
+

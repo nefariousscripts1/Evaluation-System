@@ -1,30 +1,20 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { SEMESTER_OPTIONS } from "@/lib/evaluation-session";
+import { apiSuccess, handleApiError, parseSearchParams } from "@/lib/api";
+import { requireApiSession } from "@/lib/server-auth";
+import { reportsQuerySchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || (session.user.role !== "secretary" && session.user.role !== "admin")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    await requireApiSession(["secretary"]);
+    const { academicYear, semester } = parseSearchParams(request, reportsQuerySchema);
 
-    const { searchParams } = new URL(request.url);
-    const academicYear = searchParams.get("academicYear");
-    const semester = searchParams.get("semester");
-
-    const where: Record<string, string> = {};
-    if (academicYear) {
-      where.academicYear = academicYear;
-    }
-    if (semester) {
-      where.semester = semester;
-    }
+    const where = {
+      ...(academicYear ? { academicYear } : {}),
+      ...(semester ? { semester } : {}),
+    };
 
     const users = await prisma.user.findMany({
       where: {
@@ -46,7 +36,6 @@ export async function GET(request: Request) {
           select: {
             id: true,
             academicYear: true,
-            semester: true,
             answers: {
               select: {
                 rating: true,
@@ -87,18 +76,12 @@ export async function GET(request: Request) {
       orderBy: { academicYear: "desc" },
     });
 
-    const years = yearsData.map((y) => y.academicYear);
-
-    return NextResponse.json({
+    return apiSuccess({
       results,
-      years,
+      years: yearsData.map((item) => item.academicYear),
       semesters: SEMESTER_OPTIONS,
     });
   } catch (error) {
-    console.error("Reports API error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch reports", results: [], years: [], semesters: [] },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to fetch reports");
   }
 }

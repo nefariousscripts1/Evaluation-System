@@ -1,67 +1,44 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { ApiRouteError, apiError, apiSuccess, handleApiError, parseJsonBody } from "@/lib/api";
 import {
   EvaluationSubmissionError,
   submitEvaluationRecord,
 } from "@/lib/evaluation-submission";
 import { getAllowedEvaluatedRoles } from "@/lib/role-evaluation";
+import { requireApiUserId } from "@/lib/server-auth";
+import { evaluationSubmissionSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
-  const evaluatorRole = session.user.role ?? "";
-
-  if (getAllowedEvaluatedRoles(evaluatorRole).length === 0) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
   try {
-    const evaluatorId = Number.parseInt(session.user.id ?? "", 10);
+    const { session, userId } = await requireApiUserId();
+    const evaluatorRole = session.user.role ?? "";
 
-    if (!Number.isInteger(evaluatorId)) {
-      return NextResponse.json({ message: "Invalid session user ID" }, { status: 401 });
+    if (getAllowedEvaluatedRoles(evaluatorRole).length === 0) {
+      throw new ApiRouteError("Unauthorized", { status: 401 });
     }
 
-    const payload = await req.json();
+    const payload = await parseJsonBody(req, evaluationSubmissionSchema);
     const evaluation = await submitEvaluationRecord({
-      evaluatorId,
+      evaluatorId: userId,
       evaluatorRole,
-      evaluatedId: payload?.evaluatedId,
-      scheduleId: payload?.scheduleId,
-      academicYear: payload?.academicYear,
-      answers: payload?.answers,
-      comment: payload?.comment,
+      evaluatedId: payload.evaluatedId,
+      scheduleId: payload.scheduleId,
+      academicYear: payload.academicYear,
+      answers: payload.answers,
+      comment: payload.comment,
     });
 
-    return NextResponse.json({ success: true, evaluation }, { status: 201 });
+    return apiSuccess({ evaluation }, { status: 201 });
   } catch (error) {
-    console.error("Error submitting role evaluation:", error);
-
     if (error instanceof EvaluationSubmissionError) {
-      return NextResponse.json(
-        {
-          message: error.message,
-          ...(process.env.NODE_ENV !== "production" && error.details
-            ? { details: error.details }
-            : {}),
-        },
-        { status: error.status }
+      return apiError(
+        error.message,
+        error.status,
+        process.env.NODE_ENV !== "production" && error.details
+          ? { details: error.details }
+          : undefined
       );
     }
 
-    return NextResponse.json(
-      {
-        message: "Failed to submit evaluation",
-        ...(process.env.NODE_ENV !== "production" && error instanceof Error
-          ? { details: error.message }
-          : {}),
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to submit evaluation");
   }
 }

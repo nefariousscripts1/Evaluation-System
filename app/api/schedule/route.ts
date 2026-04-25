@@ -1,15 +1,23 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
+import {
+  apiError,
+  apiSuccess,
+  handleApiError,
+  parseJsonBody,
+  parseSearchParams,
+} from "@/lib/api";
 import {
   closeAllActiveSchedules,
   generateAccessCode,
   getActiveSchedule,
-  isValidSemester,
 } from "@/lib/evaluation-session";
 import { ensureInstructorAccessCodesForSchedule } from "@/lib/instructor-access";
 import { sendEvaluationOpenAnnouncement } from "@/lib/mailer";
+import { requireApiSession } from "@/lib/server-auth";
+import {
+  scheduleDeleteQuerySchema,
+  scheduleMutationSchema,
+} from "@/lib/validation";
 
 async function getScheduleSnapshot() {
   const [activeScheduleResult, recentSchedulesResult] = await Promise.allSettled([
@@ -86,226 +94,172 @@ async function getScheduleSnapshot() {
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    console.log("API /schedule session:", !!session, session?.user?.role);
-    if (!session || session.user.role !== "secretary") {
-      return NextResponse.json({ error: "Secretary access required" }, { status: 401 });
-    }
-
-    const snapshot = await getScheduleSnapshot().catch((error) => {
-      console.error("Schedule snapshot build failed:", error);
-      return {
-        activeSchedule: null,
-        recentSchedules: [],
-        submissionCount: 0,
-        submittedStudentIds: [],
-      };
-    });
-    return NextResponse.json(snapshot);
+    await requireApiSession(["secretary"]);
+    const snapshot = await getScheduleSnapshot();
+    return apiSuccess(snapshot);
   } catch (error) {
-    console.error("Schedule API error:", error);
-    return NextResponse.json(
-      {
-        error: "Server error loading schedule",
-        activeSchedule: null,
-        recentSchedules: [],
-        submissionCount: 0,
-        submittedStudentIds: [],
-      },
-      { status: 200 }
-    );
+    return handleApiError(error, "Failed to load schedule");
   }
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    await requireApiSession(["secretary"]);
+    const { academicYear, semester, startDate, endDate, isOpen, scheduleId } =
+      await parseJsonBody(req, scheduleMutationSchema);
 
-  const { academicYear, semester, startDate, endDate, isOpen, scheduleId } = await req.json();
+    const activeSchedule = await getActiveSchedule();
 
-  const parsedStartDate = new Date(startDate);
-  const parsedEndDate = new Date(endDate);
-  const normalizedAcademicYear = String(academicYear ?? "").trim();
-  const normalizedSemester = String(semester ?? "").trim();
+    if (isOpen) {
+      let persistedSchedule;
+      const shouldUpdateCurrentSchedule =
+        activeSchedule &&
+        scheduleId === activeSchedule.id &&
+        activeSchedule.academicYear === academicYear &&
+        activeSchedule.semester === semester;
 
-  if (Number.isNaN(parsedStartDate.getTime()) || Number.isNaN(parsedEndDate.getTime())) {
-    return NextResponse.json({ error: "Invalid schedule dates" }, { status: 400 });
-  }
-
-  if (!normalizedAcademicYear) {
-    return NextResponse.json({ error: "Academic Year is required" }, { status: 400 });
-  }
-
-  if (!isValidSemester(normalizedSemester)) {
-    return NextResponse.json({ error: "Invalid semester" }, { status: 400 });
-  }
-
-  if (parsedEndDate < parsedStartDate) {
-    return NextResponse.json(
-      { error: "End date must be on or after the start date" },
-      { status: 400 }
-    );
-  }
-
-  const activeSchedule = await getActiveSchedule();
-
-  if (isOpen) {
-    let persistedSchedule;
-    const shouldUpdateCurrentSchedule =
-      activeSchedule &&
-      Number(scheduleId) === activeSchedule.id &&
-      activeSchedule.academicYear === normalizedAcademicYear &&
-      activeSchedule.semester === normalizedSemester;
-
-    if (shouldUpdateCurrentSchedule) {
-      persistedSchedule = await prisma.schedule.update({
-        where: { id: activeSchedule.id },
-        data: {
-          academicYear: normalizedAcademicYear,
-          semester: normalizedSemester,
-          startDate: parsedStartDate,
-          endDate: parsedEndDate,
-          isOpen: true,
-          accessCode: activeSchedule.accessCode || generateAccessCode(8),
-        },
-      });
-    } else {
-      await closeAllActiveSchedules();
-
-      persistedSchedule = await prisma.schedule.create({
-        data: {
-          academicYear: normalizedAcademicYear,
-          semester: normalizedSemester,
-          startDate: parsedStartDate,
-          endDate: parsedEndDate,
-          isOpen: true,
-          accessCode: generateAccessCode(8),
-        },
-      });
-    }
-
-    await ensureInstructorAccessCodesForSchedule(persistedSchedule.id);
-
-    let announcement:
-      | {
-          delivered: boolean;
-          provider: string;
-          recipientCount: number;
-        }
-      | undefined;
-
-    if (!shouldUpdateCurrentSchedule) {
-      try {
-        const recipients = await prisma.user.findMany({
-          where: {
-            deletedAt: null,
-            role: { not: "secretary" },
-            email: { not: "" },
+      if (shouldUpdateCurrentSchedule) {
+        persistedSchedule = await prisma.schedule.update({
+          where: { id: activeSchedule.id },
+          data: {
+            academicYear,
+            semester,
+            startDate,
+            endDate,
+            isOpen: true,
+            accessCode: activeSchedule.accessCode || generateAccessCode(8),
           },
-          select: { email: true },
         });
+      } else {
+        await closeAllActiveSchedules();
 
-        announcement = await sendEvaluationOpenAnnouncement({
-          recipients: Array.from(new Set(recipients.map((user) => user.email.trim()).filter(Boolean))),
-          academicYear: persistedSchedule.academicYear,
-          semester: persistedSchedule.semester,
-          startDate: persistedSchedule.startDate,
-          endDate: persistedSchedule.endDate,
+        persistedSchedule = await prisma.schedule.create({
+          data: {
+            academicYear,
+            semester,
+            startDate,
+            endDate,
+            isOpen: true,
+            accessCode: generateAccessCode(8),
+          },
         });
-      } catch (error) {
-        console.error("Evaluation-open announcement failed:", error);
-        announcement = {
-          delivered: false,
-          provider: "failed",
-          recipientCount: 0,
-        };
       }
+
+      await ensureInstructorAccessCodesForSchedule(persistedSchedule.id);
+
+      let announcement:
+        | {
+            delivered: boolean;
+            provider: string;
+            recipientCount: number;
+          }
+        | undefined;
+
+      if (!shouldUpdateCurrentSchedule) {
+        try {
+          const recipients = await prisma.user.findMany({
+            where: {
+              deletedAt: null,
+              role: { not: "secretary" },
+              email: { not: "" },
+            },
+            select: { email: true },
+          });
+
+          announcement = await sendEvaluationOpenAnnouncement({
+            recipients: Array.from(
+              new Set(recipients.map((user) => user.email.trim()).filter(Boolean))
+            ),
+            academicYear: persistedSchedule.academicYear,
+            semester: persistedSchedule.semester,
+            startDate: persistedSchedule.startDate,
+            endDate: persistedSchedule.endDate,
+          });
+        } catch (error) {
+          console.error("Evaluation-open announcement failed:", error);
+          announcement = {
+            delivered: false,
+            provider: "failed",
+            recipientCount: 0,
+          };
+        }
+      }
+
+      return apiSuccess({
+        message: "Evaluation session is now open",
+        schedule: persistedSchedule,
+        announcement,
+        ...(await getScheduleSnapshot()),
+      });
     }
 
-    return NextResponse.json({
-      message: "Evaluation session is now open",
-      schedule: persistedSchedule,
-      announcement,
+    const scheduleToCloseId =
+      typeof scheduleId === "number" && scheduleId > 0 ? scheduleId : activeSchedule?.id;
+
+    if (scheduleToCloseId) {
+      await prisma.schedule.update({
+        where: { id: scheduleToCloseId },
+        data: { isOpen: false },
+      });
+    }
+
+    return apiSuccess({
+      message: "Evaluation session has been closed",
       ...(await getScheduleSnapshot()),
     });
+  } catch (error) {
+    return handleApiError(error, "Failed to save schedule");
   }
-
-  const scheduleToCloseId =
-    Number.isInteger(Number(scheduleId)) && Number(scheduleId) > 0
-      ? Number(scheduleId)
-      : activeSchedule?.id;
-
-  if (scheduleToCloseId) {
-    await prisma.schedule.update({
-      where: { id: scheduleToCloseId },
-      data: { isOpen: false },
-    });
-  }
-
-  return NextResponse.json({
-    message: "Evaluation session has been closed",
-    ...(await getScheduleSnapshot()), 
-  });
 }
 
 export async function DELETE(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    await requireApiSession(["secretary"]);
+    const { id: scheduleId } = parseSearchParams(req, scheduleDeleteQuerySchema);
 
-  const { searchParams } = new URL(req.url);
-  const scheduleId = Number(searchParams.get("id"));
-
-  if (!Number.isInteger(scheduleId) || scheduleId <= 0) {
-    return NextResponse.json({ error: "Invalid schedule id" }, { status: 400 });
-  }
-
-  const schedule = await prisma.schedule.findUnique({
-    where: { id: scheduleId },
-    select: {
-      id: true,
-      isOpen: true,
-      _count: {
-        select: {
-          evaluations: true,
-          instructorAccessCodes: true,
+    const schedule = await prisma.schedule.findUnique({
+      where: { id: scheduleId },
+      select: {
+        id: true,
+        isOpen: true,
+        _count: {
+          select: {
+            evaluations: true,
+            instructorAccessCodes: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  if (!schedule) {
-    return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
+    if (!schedule) {
+      return apiError("Schedule not found", 404);
+    }
+
+    if (schedule.isOpen) {
+      return apiError("Close the active session before deleting it", 400);
+    }
+
+    if (schedule._count.evaluations > 0) {
+      return apiError(
+        "This session cannot be deleted because evaluation records already exist",
+        400
+      );
+    }
+
+    await prisma.$transaction([
+      prisma.instructorAccessCode.deleteMany({
+        where: { scheduleId },
+      }),
+      prisma.schedule.delete({
+        where: { id: scheduleId },
+      }),
+    ]);
+
+    return apiSuccess({
+      message: "Session deleted successfully",
+      ...(await getScheduleSnapshot()),
+    });
+  } catch (error) {
+    return handleApiError(error, "Failed to delete session");
   }
-
-  if (schedule.isOpen) {
-    return NextResponse.json(
-      { error: "Close the active session before deleting it" },
-      { status: 400 }
-    );
-  }
-
-  if (schedule._count.evaluations > 0) {
-    return NextResponse.json(
-      { error: "This session cannot be deleted because evaluation records already exist" },
-      { status: 400 }
-    );
-  }
-
-  await prisma.$transaction([
-    prisma.instructorAccessCode.deleteMany({
-      where: { scheduleId },
-    }),
-    prisma.schedule.delete({
-      where: { id: scheduleId },
-    }),
-  ]);
-
-  return NextResponse.json({
-    message: "Session deleted successfully",
-    ...(await getScheduleSnapshot()),
-  });
 }

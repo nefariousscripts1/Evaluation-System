@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import AppMultiSelect from "@/components/ui/AppMultiSelect";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 interface Instructor {
   id: number;
@@ -25,7 +26,12 @@ const departmentOptions = [
   { value: "SAS", label: "SAS", sublabel: "School of Advanced Studies" },
 ];
 
-export default function EditInstructorModal({ isOpen, onClose, onSuccess, instructor }: EditInstructorModalProps) {
+export default function EditInstructorModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  instructor,
+}: EditInstructorModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -36,14 +42,11 @@ export default function EditInstructorModal({ isOpen, onClose, onSuccess, instru
 
   useEffect(() => {
     if (instructor) {
-      let departments: string[] = [];
-      if (instructor.department) {
-        departments = instructor.department.split(", ");
-      }
+      const departments = instructor.department ? instructor.department.split(", ") : [];
       setFormData({
         name: instructor.name,
         email: instructor.email,
-        departments: departments,
+        departments,
       });
     }
   }, [instructor]);
@@ -61,23 +64,23 @@ export default function EditInstructorModal({ isOpen, onClose, onSuccess, instru
 
     const departmentString = formData.departments.join(", ");
 
-    const res = await fetch(`/api/instructors/${instructor?.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: formData.name,
-        email: formData.email,
-        department: departmentString,
-        role: "faculty",
-      }),
-    });
+    try {
+      const res = await fetch(`/api/instructors/${instructor?.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          department: departmentString,
+          role: "faculty",
+        }),
+      });
 
-    if (res.ok) {
+      await readApiResponse(res);
       onSuccess();
       onClose();
-    } else {
-      const data = await res.json();
-      setError(data.message || "Failed to update instructor");
+    } catch (saveError) {
+      setError(getApiErrorMessage(saveError, "Failed to update instructor"));
       setLoading(false);
     }
   };
@@ -143,11 +146,7 @@ export default function EditInstructorModal({ isOpen, onClose, onSuccess, instru
             </p>
           </div>
 
-          {error && (
-            <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">
-              {error}
-            </div>
-          )}
+          {error && <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-4">
             <button

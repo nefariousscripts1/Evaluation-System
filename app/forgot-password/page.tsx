@@ -3,6 +3,8 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import AppLogo from "@/components/AppLogo";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
+import { forgotPasswordSchema } from "@/lib/validation";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -20,18 +22,25 @@ export default function ForgotPasswordPage() {
     setResetUrl("");
     setMessageTone("success");
 
+    const parsedRequest = forgotPasswordSchema.safeParse({ email });
+    if (!parsedRequest.success) {
+      setError(parsedRequest.error.issues[0]?.message || "Enter a valid email address");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(parsedRequest.data),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to send password reset email");
-      }
+      const data = await readApiResponse<{
+        message: string;
+        deliveryConfigured?: boolean;
+        resetUrl?: string;
+      }>(res);
 
       setMessage(data.message);
       setMessageTone(data.deliveryConfigured === false ? "warning" : "success");
@@ -39,7 +48,7 @@ export default function ForgotPasswordPage() {
         setResetUrl(data.resetUrl);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to request password reset");
+      setError(getApiErrorMessage(err, "Failed to request password reset"));
     } finally {
       setLoading(false);
     }

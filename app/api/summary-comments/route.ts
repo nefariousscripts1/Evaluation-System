@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { SEMESTER_OPTIONS } from "@/lib/evaluation-session";
+import { apiSuccess, handleApiError, parseSearchParams } from "@/lib/api";
+import { requireApiSession } from "@/lib/server-auth";
+import { summaryCommentsQuerySchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +31,8 @@ function normalizeCommentKey(comment: string) {
 
 async function buildInstructorComments(params: {
   instructorId: number;
-  academicYear: string;
-  semester: string;
+  academicYear?: string;
+  semester?: string;
   page: number;
   pageSize: number;
 }) {
@@ -123,18 +123,11 @@ async function buildInstructorComments(params: {
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || (session.user.role !== "secretary" && session.user.role !== "admin")) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search")?.trim() ?? "";
-    const academicYear = searchParams.get("academicYear")?.trim() ?? "";
-    const semester = searchParams.get("semester")?.trim() ?? "";
-    const page = Math.max(Number.parseInt(searchParams.get("page") ?? "1", 10), 1);
-    const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "5", 10), 1);
+    await requireApiSession(["secretary"]);
+    const { search, academicYear, semester, page, pageSize } = parseSearchParams(
+      request,
+      summaryCommentsQuerySchema
+    );
 
     const yearsFromEvaluations = await prisma.evaluation.findMany({
       distinct: ["academicYear"],
@@ -160,10 +153,7 @@ export async function GET(request: Request) {
           where: {
             deletedAt: null,
             role: { in: [...instructorRoles] },
-            OR: [
-              { name: { contains: search } },
-              { email: { contains: search } },
-            ],
+            OR: [{ name: { contains: search } }, { email: { contains: search } }],
           },
           orderBy: [{ name: "asc" }, { email: "asc" }],
           select: {
@@ -198,7 +188,7 @@ export async function GET(request: Request) {
         });
 
     if (!selectedInstructor) {
-      return NextResponse.json({
+      return apiSuccess({
         years,
         semesters: SEMESTER_OPTIONS,
         selectedInstructor: null,
@@ -215,23 +205,12 @@ export async function GET(request: Request) {
       pageSize,
     });
 
-    return NextResponse.json({
+    return apiSuccess({
       years,
       semesters: SEMESTER_OPTIONS,
       ...instructorComments,
     });
   } catch (error) {
-    console.error("Summary comments API error:", error);
-    return NextResponse.json(
-      {
-        message: "Failed to fetch summary comments",
-        years: [],
-        semesters: [],
-        selectedInstructor: null,
-        comments: [],
-        total: 0,
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to fetch summary comments");
   }
 }

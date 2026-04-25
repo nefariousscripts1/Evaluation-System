@@ -18,76 +18,93 @@ function withPathnameHeader(req: { headers: Headers; nextUrl: { pathname: string
     request: {
       headers: requestHeaders,
     },
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
   });
 }
 
 export default withAuth(
-  function middleware(req) {
+  function proxy(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // Allow public routes
     if (PUBLIC_ROUTES.includes(path)) {
       return withPathnameHeader(req);
     }
 
     if (!token) {
       const loginUrl = new URL("/login", req.url);
-      return NextResponse.redirect(loginUrl);
+      const response = NextResponse.redirect(loginUrl);
+      response.headers.set(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+      );
+      response.headers.set("Pragma", "no-cache");
+      response.headers.set("Expires", "0");
+      return response;
     }
 
     const role = token.role as string;
 
-    // Legacy STUDENT session support
     if (role === "student") {
       if (path === "/student/evaluate" || path === "/student" || path === "/") {
         return withPathnameHeader(req);
       }
-      if (path.startsWith("/secretary") || path.startsWith("/faculty") ||
-          path.startsWith("/chairperson") || path.startsWith("/dean") ||
-          path.startsWith("/director") || path.startsWith("/campus-director")) {
+
+      if (
+        path.startsWith("/secretary") ||
+        path.startsWith("/faculty") ||
+        path.startsWith("/chairperson") ||
+        path.startsWith("/dean") ||
+        path.startsWith("/director") ||
+        path.startsWith("/campus-director")
+      ) {
         return NextResponse.redirect(new URL("/unauthorized", req.url));
       }
+
       return withPathnameHeader(req);
     }
 
-    // Secretary routes
     if (path.startsWith("/secretary") && role !== "secretary") {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // Faculty routes
     if (path.startsWith("/faculty") && role !== "faculty") {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // Chairperson routes
     if (path.startsWith("/chairperson") && role !== "chairperson") {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // Dean routes
     if (path.startsWith("/dean") && role !== "dean") {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // Director routes
     if (path.startsWith("/director") && role !== "director") {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // Campus Director routes
     if (path.startsWith("/campus-director") && role !== "campus_director") {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // Legacy evaluate route (for chairperson, dean, director, campus_director)
-    if (path === "/evaluate" && !["chairperson", "dean", "director", "campus_director"].includes(role)) {
+    if (
+      path === "/evaluate" &&
+      !["chairperson", "dean", "director", "campus_director"].includes(role)
+    ) {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // Results route
-    if (path === "/results" && !["faculty", "chairperson", "dean", "director", "campus_director", "secretary"].includes(role)) {
+    if (
+      path === "/results" &&
+      !["faculty", "chairperson", "dean", "director", "campus_director", "secretary"].includes(
+        role
+      )
+    ) {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
@@ -95,9 +112,7 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => {
-        return true;
-      },
+      authorized: () => true,
     },
   }
 );

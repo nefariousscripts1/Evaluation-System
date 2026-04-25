@@ -13,6 +13,7 @@ import SummaryCommentsTable, {
 import AppSelect from "@/components/ui/AppSelect";
 import InlineLoadingIndicator from "@/components/ui/InlineLoadingIndicator";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { readApiResponse } from "@/lib/client-api";
 
 interface Result {
   id: number;
@@ -119,7 +120,7 @@ export default function ReportsPage() {
           cache: "no-store",
         });
 
-        const data: ReportsResponse = await res.json();
+        const data = await readApiResponse<ReportsResponse>(res);
         setResults(data.results || []);
         setYears(data.years || []);
         setSemesters(data.semesters || []);
@@ -164,7 +165,7 @@ export default function ReportsPage() {
         const res = await fetch(`/api/summary-comments?${params.toString()}`, {
           cache: "no-store",
         });
-        const data: SummaryCommentsResponse & { message?: string } = await res.json();
+        const data = await readApiResponse<SummaryCommentsResponse>(res);
 
         if (data.years.length > 0) {
           setAcademicYearOptions(data.years);

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { apiError, apiSuccess, handleApiError } from "@/lib/api";
 import { getValidatedStudentAccess } from "@/lib/student-access";
 
 export async function GET() {
@@ -7,7 +7,7 @@ export async function GET() {
     const access = await getValidatedStudentAccess();
 
     if (!access) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return apiError("Unauthorized", 401);
     }
 
     const submittedTargetIds = await prisma.evaluation.findMany({
@@ -20,7 +20,7 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({
+    return apiSuccess({
       student: access.student,
       schedule: {
         id: access.schedule.id,
@@ -37,7 +37,6 @@ export async function GET() {
       submittedTargetIds: submittedTargetIds.map((item) => item.evaluatedId),
     });
   } catch (error) {
-    console.error("Student access session error:", error);
-    return NextResponse.json({ message: "Failed to load student access session" }, { status: 500 });
+    return handleApiError(error, "Failed to load student access session");
   }
 }

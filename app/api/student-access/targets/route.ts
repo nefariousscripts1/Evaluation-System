@@ -1,21 +1,22 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { ApiRouteError, apiError, apiSuccess, handleApiError, parseJsonBody } from "@/lib/api";
 import { findInstructorAccessByCode } from "@/lib/instructor-access";
 import {
   getStudentAccessPayload,
   getValidatedStudentAccess,
   setStudentAccessCookie,
 } from "@/lib/student-access";
+import { instructorCodeSchema } from "@/lib/validation";
 
 export async function GET() {
   try {
     const access = await getValidatedStudentAccess();
 
     if (!access) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return apiError("Unauthorized", 401);
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       target: access.target,
       hasSubmittedCurrentTarget: access.target
         ? Boolean(
@@ -31,8 +32,7 @@ export async function GET() {
         : false,
     });
   } catch (error) {
-    console.error("Student access targets error:", error);
-    return NextResponse.json({ message: "Failed to load evaluation target" }, { status: 500 });
+    return handleApiError(error, "Failed to load evaluation target");
   }
 }
 
@@ -41,20 +41,14 @@ export async function POST(req: Request) {
     const access = await getValidatedStudentAccess();
 
     if (!access) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return apiError("Unauthorized", 401);
     }
 
-    const { instructorCode } = await req.json();
-    const normalizedCode = String(instructorCode ?? "").trim().toUpperCase();
-
-    if (!normalizedCode) {
-      return NextResponse.json({ message: "Instructor code is required" }, { status: 400 });
-    }
-
-    const instructorAccess = await findInstructorAccessByCode(access.schedule.id, normalizedCode);
+    const { instructorCode } = await parseJsonBody(req, instructorCodeSchema);
+    const instructorAccess = await findInstructorAccessByCode(access.schedule.id, instructorCode);
 
     if (!instructorAccess) {
-      return NextResponse.json({ message: "Invalid instructor code" }, { status: 401 });
+      throw new ApiRouteError("Invalid instructor code", { status: 401 });
     }
 
     await setStudentAccessCookie({
@@ -73,14 +67,13 @@ export async function POST(req: Request) {
       select: { id: true },
     });
 
-    return NextResponse.json({
+    return apiSuccess({
       target: instructorAccess.instructor,
       code: instructorAccess.code,
       hasSubmittedCurrentTarget: Boolean(existingEvaluation),
     });
   } catch (error) {
-    console.error("Student access target validation error:", error);
-    return NextResponse.json({ message: "Failed to validate instructor code" }, { status: 500 });
+    return handleApiError(error, "Failed to validate instructor code");
   }
 }
 
@@ -89,7 +82,7 @@ export async function DELETE() {
     const payload = await getStudentAccessPayload();
 
     if (!payload) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return apiError("Unauthorized", 401);
     }
 
     await setStudentAccessCookie({
@@ -99,9 +92,8 @@ export async function DELETE() {
       instructorId: null,
     });
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ reset: true });
   } catch (error) {
-    console.error("Student access target reset error:", error);
-    return NextResponse.json({ message: "Failed to reset instructor selection" }, { status: 500 });
+    return handleApiError(error, "Failed to reset instructor selection");
   }
 }

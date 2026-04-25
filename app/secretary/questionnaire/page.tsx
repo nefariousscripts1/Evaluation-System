@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 interface Question {
   id: number;
@@ -40,10 +41,15 @@ export default function QuestionnaireManagement() {
   }, [status, session, router]);
 
   const fetchQuestions = async () => {
-    const res = await fetch("/api/questionnaire");
-    const data = await res.json();
-    setQuestions(data);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/questionnaire");
+      const data = await readApiResponse<Question[]>(res);
+      setQuestions(data);
+    } catch (fetchError) {
+      setError(getApiErrorMessage(fetchError, "Failed to load questions"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,30 +60,30 @@ export default function QuestionnaireManagement() {
     const url = editingQuestion ? `/api/questionnaire/${editingQuestion.id}` : "/api/questionnaire";
     const method = editingQuestion ? "PUT" : "POST";
 
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-
-    if (res.ok) {
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      await readApiResponse(res);
       setIsModalOpen(false);
       setEditingQuestion(null);
       setFormData({ questionText: "", category: "" });
-      fetchQuestions();
-    } else {
-      const data = await res.json();
-      setError(data.message || "Failed to save question");
+      await fetchQuestions();
+    } catch (saveError) {
+      setError(getApiErrorMessage(saveError, "Failed to save question"));
     }
     setFormLoading(false);
   };
 
   const handleDelete = async (id: number) => {
     if (confirm("Are you sure you want to delete this question?")) {
-      const res = await fetch(`/api/questionnaire/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        fetchQuestions();
-      } else {
+      try {
+        const res = await fetch(`/api/questionnaire/${id}`, { method: "DELETE" });
+        await readApiResponse(res);
+        await fetchQuestions();
+      } catch {
         alert("Failed to delete question");
       }
     }

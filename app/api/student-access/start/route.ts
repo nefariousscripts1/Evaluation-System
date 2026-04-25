@@ -1,35 +1,22 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { ApiRouteError, apiSuccess, handleApiError, parseJsonBody } from "@/lib/api";
 import { getScheduleByAccessCode } from "@/lib/evaluation-session";
 import { setStudentAccessCookie } from "@/lib/student-access";
+import { studentAccessStartSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   try {
-    const { accessCode, portalAccessCode, studentId } = await req.json();
-    const normalizedCode = String(accessCode ?? portalAccessCode ?? "").trim().toUpperCase();
-    const normalizedStudentId = String(studentId ?? "").trim();
-
-    if (!normalizedCode) {
-      return NextResponse.json({ message: "Portal access code is required" }, { status: 400 });
-    }
-
-    if (!normalizedStudentId) {
-      return NextResponse.json({ message: "Student ID is required" }, { status: 400 });
-    }
-
-    const schedule = await getScheduleByAccessCode(normalizedCode);
+    const { accessCode, studentId } = await parseJsonBody(req, studentAccessStartSchema);
+    const schedule = await getScheduleByAccessCode(accessCode);
 
     if (!schedule) {
-      return NextResponse.json(
-        { message: "Invalid portal access code" },
-        { status: 401 }
-      );
+      throw new ApiRouteError("Invalid portal access code", { status: 401 });
     }
 
     const student = await prisma.user.findFirst({
       where: {
         role: "student",
-        studentId: normalizedStudentId,
+        studentId,
         deletedAt: null,
       },
       select: {
@@ -40,7 +27,7 @@ export async function POST(req: Request) {
     });
 
     if (!student || !student.studentId) {
-      return NextResponse.json({ message: "Student ID not found" }, { status: 404 });
+      throw new ApiRouteError("Student ID not found", { status: 404 });
     }
 
     await setStudentAccessCookie({
@@ -50,8 +37,7 @@ export async function POST(req: Request) {
       instructorId: null,
     });
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       schedule: {
         id: schedule.id,
         academicYear: schedule.academicYear,
@@ -66,7 +52,6 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
-    console.error("Student access start error:", error);
-    return NextResponse.json({ message: "Failed to start student access" }, { status: 500 });
+    return handleApiError(error, "Failed to start student access");
   }
 }

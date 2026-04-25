@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, Star } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 type TargetResult = {
   id: number;
@@ -68,11 +69,14 @@ export default function SingleTargetResultsDashboard({
     const fetchTargetOptions = async () => {
       try {
         const res = await fetch("/api/evaluations/targets", { cache: "no-store" });
-        const data = await res.json();
-
-        if (!res.ok || !Array.isArray(data)) {
-          throw new Error(`Failed to load ${targetLabel.toLowerCase()} suggestions`);
-        }
+        const data = await readApiResponse<
+          Array<{
+            id: number;
+            name: string | null;
+            email: string;
+            department: string | null;
+          }>
+        >(res);
 
         setTargetOptions(
           data.map(
@@ -105,11 +109,7 @@ export default function SingleTargetResultsDashboard({
         const res = await fetch(`${apiEndpoint}?${params.toString()}`, {
           cache: "no-store",
         });
-        const data: SingleTargetResultsResponse & { message?: string } = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || `Failed to load ${targetLabel.toLowerCase()} results`);
-        }
+        const data = await readApiResponse<SingleTargetResultsResponse>(res);
 
         setAcademicYear(data.academicYear);
         setYears(data.years.length > 0 ? data.years : [data.academicYear]);
@@ -119,7 +119,7 @@ export default function SingleTargetResultsDashboard({
         setCompletedCount(data.completedCount || 0);
         setTotalCount(data.totalCount || 0);
       } catch (err) {
-        setError(err instanceof Error ? err.message : `Failed to load ${targetLabel.toLowerCase()} results`);
+        setError(getApiErrorMessage(err, `Failed to load ${targetLabel.toLowerCase()} results`));
       } finally {
         setLoading(false);
       }

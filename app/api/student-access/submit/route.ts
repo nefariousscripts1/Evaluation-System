@@ -1,49 +1,46 @@
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess, handleApiError, parseJsonBody } from "@/lib/api";
 import {
   EvaluationSubmissionError,
   submitEvaluationRecord,
 } from "@/lib/evaluation-submission";
 import { getValidatedStudentAccess } from "@/lib/student-access";
+import { evaluationFeedbackSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   try {
     const access = await getValidatedStudentAccess();
 
     if (!access) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return apiError("Unauthorized", 401);
     }
 
     if (!access.target) {
-      return NextResponse.json({ message: "Instructor code validation is required" }, { status: 400 });
+      return apiError("Instructor code validation is required", 400);
     }
 
-    const payload = await req.json();
+    const payload = await parseJsonBody(req, evaluationFeedbackSchema);
     const evaluation = await submitEvaluationRecord({
       evaluatorId: access.student.id,
       evaluatorRole: "student",
       evaluatedId: access.target.id,
       scheduleId: access.schedule.id,
       academicYear: access.schedule.academicYear,
-      answers: payload?.answers,
-      comment: payload?.comment,
+      answers: payload.answers,
+      comment: payload.comment,
     });
 
-    return NextResponse.json({ success: true, evaluation }, { status: 201 });
+    return apiSuccess({ evaluation }, { status: 201 });
   } catch (error) {
-    console.error("Student access submit error:", error);
-
     if (error instanceof EvaluationSubmissionError) {
-      return NextResponse.json(
-        {
-          message: error.message,
-          ...(process.env.NODE_ENV !== "production" && error.details
-            ? { details: error.details }
-            : {}),
-        },
-        { status: error.status }
+      return apiError(
+        error.message,
+        error.status,
+        process.env.NODE_ENV !== "production" && error.details
+          ? { details: error.details }
+          : undefined
       );
     }
 
-    return NextResponse.json({ message: "Failed to submit evaluation" }, { status: 500 });
+    return handleApiError(error, "Failed to submit evaluation");
   }
 }

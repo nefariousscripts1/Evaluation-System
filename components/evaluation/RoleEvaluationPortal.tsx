@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Check, UserRound } from "lucide-react";
 import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { groupQuestionsByCategory, PERFORMANCE_RATING_SCALE } from "@/lib/questionnaire";
 
 type EvaluationTarget = {
@@ -76,15 +77,10 @@ export default function RoleEvaluationPortal({
   async function fetchTargets() {
     try {
       const res = await fetch("/api/evaluations/targets", { cache: "no-store" });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to load evaluation targets");
-      }
-
+      const data = await readApiResponse<EvaluationTarget[]>(res);
       setTargets(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load evaluation targets");
+      setError(getApiErrorMessage(err, "Failed to load evaluation targets"));
     } finally {
       setLoading(false);
     }
@@ -93,22 +89,20 @@ export default function RoleEvaluationPortal({
   async function fetchQuestions() {
     try {
       const res = await fetch("/api/questionnaire", { cache: "no-store" });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to load questions");
-      }
-
+      const data = await readApiResponse<Question[]>(res);
       setQuestions(data.filter((q: Question) => q.isActive !== false));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load questions");
+      setError(getApiErrorMessage(err, "Failed to load questions"));
     }
   }
 
   async function fetchCurrentSchedule() {
     try {
       const res = await fetch("/api/schedule/current", { cache: "no-store" });
-      const data = await res.json();
+      const data = await readApiResponse<{
+        scheduleId: number | null;
+        academicYear: string | null;
+      }>(res);
 
       if (data?.scheduleId && data?.academicYear) {
         setScheduleId(data.scheduleId);
@@ -179,20 +173,11 @@ export default function RoleEvaluationPortal({
           comment: finalComment,
         }),
       });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        const message =
-          data?.details && data?.message
-            ? `${data.message} (${data.details})`
-            : data?.message || "Failed to submit evaluation";
-        throw new Error(message);
-      }
+      await readApiResponse(res);
 
       setStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit evaluation");
+      setError(getApiErrorMessage(err, "Failed to submit evaluation"));
     } finally {
       setSubmitting(false);
     }

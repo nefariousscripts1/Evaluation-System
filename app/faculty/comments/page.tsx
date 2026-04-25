@@ -6,6 +6,7 @@ import { UserRound } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import CommentsList from "@/components/faculty/CommentsList";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 type CommentItem = {
   id: string | number;
@@ -101,17 +102,13 @@ export default function FacultyCommentsPage() {
         const res = await fetch(`/api/instructor/comments?${params.toString()}`, {
           cache: "no-store",
         });
-        const data: InstructorCommentsResponse & { message?: string } = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || "Failed to load comments");
-        }
+        const data = await readApiResponse<InstructorCommentsResponse>(res);
 
         setYears(data.years.length > 0 ? data.years : [data.academicYear]);
         setAcademicYear(data.academicYear);
         setComments(data.comments || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load comments");
+        setError(getApiErrorMessage(err, "Failed to load comments"));
       } finally {
         setLoading(false);
       }

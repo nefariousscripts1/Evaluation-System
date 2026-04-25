@@ -1,27 +1,23 @@
-import { NextResponse } from "next/server";
-import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import bcrypt from "bcrypt";
-
-async function requireSecretary() {
-  const session = await getServerSession(authOptions);
-
-  if (!session || session.user.role !== "secretary") {
-    return null;
-  }
-
-  return session;
-}
+import { Prisma } from "@prisma/client";
+import prisma from "@/lib/db";
+import {
+  apiError,
+  apiSuccess,
+  handleApiError,
+  parseJsonBody,
+  parseRouteParams,
+} from "@/lib/api";
+import { requireApiSession } from "@/lib/server-auth";
+import { idRouteParamSchema, staffUserUpdateSchema } from "@/lib/validation";
 
 function getUniqueConstraintMessage(error: Prisma.PrismaClientKnownRequestError) {
   const targetMeta = error.meta?.target;
   const target = Array.isArray(targetMeta)
     ? targetMeta
     : typeof targetMeta === "string"
-      ? [targetMeta]
-      : [];
+    ? [targetMeta]
+    : [];
 
   if (target.includes("email") || target.includes("User_email_key")) {
     return "An account with this email address already exists";
@@ -34,49 +30,46 @@ function getUniqueConstraintMessage(error: Prisma.PrismaClientKnownRequestError)
   return "A record with this information already exists";
 }
 
-export async function DELETE(
-  request: Request,
+async function getExistingStaffUser(id: number) {
+  return prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      role: true,
+      deletedAt: true,
+      name: true,
+      email: true,
+      department: true,
+    },
+  });
+}
+
+export async function GET(
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireSecretary();
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const user = await getExistingStaffUser(id);
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user || user.deletedAt) {
+      return apiError("User not found", 404);
     }
 
-    const { id: idParam } = await params;
-    const id = Number.parseInt(idParam, 10);
-
-    if (!Number.isInteger(id)) {
-      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    if (user.role === "student") {
+      return apiError("Use Student Management for student records", 400);
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { id },
-      select: { id: true, role: true },
+    return apiSuccess({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
     });
-
-    if (!existingUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    if (existingUser.role === "student") {
-      return NextResponse.json(
-        { error: "Use Student Management for student records" },
-        { status: 400 }
-      );
-    }
-
-    await prisma.user.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
-
-    return NextResponse.json({ success: true, message: "User deleted successfully" });
   } catch (error) {
-    console.error("DELETE error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "Failed to fetch user");
   }
 }
 
@@ -85,91 +78,40 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireSecretary();
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const existingUser = await getExistingStaffUser(id);
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id: idParam } = await params;
-    const id = Number.parseInt(idParam, 10);
-
-    if (!Number.isInteger(id)) {
-      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
-    }
-
-    const existingUser = await prisma.user.findUnique({
-      where: { id },
-      select: { id: true, role: true },
-    });
-
-    if (!existingUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!existingUser || existingUser.deletedAt) {
+      return apiError("User not found", 404);
     }
 
     if (existingUser.role === "student") {
-      return NextResponse.json(
-        { error: "Use Student Management for student records" },
-        { status: 400 }
-      );
+      return apiError("Use Student Management for student records", 400);
     }
 
-    const { name, email, role, department, password } = await request.json();
+    const payload = await parseJsonBody(request, staffUserUpdateSchema);
 
-    if (String(role ?? "").trim() === "student") {
-      return NextResponse.json(
-        { error: "Users Management is for staff accounts only" },
-        { status: 400 }
-      );
-    }
-
-    const updateData: Record<string, unknown> = {
-      name: String(name ?? "").trim(),
-      email: String(email ?? "").trim().toLowerCase(),
-      role,
-      department: department ? String(department).trim() : null,
+    const updateData: {
+      name: string;
+      email: string;
+      role: typeof payload.role;
+      department: string | null;
+      password?: string;
+    } = {
+      name: payload.name,
+      email: payload.email,
+      role: payload.role,
+      department: payload.department,
     };
 
-    if (password && String(password).trim() !== "") {
-      updateData.password = await bcrypt.hash(String(password), 10);
+    if (payload.password) {
+      updateData.password = await bcrypt.hash(payload.password, 10);
     }
 
     const user = await prisma.user.update({
       where: { id },
       data: updateData,
-    });
-
-    return NextResponse.json({ success: true, user });
-  } catch (error) {
-    console.error("PUT error:", error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json(
-        { error: getUniqueConstraintMessage(error) },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
-  }
-}
-
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await requireSecretary();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id: idParam } = await params;
-    const id = Number.parseInt(idParam, 10);
-
-    const user = await prisma.user.findUnique({
-      where: { id },
       select: {
         id: true,
         name: true,
@@ -179,19 +121,40 @@ export async function GET(
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    if (user.role === "student") {
-      return NextResponse.json(
-        { error: "Use Student Management for student records" },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(user);
+    return apiSuccess({ user });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return apiError(getUniqueConstraintMessage(error), 400);
+    }
+
+    return handleApiError(error, "Failed to update user");
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const existingUser = await getExistingStaffUser(id);
+
+    if (!existingUser || existingUser.deletedAt) {
+      return apiError("User not found", 404);
+    }
+
+    if (existingUser.role === "student") {
+      return apiError("Use Student Management for student records", 400);
+    }
+
+    await prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+
+    return apiSuccess({ deleted: true });
+  } catch (error) {
+    return handleApiError(error, "Failed to delete user");
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, LogOut, Search, Star, UserRound } from "lucide-react";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { groupQuestionsByCategory, PERFORMANCE_RATING_SCALE } from "@/lib/questionnaire";
 
 type Question = {
@@ -77,26 +78,18 @@ export default function StudentAccessPortal() {
           return;
         }
 
-        const sessionData = await sessionRes.json();
-
-        if (!sessionRes.ok) {
-          throw new Error(sessionData.message || "Failed to load student access session");
-        }
+        const sessionData = await readApiResponse<StudentSession>(sessionRes);
 
         setSession(sessionData);
 
         const questionsRes = await fetch("/api/student-access/questionnaire", {
           cache: "no-store",
         });
-        const questionsData = await questionsRes.json();
-
-        if (!questionsRes.ok) {
-          throw new Error(questionsData.message || "Failed to load questionnaire");
-        }
+        const questionsData = await readApiResponse<Question[]>(questionsRes);
 
         setQuestions(questionsData.filter((question: Question) => question.isActive !== false));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load student evaluation portal");
+        setError(getApiErrorMessage(err, "Failed to load student evaluation portal"));
       } finally {
         setLoading(false);
       }
@@ -104,6 +97,18 @@ export default function StudentAccessPortal() {
 
     void loadPortal();
   }, [router]);
+
+  useEffect(() => {
+    if (highlightedQuestionId === null) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      scrollToQuestion(highlightedQuestionId);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [highlightedQuestionId]);
 
   const answeredCount = questions.filter((question) => answers[question.id]?.rating).length;
   const targetName = session?.target?.name || session?.target?.email || "Instructor";
@@ -127,14 +132,7 @@ export default function StudentAccessPortal() {
           instructorCode,
         }),
       });
-
-      const data: (TargetValidationResponse & { message?: string }) | null = await res
-        .json()
-        .catch(() => null);
-
-      if (!res.ok || !data) {
-        throw new Error(data?.message || "Failed to validate instructor code");
-      }
+      const data = await readApiResponse<TargetValidationResponse>(res);
 
       setSession((current) =>
         current
@@ -150,7 +148,7 @@ export default function StudentAccessPortal() {
       );
       setInstructorCode("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to validate instructor code");
+      setError(getApiErrorMessage(err, "Failed to validate instructor code"));
     } finally {
       setVerifyingCode(false);
     }
@@ -223,7 +221,6 @@ export default function StudentAccessPortal() {
 
       setHighlightedQuestionId(firstUnansweredQuestion.id);
       setError(`Please answer all questions (${unanswered.length} unanswered)`);
-      scrollToQuestion(firstUnansweredQuestion.id);
       return;
     }
 
@@ -243,16 +240,7 @@ export default function StudentAccessPortal() {
           comment: finalComment,
         }),
       });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        const message =
-          data?.details && data?.message
-            ? `${data.message} (${data.details})`
-            : data?.message || "Failed to submit evaluation";
-        throw new Error(message);
-      }
+      await readApiResponse(res);
 
       setSession((current) =>
         current
@@ -267,7 +255,7 @@ export default function StudentAccessPortal() {
       );
       setStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit evaluation");
+      setError(getApiErrorMessage(err, "Failed to submit evaluation"));
     } finally {
       setSubmitting(false);
     }
@@ -681,11 +669,15 @@ export default function StudentAccessPortal() {
                           ref={(node) => {
                             questionRefs.current[question.id] = node;
                           }}
-                          className="border-b border-[#efe8fb] last:border-b-0"
+                          className={`border-b last:border-b-0 ${
+                            highlightedQuestionId === question.id
+                              ? "border-red-300 bg-red-50/60"
+                              : "border-[#efe8fb]"
+                          }`}
                         >
                           <div
                             className={`grid gap-4 px-4 py-4 transition-colors lg:grid-cols-[84px_minmax(0,1fr)_320px] lg:gap-0 lg:px-0 lg:py-0 ${
-                              highlightedQuestionId === question.id ? "bg-red-50/80" : ""
+                              highlightedQuestionId === question.id ? "bg-red-50" : ""
                             }`}
                           >
                             <div className="flex items-start lg:items-stretch lg:justify-center lg:px-4 lg:py-5">
@@ -707,6 +699,11 @@ export default function StudentAccessPortal() {
                               <p className="pt-1 text-sm font-semibold text-[#24135f] sm:text-base lg:pt-0">
                                 {question.questionText}
                               </p>
+                              {highlightedQuestionId === question.id ? (
+                                <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-red-600">
+                                  Required
+                                </p>
+                              ) : null}
                             </div>
 
                             <div className="lg:border-l lg:border-[#efe8fb] lg:px-5 lg:py-5">

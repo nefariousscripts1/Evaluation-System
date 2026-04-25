@@ -4,6 +4,8 @@ import { FormEvent, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppLogo from "@/components/AppLogo";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
+import { resetPasswordSchema } from "@/lib/validation";
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
@@ -29,26 +31,28 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    const parsedRequest = resetPasswordSchema.safeParse({ token, password });
+    if (!parsedRequest.success) {
+      setError(parsedRequest.error.issues[0]?.message || "Enter a valid reset token and password");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify(parsedRequest.data),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to reset password");
-      }
+      const data = await readApiResponse<{ message: string }>(res);
 
       setMessage(data.message);
       setPassword("");
       setConfirmPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reset password");
+      setError(getApiErrorMessage(err, "Failed to reset password"));
     } finally {
       setLoading(false);
     }

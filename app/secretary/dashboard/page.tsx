@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DashboardContent from "./DashboardContent";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 type DashboardPayload = React.ComponentProps<typeof DashboardContent>;
 
@@ -50,26 +51,16 @@ export default function SecretaryDashboard() {
           cache: "no-store",
           signal: controller.signal,
         });
-        const data = await res.json().catch(() => null);
-        console.log("Dashboard API status:", res.status, data);
-
-        if (!data) {
-          throw new Error(data?.error || "Failed to load dashboard data");
-        }
+        const data = await readApiResponse<DashboardPayload>(res);
 
         setPayload(data as DashboardPayload);
-        if (!res.ok && data.error) {
-          setError(data.error);
-        }
       } catch (fetchError) {
         if (controller.signal.aborted) {
           return;
         }
 
         console.error("Secretary dashboard fetch error:", fetchError);
-        setError(
-          fetchError instanceof Error ? fetchError.message : "Failed to load dashboard data"
-        );
+        setError(getApiErrorMessage(fetchError, "Failed to load dashboard data"));
         setPayload(emptyPayload);
       } finally {
         if (!controller.signal.aborted) {

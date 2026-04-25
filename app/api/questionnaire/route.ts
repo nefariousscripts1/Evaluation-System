@@ -1,55 +1,32 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { apiSuccess, handleApiError, parseJsonBody } from "@/lib/api";
+import { requireApiSession } from "@/lib/server-auth";
+import { questionnaireCreateSchema } from "@/lib/validation";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    await requireApiSession();
 
-  const questions = await prisma.questionnaire.findMany({
-    orderBy: [{ category: "asc" }, { id: "asc" }],
-  });
-  return NextResponse.json(questions);
+    const questions = await prisma.questionnaire.findMany({
+      orderBy: [{ category: "asc" }, { id: "asc" }],
+    });
+
+    return apiSuccess(questions, { preserveRoot: false });
+  } catch (error) {
+    return handleApiError(error, "Failed to load questionnaire");
+  }
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await requireApiSession(["secretary"]);
+    const payload = await parseJsonBody(req, questionnaireCreateSchema);
+    const question = await prisma.questionnaire.create({
+      data: payload,
+    });
+
+    return apiSuccess({ question }, { status: 201 });
+  } catch (error) {
+    return handleApiError(error, "Failed to create questionnaire");
   }
-
-  const { questionText, category, isActive } = await req.json();
-  const question = await prisma.questionnaire.create({
-    data: { questionText, category, isActive: isActive ?? true },
-  });
-  return NextResponse.json(question);
-}
-
-export async function PUT(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id, questionText, category, isActive } = await req.json();
-  const question = await prisma.questionnaire.update({
-    where: { id },
-    data: { questionText, category, isActive },
-  });
-  return NextResponse.json(question);
-}
-
-export async function DELETE(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const id = parseInt(searchParams.get("id") || "0");
-  await prisma.questionnaire.delete({ where: { id } });
-  return NextResponse.json({ success: true });
 }

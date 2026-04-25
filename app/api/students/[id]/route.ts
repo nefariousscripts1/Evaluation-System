@@ -1,57 +1,55 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db";
-import { authOptions } from "@/lib/auth";
+import {
+  apiError,
+  apiSuccess,
+  handleApiError,
+  parseJsonBody,
+  parseRouteParams,
+} from "@/lib/api";
+import { requireApiSession } from "@/lib/server-auth";
+import { idRouteParamSchema, studentRecordSchema } from "@/lib/validation";
 
 function buildStudentPlaceholderEmail(studentId: string) {
-  const normalized = studentId.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const normalized = studentId.replace(/[^A-Z0-9-]/g, "").toLowerCase();
   return `student.${normalized}@access.local`;
 }
 
-async function requireSecretary() {
-  const session = await getServerSession(authOptions);
-
-  if (!session || session.user.role !== "secretary") {
-    return null;
-  }
-
-  return session;
+async function getExistingStudent(id: number) {
+  return prisma.user.findFirst({
+    where: {
+      id,
+      role: "student",
+    },
+    select: {
+      id: true,
+      studentId: true,
+      createdAt: true,
+      deletedAt: true,
+    },
+  });
 }
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireSecretary();
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const student = await getExistingStudent(id);
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!student || student.deletedAt) {
+      return apiError("Student not found", 404);
     }
 
-    const { id: idParam } = await params;
-    const id = Number.parseInt(idParam, 10);
-
-    const student = await prisma.user.findFirst({
-      where: {
-        id,
-        role: "student",
-      },
-      select: {
-        id: true,
-        studentId: true,
-        createdAt: true,
-      },
+    return apiSuccess({
+      id: student.id,
+      studentId: student.studentId,
+      createdAt: student.createdAt,
     });
-
-    if (!student) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(student);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch student" }, { status: 500 });
+    return handleApiError(error, "Failed to fetch student");
   }
 }
 
@@ -60,34 +58,16 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireSecretary();
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const existingStudent = await getExistingStudent(id);
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!existingStudent || existingStudent.deletedAt) {
+      return apiError("Student not found", 404);
     }
 
-    const { id: idParam } = await params;
-    const id = Number.parseInt(idParam, 10);
-    const body = await request.json();
-    const studentId = String(body.studentId ?? "").trim();
-
-    if (!studentId) {
-      return NextResponse.json({ error: "Student ID is required" }, { status: 400 });
-    }
-
-    const existingStudent = await prisma.user.findFirst({
-      where: {
-        id,
-        role: "student",
-      },
-      select: { id: true },
-    });
-
-    if (!existingStudent) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
-    }
-
-    const updatedStudent = await prisma.user.update({
+    const { studentId } = await parseJsonBody(request, studentRecordSchema);
+    const student = await prisma.user.update({
       where: { id },
       data: {
         studentId,
@@ -100,48 +80,27 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({ success: true, student: updatedStudent });
-  } catch (error: any) {
-    console.error("Students API PUT error:", error);
-
+    return apiSuccess({ student });
+  } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json(
-        { error: "Student ID already exists" },
-        { status: 400 }
-      );
+      return apiError("Student ID already exists", 400);
     }
 
-    return NextResponse.json(
-      { error: error?.message || "Failed to update student record" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to update student record");
   }
 }
 
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireSecretary();
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const existingStudent = await getExistingStudent(id);
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id: idParam } = await params;
-    const id = Number.parseInt(idParam, 10);
-
-    const existingStudent = await prisma.user.findFirst({
-      where: {
-        id,
-        role: "student",
-      },
-      select: { id: true },
-    });
-
-    if (!existingStudent) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    if (!existingStudent || existingStudent.deletedAt) {
+      return apiError("Student not found", 404);
     }
 
     await prisma.user.update({
@@ -151,9 +110,8 @@ export async function DELETE(
       },
     });
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ deleted: true });
   } catch (error) {
-    console.error("Students API DELETE error:", error);
-    return NextResponse.json({ error: "Failed to delete student record" }, { status: 500 });
+    return handleApiError(error, "Failed to delete student record");
   }
 }

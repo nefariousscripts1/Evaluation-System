@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { getErrorMessage } from "@/lib/error-message";
 
 type StudentRecord = {
@@ -47,16 +48,11 @@ export default function StudentManagementPage() {
   const fetchStudents = async () => {
     try {
       const res = await fetch("/api/students", { cache: "no-store" });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to fetch student records");
-      }
-
+      const data = await readApiResponse<StudentRecord[]>(res);
       setStudents(data);
     } catch (fetchError) {
       console.error("Student fetch error:", fetchError);
-      setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch student records");
+      setError(getApiErrorMessage(fetchError, "Failed to fetch student records"));
     } finally {
       setLoading(false);
     }
@@ -96,17 +92,12 @@ export default function StudentManagementPage() {
           body: JSON.stringify({ studentId: studentIdInput }),
         }
       );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to save student record");
-      }
+      await readApiResponse(res);
 
       closeModal();
       await fetchStudents();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save student record");
+      setError(getApiErrorMessage(saveError, "Failed to save student record"));
     } finally {
       setSubmitting(false);
     }
@@ -123,20 +114,13 @@ export default function StudentManagementPage() {
       const res = await fetch(`/api/students/${deletingStudent.id}`, {
         method: "DELETE",
       });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to delete student record");
-      }
+      await readApiResponse(res);
 
       setIsDeleteModalOpen(false);
       setDeletingStudent(null);
       await fetchStudents();
     } catch (deleteError) {
-      setError(
-        deleteError instanceof Error ? deleteError.message : "Failed to delete student record"
-      );
+      setError(getApiErrorMessage(deleteError, "Failed to delete student record"));
     } finally {
       setDeleteLoading(false);
     }

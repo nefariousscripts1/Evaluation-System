@@ -1,33 +1,19 @@
 import { randomUUID } from "crypto";
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import bcrypt from "bcrypt";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db";
-import { authOptions } from "@/lib/auth";
+import { apiError, apiSuccess, handleApiError, parseJsonBody } from "@/lib/api";
+import { requireApiSession } from "@/lib/server-auth";
+import { studentRecordSchema } from "@/lib/validation";
 
 function buildStudentPlaceholderEmail(studentId: string) {
-  const normalized = studentId.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const normalized = studentId.replace(/[^A-Z0-9-]/g, "").toLowerCase();
   return `student.${normalized}@access.local`;
-}
-
-async function requireSecretary() {
-  const session = await getServerSession(authOptions);
-
-  if (!session || session.user.role !== "secretary") {
-    return null;
-  }
-
-  return session;
 }
 
 export async function GET() {
   try {
-    const session = await requireSecretary();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    await requireApiSession(["secretary"]);
 
     const students = await prisma.user.findMany({
       where: {
@@ -42,30 +28,19 @@ export async function GET() {
       orderBy: [{ studentId: "asc" }],
     });
 
-    return NextResponse.json(students);
+    return apiSuccess(students, { preserveRoot: false });
   } catch (error) {
-    console.error("Students API GET error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return handleApiError(error, "Failed to fetch student records");
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const session = await requireSecretary();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const studentId = String(body.studentId ?? "").trim();
-
-    if (!studentId) {
-      return NextResponse.json({ error: "Student ID is required" }, { status: 400 });
-    }
-
+    await requireApiSession(["secretary"]);
+    const { studentId } = await parseJsonBody(request, studentRecordSchema);
     const placeholderPassword = await bcrypt.hash(randomUUID(), 10);
-    const user = await prisma.user.create({
+
+    const student = await prisma.user.create({
       data: {
         name: null,
         email: buildStudentPlaceholderEmail(studentId),
@@ -81,20 +56,12 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, student: user });
-  } catch (error: any) {
-    console.error("Students API POST error:", error);
-
+    return apiSuccess({ student }, { status: 201 });
+  } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json(
-        { error: "Student ID already exists" },
-        { status: 400 }
-      );
+      return apiError("Student ID already exists", 400);
     }
 
-    return NextResponse.json(
-      { error: error?.message || "Failed to create student record" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to create student record");
   }
 }

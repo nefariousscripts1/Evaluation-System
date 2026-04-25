@@ -7,6 +7,7 @@ import { Plus, X, AlertTriangle, Pencil, Trash2, Search } from "lucide-react";
 import AppSelect from "@/components/ui/AppSelect";
 import AppMultiSelect from "@/components/ui/AppMultiSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { getErrorMessage } from "@/lib/error-message";
 
 interface User {
@@ -89,16 +90,11 @@ export default function UsersManagement() {
   const fetchUsers = async () => {
     try {
       const res = await fetch("/api/users");
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to fetch users");
-      }
-
+      const data = await readApiResponse<User[]>(res);
       setUsers(data);
     } catch (fetchError) {
       console.error("Fetch error:", fetchError);
-      setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch users");
+      setError(getApiErrorMessage(fetchError, "Failed to fetch users"));
     } finally {
       setLoading(false);
     }
@@ -144,17 +140,13 @@ export default function UsersManagement() {
 
     try {
       const res = await fetch(`/api/users/${deletingUser.id}`, { method: "DELETE" });
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to delete user");
-      }
+      await readApiResponse(res);
 
       setIsDeleteModalOpen(false);
       setDeletingUser(null);
       await fetchUsers();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete user");
+      setError(getApiErrorMessage(deleteError, "Failed to delete user"));
     } finally {
       setDeleteLoading(false);
     }
@@ -178,17 +170,12 @@ export default function UsersManagement() {
           department,
         }),
       });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to save user");
-      }
+      await readApiResponse(res);
 
       handleCloseModal();
       await fetchUsers();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save user");
+      setError(getApiErrorMessage(saveError, "Failed to save user"));
     } finally {
       setFormLoading(false);
     }

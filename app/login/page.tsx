@@ -6,7 +6,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronDown, Lock, ShieldCheck, User, UserSquare2 } from "lucide-react";
 import AppLogo from "@/components/AppLogo";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { getErrorMessage } from "@/lib/error-message";
+import { staffLoginSchema, studentAccessStartSchema } from "@/lib/validation";
 
 const staffRoles = [
   { label: "Campus Director", value: "campus_director" },
@@ -90,8 +92,14 @@ export default function LoginPage() {
     const password = String(formData.get("password") || "");
     const role = selectedRole.trim();
 
-    if (!role) {
-      setError("Please select a staff role");
+    const parsedCredentials = staffLoginSchema.safeParse({
+      email,
+      password,
+      role,
+    });
+
+    if (!parsedCredentials.success) {
+      setError(parsedCredentials.error.issues[0]?.message || "Enter a valid email, password, and role");
       setLoading(false);
       return;
     }
@@ -125,30 +133,32 @@ export default function LoginPage() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
+    const parsedAccess = studentAccessStartSchema.safeParse({
+      accessCode: formData.get("accessCode"),
+      studentId: formData.get("studentId"),
+    });
+
+    if (!parsedAccess.success) {
+      setError(parsedAccess.error.issues[0]?.message || "Enter a valid access code and student ID");
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/student-access/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accessCode: formData.get("accessCode"),
-          studentId: formData.get("studentId"),
-        }),
+        body: JSON.stringify(parsedAccess.data),
       });
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        setError(data?.message || "Failed to validate student access");
-        setLoading(false);
-        return;
-      }
+      await readApiResponse(res);
 
       router.push("/student/evaluate");
       router.refresh();
     } catch (err) {
       console.error("Student access error:", err);
-      setError("Something went wrong while starting student access");
+      setError(getApiErrorMessage(err, "Something went wrong while starting student access"));
+    } finally {
       setLoading(false);
     }
   };

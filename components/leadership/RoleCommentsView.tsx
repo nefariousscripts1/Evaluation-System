@@ -6,6 +6,7 @@ import RoleCommentsPanel from "@/components/comments/RoleCommentsPanel";
 import { SummaryComment } from "@/components/secretary/SummaryCommentsTable";
 import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 type CommentItem = {
   id: number;
@@ -78,15 +79,18 @@ export default function RoleCommentsView({
     const fetchTargetOptions = async () => {
       try {
         const res = await fetch("/api/evaluations/targets", { cache: "no-store" });
-        const data = await res.json();
-
-        if (!res.ok || !Array.isArray(data)) {
-          throw new Error(`Failed to load ${targetLabel.toLowerCase()} suggestions`);
-        }
+        const data = await readApiResponse<
+          Array<{
+            id: number;
+            name: string | null;
+            email: string;
+            department: string | null;
+          }>
+        >(res);
 
         setTargetOptions(
           data.map(
-            (target: { id: number; name: string | null; email: string; department: string | null }) => ({
+            (target) => ({
               id: target.id,
               label: target.name || target.email,
               sublabel: target.department || target.email,
@@ -132,11 +136,7 @@ export default function RoleCommentsView({
         const res = await fetch(`${apiEndpoint}?${params.toString()}`, {
           cache: "no-store",
         });
-        const data: LeadershipCommentsResponse & { message?: string } = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || `Failed to load ${targetLabel.toLowerCase()} comments`);
-        }
+        const data = await readApiResponse<LeadershipCommentsResponse>(res);
 
         setAcademicYear(data.academicYear);
         setAcademicYearOptions(data.years.length > 0 ? data.years : [data.academicYear]);
@@ -148,7 +148,7 @@ export default function RoleCommentsView({
         setTotalTargetComments(data.targetComments.total || 0);
         hasLoadedOnceRef.current = true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : `Failed to load ${targetLabel.toLowerCase()} comments`);
+        setError(getApiErrorMessage(err, `Failed to load ${targetLabel.toLowerCase()} comments`));
       } finally {
         setInitialLoading(false);
         setTargetLoading(false);

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { apiError, apiSuccess, handleApiError } from "@/lib/api";
 import { getValidatedStudentAccess } from "@/lib/student-access";
 
 export async function GET() {
@@ -7,7 +7,7 @@ export async function GET() {
     const access = await getValidatedStudentAccess();
 
     if (!access) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return apiError("Unauthorized", 401);
     }
 
     const questions = await prisma.questionnaire.findMany({
@@ -15,9 +15,8 @@ export async function GET() {
       orderBy: [{ category: "asc" }, { id: "asc" }],
     });
 
-    return NextResponse.json(questions);
+    return apiSuccess(questions, { preserveRoot: false });
   } catch (error) {
-    console.error("Student questionnaire error:", error);
-    return NextResponse.json({ message: "Failed to load questionnaire" }, { status: 500 });
+    return handleApiError(error, "Failed to load questionnaire");
   }
 }

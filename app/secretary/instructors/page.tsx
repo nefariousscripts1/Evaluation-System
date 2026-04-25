@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import InstructorsTable from "@/components/secretary/InstructorsTable";
 import AddInstructorModal from "@/components/secretary/AddInstructorModal";
-import EditInstructorModal from "@/components/secretary/EditInstructorModal";
 import DeleteInstructorModal from "@/components/secretary/DeleteInstructorModal";
+import EditInstructorModal from "@/components/secretary/EditInstructorModal";
+import InstructorsTable from "@/components/secretary/InstructorsTable";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 interface Instructor {
   id: number;
@@ -62,26 +63,19 @@ export default function InstructorManagement() {
       setError("");
 
       const res = await fetch("/api/instructors", { cache: "no-store" });
-      const data = await res.json().catch(() => null);
+      const data = await readApiResponse<InstructorsResponse>(res);
 
-      if (!res.ok || !data) {
-        throw new Error(data?.error || `Failed to load instructors (${res.status})`);
-      }
-
-      const typedData = data as InstructorsResponse;
-      setInstructors(typedData.instructors ?? []);
+      setInstructors(data.instructors ?? []);
       setActiveScheduleLabel(
-        typedData.activeSchedule
-          ? `${typedData.activeSchedule.academicYear} • ${typedData.activeSchedule.semester}`
+        data.activeSchedule
+          ? `${data.activeSchedule.academicYear} • ${data.activeSchedule.semester}`
           : ""
       );
     } catch (fetchError) {
       console.error("Instructor fetch error:", fetchError);
       setInstructors([]);
       setActiveScheduleLabel("");
-      setError(
-        fetchError instanceof Error ? fetchError.message : "Failed to load instructor records"
-      );
+      setError(getApiErrorMessage(fetchError, "Failed to load instructor records"));
     } finally {
       setLoading(false);
     }

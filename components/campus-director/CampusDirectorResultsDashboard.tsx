@@ -5,6 +5,7 @@ import { Search, Star } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import {
   getCampusDirectorRoleFilterLabel,
   getCampusDirectorRoleFilterPluralLabel,
@@ -69,11 +70,15 @@ export default function CampusDirectorResultsDashboard() {
         const res = await fetch(`/api/campus-director/targets?${params.toString()}`, {
           cache: "no-store",
         });
-        const data = await res.json();
-
-        if (!res.ok || !Array.isArray(data)) {
-          throw new Error("Failed to load search suggestions");
-        }
+        const data = await readApiResponse<
+          Array<{
+            id: number;
+            name: string | null;
+            email: string;
+            department: string | null;
+            roleLabel: string;
+          }>
+        >(res);
 
         setTargetOptions(
           data.map(
@@ -117,11 +122,7 @@ export default function CampusDirectorResultsDashboard() {
         const res = await fetch(`/api/campus-director/results?${params.toString()}`, {
           cache: "no-store",
         });
-        const data: CampusDirectorResultsResponse & { message?: string } = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || "Failed to load campus director results");
-        }
+        const data = await readApiResponse<CampusDirectorResultsResponse>(res);
 
         setAcademicYear(data.academicYear);
         setYears(data.years.length > 0 ? data.years : [data.academicYear]);
@@ -132,7 +133,7 @@ export default function CampusDirectorResultsDashboard() {
         setTotalCount(data.totalCount || 0);
         hasLoadedOnceRef.current = true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load campus director results");
+        setError(getApiErrorMessage(err, "Failed to load campus director results"));
       } finally {
         setLoading(false);
       }

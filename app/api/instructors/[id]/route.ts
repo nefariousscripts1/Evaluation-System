@@ -1,37 +1,51 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
+import {
+  apiError,
+  apiSuccess,
+  handleApiError,
+  parseJsonBody,
+  parseRouteParams,
+} from "@/lib/api";
+import { requireApiSession } from "@/lib/server-auth";
+import { idRouteParamSchema, instructorUpdateSchema } from "@/lib/validation";
+
+async function getInstructor(id: number) {
+  return prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      department: true,
+      role: true,
+      deletedAt: true,
+    },
+  });
+}
 
 export async function GET(
-  req: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const instructorId = Number(id);
-  if (!Number.isInteger(instructorId) || instructorId <= 0) {
-    return NextResponse.json({ error: "Invalid instructor id" }, { status: 400 });
-  }
-
   try {
-    const instructor = await prisma.user.findUnique({
-      where: { id: instructorId },
-      select: { id: true, name: true, email: true, department: true, role: true },
-    });
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const instructor = await getInstructor(id);
 
-    return NextResponse.json(instructor);
+    if (!instructor || instructor.deletedAt || instructor.role !== "faculty") {
+      return apiError("Instructor not found", 404);
+    }
+
+    return apiSuccess({
+      id: instructor.id,
+      name: instructor.name,
+      email: instructor.email,
+      department: instructor.department,
+      role: instructor.role,
+    });
   } catch (error) {
-    console.error("Failed to fetch instructor:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch instructor" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to fetch instructor");
   }
 }
 
@@ -39,71 +53,63 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const instructorId = Number(id);
-  if (!Number.isInteger(instructorId) || instructorId <= 0) {
-    return NextResponse.json({ error: "Invalid instructor id" }, { status: 400 });
-  }
-
   try {
-    const { name, email, department, role } = await req.json();
-    const instructor = await prisma.user.update({
-      where: { id: instructorId },
-      data: { name, email, department, role },
-    });
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const existingInstructor = await getInstructor(id);
 
-    return NextResponse.json(instructor);
-  } catch (error) {
-    console.error("Failed to update instructor:", error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return NextResponse.json({ error: "Instructor not found" }, { status: 404 });
+    if (!existingInstructor || existingInstructor.deletedAt || existingInstructor.role !== "faculty") {
+      return apiError("Instructor not found", 404);
     }
 
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update instructor" },
-      { status: 500 }
-    );
+    const payload = await parseJsonBody(req, instructorUpdateSchema);
+    const instructor = await prisma.user.update({
+      where: { id },
+      data: {
+        name: payload.name,
+        email: payload.email,
+        department: payload.department,
+        role: payload.role,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        department: true,
+        role: true,
+      },
+    });
+
+    return apiSuccess({ instructor });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return apiError("An instructor with this email address already exists", 400);
+    }
+
+    return handleApiError(error, "Failed to update instructor");
   }
 }
 
 export async function DELETE(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const instructorId = Number(id);
-  if (!Number.isInteger(instructorId) || instructorId <= 0) {
-    return NextResponse.json({ error: "Invalid instructor id" }, { status: 400 });
-  }
-
   try {
+    await requireApiSession(["secretary"]);
+    const { id } = parseRouteParams(await params, idRouteParamSchema);
+    const existingInstructor = await getInstructor(id);
+
+    if (!existingInstructor || existingInstructor.deletedAt || existingInstructor.role !== "faculty") {
+      return apiError("Instructor not found", 404);
+    }
+
     await prisma.user.update({
-      where: { id: instructorId },
+      where: { id },
       data: { deletedAt: new Date() },
     });
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ deleted: true });
   } catch (error) {
-    console.error("Failed to delete instructor:", error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return NextResponse.json({ error: "Instructor not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to delete instructor" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to delete instructor");
   }
 }

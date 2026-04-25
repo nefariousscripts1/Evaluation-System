@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import RatingSummaryCard from "@/components/faculty/RatingSummaryCard";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 type RatingBreakdown = {
   fiveStar: number;
@@ -68,18 +69,14 @@ export default function FacultyRatingsPage() {
         const res = await fetch(`/api/instructor/ratings?${params.toString()}`, {
           cache: "no-store",
         });
-        const data: InstructorRatingsResponse & { message?: string } = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || "Failed to load ratings");
-        }
+        const data = await readApiResponse<InstructorRatingsResponse>(res);
 
         setYears(data.years.length > 0 ? data.years : [data.academicYear]);
         setAcademicYear(data.academicYear);
         setStudentEvaluations(data.studentEvaluations);
         setChairpersonEvaluation(data.chairpersonEvaluation);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load ratings");
+        setError(getApiErrorMessage(err, "Failed to load ratings"));
       } finally {
         setLoading(false);
       }

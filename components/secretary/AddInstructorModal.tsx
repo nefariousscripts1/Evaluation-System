@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import AppMultiSelect from "@/components/ui/AppMultiSelect";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 interface AddInstructorModalProps {
   isOpen: boolean;
@@ -16,7 +17,11 @@ const departmentOptions = [
   { value: "SAS", label: "SAS", sublabel: "School of Advanced Studies" },
 ];
 
-export default function AddInstructorModal({ isOpen, onClose, onSuccess }: AddInstructorModalProps) {
+export default function AddInstructorModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: AddInstructorModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -39,25 +44,25 @@ export default function AddInstructorModal({ isOpen, onClose, onSuccess }: AddIn
 
     const departmentString = formData.departments.join(", ");
 
-    const res = await fetch("/api/instructors", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        department: departmentString,
-        role: "faculty",
-      }),
-    });
+    try {
+      const res = await fetch("/api/instructors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          department: departmentString,
+          role: "faculty",
+        }),
+      });
 
-    if (res.ok) {
+      await readApiResponse(res);
       setFormData({ name: "", email: "", password: "", departments: [] });
       onSuccess();
       onClose();
-    } else {
-      const data = await res.json();
-      setError(data.message || "Failed to add instructor");
+    } catch (saveError) {
+      setError(getApiErrorMessage(saveError, "Failed to add instructor"));
       setLoading(false);
     }
   };
@@ -139,11 +144,7 @@ export default function AddInstructorModal({ isOpen, onClose, onSuccess }: AddIn
             </p>
           </div>
 
-          {error && (
-            <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">
-              {error}
-            </div>
-          )}
+          {error && <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">{error}</div>}
 
           <div className="flex justify-end gap-3 pt-4">
             <button

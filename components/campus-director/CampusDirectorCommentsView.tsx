@@ -10,6 +10,7 @@ import SummaryCommentsTable, {
 } from "@/components/secretary/SummaryCommentsTable";
 import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import {
   getCampusDirectorRoleFilterLabel,
   getCampusDirectorRoleOptions,
@@ -65,11 +66,15 @@ export default function CampusDirectorCommentsView() {
         const res = await fetch(`/api/campus-director/targets?${params.toString()}`, {
           cache: "no-store",
         });
-        const data = await res.json();
-
-        if (!res.ok || !Array.isArray(data)) {
-          throw new Error("Failed to load search suggestions");
-        }
+        const data = await readApiResponse<
+          Array<{
+            id: number;
+            name: string | null;
+            email: string;
+            department: string | null;
+            roleLabel: string;
+          }>
+        >(res);
 
         setTargetOptions(
           data.map(
@@ -128,11 +133,7 @@ export default function CampusDirectorCommentsView() {
         const res = await fetch(`/api/campus-director/comments?${params.toString()}`, {
           cache: "no-store",
         });
-        const data: CampusDirectorCommentsResponse & { message?: string } = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || "Failed to load campus director comments");
-        }
+        const data = await readApiResponse<CampusDirectorCommentsResponse>(res);
 
         setAcademicYear(data.academicYear);
         setAcademicYearOptions(data.years.length > 0 ? data.years : [data.academicYear]);
@@ -141,7 +142,7 @@ export default function CampusDirectorCommentsView() {
         setTotalComments(data.total || 0);
         hasLoadedOnceRef.current = true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load campus director comments");
+        setError(getApiErrorMessage(err, "Failed to load campus director comments"));
       } finally {
         setLoading(false);
       }

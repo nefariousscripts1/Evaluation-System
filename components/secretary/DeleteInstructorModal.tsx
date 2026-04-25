@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
+import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
 interface Instructor {
   id: number;
@@ -25,16 +26,16 @@ export default function DeleteInstructorModal({ isOpen, onClose, onSuccess, inst
     if (!instructor) return;
 
     setLoading(true);
-    const res = await fetch(`/api/instructors/${instructor.id}`, { method: "DELETE" });
-
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/instructors/${instructor.id}`, { method: "DELETE" });
+      await readApiResponse(res);
       onSuccess();
       onClose();
-    } else {
-      const data = await res.json().catch(() => null);
-      alert(data?.error || "Failed to delete instructor");
+    } catch (error) {
+      alert(getApiErrorMessage(error, "Failed to delete instructor"));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (!isOpen || !instructor) return null;
