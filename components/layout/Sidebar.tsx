@@ -23,6 +23,13 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+type NavItem = {
+  href: string;
+  icon: LucideIcon | undefined;
+  label: string;
+};
 
 export default function Sidebar() {
   const { data: session } = useSession();
@@ -38,54 +45,54 @@ export default function Sidebar() {
   }, [pathname]);
 
   // Secretary Sidebar
-  const secretaryNavItems = [
-    { href: "/secretary/dashboard", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
-    { href: "/secretary/instructors", icon: <User size={18} />, label: "Manage Instructors" },
-    { href: "/secretary/questionnaire", icon: <ClipboardList size={18} />, label: "Manage Questionnaires" },
-    { href: "/secretary/schedule", icon: <Calendar size={18} />, label: "Evaluation Schedule" },
-    { href: "/secretary/students", icon: <IdCard size={18} />, label: "Student Management" },
-    { href: "/secretary/users", icon: <Users size={18} />, label: "Users Management" },
-    { href: "/secretary/reports", icon: <FileText size={18} />, label: "Results" },
+  const secretaryNavItems: NavItem[] = [
+    { href: "/secretary/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/secretary/instructors", icon: User, label: "Manage Instructors" },
+    { href: "/secretary/questionnaire", icon: ClipboardList, label: "Manage Questionnaires" },
+    { href: "/secretary/schedule", icon: Calendar, label: "Evaluation Schedule" },
+    { href: "/secretary/students", icon: IdCard, label: "Student Management" },
+    { href: "/secretary/users", icon: Users, label: "Users Management" },
+    { href: "/secretary/reports", icon: FileText, label: "Results" },
   ];
 
   // Student Sidebar
-  const studentNavItems = [
-    { href: "/student/evaluate", icon: <Star size={18} />, label: "Evaluate Instructor" },
+  const studentNavItems: NavItem[] = [
+    { href: "/student/evaluate", icon: Star, label: "Evaluate Instructor" },
   ];
 
   // Faculty Sidebar
-  const facultyNavItems = [
-    { href: "/results", icon: <LayoutDashboard size={18} />, label: "Results" },
-    { href: "/faculty/ratings", icon: <BarChart3 size={18} />, label: "View My Ratings" },
-    { href: "/faculty/comments", icon: <FileText size={18} />, label: "View Comments" },
+  const facultyNavItems: NavItem[] = [
+    { href: "/results", icon: LayoutDashboard, label: "Results" },
+    { href: "/faculty/ratings", icon: BarChart3, label: "View My Ratings" },
+    { href: "/faculty/comments", icon: FileText, label: "View Comments" },
   ];
 
   // Chairperson Sidebar
-  const chairpersonNavItems = [
-    { href: "/chairperson/results", icon: <BarChart3 size={18} />, label: "View Evaluation Results" },
-    { href: "/chairperson/evaluate", icon: <Star size={18} />, label: "Evaluate Faculty" },
-    { href: "/chairperson/comments", icon: <FileText size={18} />, label: "View Comments" },
+  const chairpersonNavItems: NavItem[] = [
+    { href: "/chairperson/results", icon: BarChart3, label: "View Evaluation Results" },
+    { href: "/chairperson/evaluate", icon: Star, label: "Evaluate Faculty" },
+    { href: "/chairperson/comments", icon: FileText, label: "View Comments" },
   ];
 
   // Dean Sidebar
-  const deanNavItems = [
-    { href: "/dean/results", icon: <BarChart3 size={18} />, label: "View Evaluation Results" },
-    { href: "/dean/evaluate", icon: <Star size={18} />, label: "Evaluate Chairperson" },
-    { href: "/dean/comments", icon: <FileText size={18} />, label: "View Comments" },
+  const deanNavItems: NavItem[] = [
+    { href: "/dean/results", icon: BarChart3, label: "View Evaluation Results" },
+    { href: "/dean/evaluate", icon: Star, label: "Evaluate Chairperson" },
+    { href: "/dean/comments", icon: FileText, label: "View Comments" },
   ];
 
   // Director Sidebar
-  const directorNavItems = [
-    { href: "/director/results", icon: <BarChart3 size={18} />, label: "View Evaluation Results" },
-    { href: "/director/evaluate", icon: <Star size={18} />, label: "Evaluate Dean" },
-    { href: "/director/comments", icon: <FileText size={18} />, label: "View Comments" },
+  const directorNavItems: NavItem[] = [
+    { href: "/director/results", icon: BarChart3, label: "View Evaluation Results" },
+    { href: "/director/evaluate", icon: Star, label: "Evaluate Dean" },
+    { href: "/director/comments", icon: FileText, label: "View Comments" },
   ];
 
   // Campus Director Sidebar
-  const campusDirectorNavItems = [
-    { href: "/campus-director/evaluate", icon: <Star size={18} />, label: "Evaluate DOI" },
-    { href: "/campus-director/comments", icon: <FileText size={18} />, label: "View Comments" },
-    { href: "/campus-director/results", icon: <BarChart3 size={18} />, label: "View Ratings" },
+  const campusDirectorNavItems: NavItem[] = [
+    { href: "/campus-director/evaluate", icon: Star, label: "Evaluate DOI" },
+    { href: "/campus-director/comments", icon: FileText, label: "View Comments" },
+    { href: "/campus-director/results", icon: BarChart3, label: "View Ratings" },
   ];
 
   // Get sidebar items based on role
@@ -213,20 +220,24 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-6">
-          {navItems.map((item) => (
-            <Link
-              key={`${item.href}-${item.label}`}
-              href={item.href}
-              className={`mb-2 flex min-h-[46px] items-center gap-3 rounded-[16px] px-4 py-3 text-[14px] font-semibold transition ${
-                isActive(item.href, item.label)
-                  ? "bg-[#24135f] text-white shadow-[0_16px_32px_rgba(36,19,95,0.18)]"
-                  : "text-[#24135f] hover:bg-[#f7f4ff]"
-              }`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const Icon = item.icon ?? Home;
+
+            return (
+              <Link
+                key={`${item.href}-${item.label}`}
+                href={item.href}
+                className={`mb-2 flex min-h-[46px] items-center gap-3 rounded-[16px] px-4 py-3 text-[14px] font-semibold transition ${
+                  isActive(item.href, item.label)
+                    ? "bg-[#24135f] text-white shadow-[0_16px_32px_rgba(36,19,95,0.18)]"
+                    : "text-[#24135f] hover:bg-[#f7f4ff]"
+                }`}
+              >
+                <Icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Footer */}

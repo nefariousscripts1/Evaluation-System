@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, LogOut, Search, Star, UserRound } from "lucide-react";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
@@ -64,6 +64,8 @@ export default function StudentAccessPortal() {
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
+  const [highlightedQuestionId, setHighlightedQuestionId] = useState<number | null>(null);
+  const questionRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   useEffect(() => {
     const loadPortal = async () => {
@@ -196,6 +198,19 @@ export default function StudentAccessPortal() {
     setError("");
   }
 
+  function scrollToQuestion(questionId: number) {
+    const target = questionRefs.current[questionId];
+
+    if (!target) {
+      return;
+    }
+
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }
+
   async function handleSubmit() {
     if (!session?.target) {
       setError("Please validate an instructor code first");
@@ -204,12 +219,17 @@ export default function StudentAccessPortal() {
 
     const unanswered = questions.filter((question) => !answers[question.id]?.rating);
     if (unanswered.length > 0) {
+      const firstUnansweredQuestion = unanswered[0];
+
+      setHighlightedQuestionId(firstUnansweredQuestion.id);
       setError(`Please answer all questions (${unanswered.length} unanswered)`);
+      scrollToQuestion(firstUnansweredQuestion.id);
       return;
     }
 
     setSubmitting(true);
     setError("");
+    setHighlightedQuestionId(null);
 
     try {
       const res = await fetch("/api/student-access/submit", {
@@ -658,11 +678,24 @@ export default function StudentAccessPortal() {
                       return (
                         <div
                           key={question.id}
+                          ref={(node) => {
+                            questionRefs.current[question.id] = node;
+                          }}
                           className="border-b border-[#efe8fb] last:border-b-0"
                         >
-                          <div className="grid gap-4 px-4 py-4 lg:grid-cols-[84px_minmax(0,1fr)_320px] lg:gap-0 lg:px-0 lg:py-0">
+                          <div
+                            className={`grid gap-4 px-4 py-4 transition-colors lg:grid-cols-[84px_minmax(0,1fr)_320px] lg:gap-0 lg:px-0 lg:py-0 ${
+                              highlightedQuestionId === question.id ? "bg-red-50/80" : ""
+                            }`}
+                          >
                             <div className="flex items-start lg:items-stretch lg:justify-center lg:px-4 lg:py-5">
-                              <div className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-[#24135f] px-2 text-sm font-bold text-white">
+                              <div
+                                className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full px-2 text-sm font-bold text-white ${
+                                  highlightedQuestionId === question.id
+                                    ? "bg-red-600"
+                                    : "bg-[#24135f]"
+                                }`}
+                              >
                                 {questionNumber}
                               </div>
                             </div>
@@ -689,12 +722,16 @@ export default function StudentAccessPortal() {
                                       <button
                                         key={scale.value}
                                         type="button"
-                                        onClick={() =>
+                                        onClick={() => {
                                           setAnswers((prev) => ({
                                             ...prev,
                                             [question.id]: { rating: scale.value },
-                                          }))
-                                        }
+                                          }));
+
+                                          if (highlightedQuestionId === question.id) {
+                                            setHighlightedQuestionId(null);
+                                          }
+                                        }}
                                         className={`inline-flex h-[44px] min-w-0 items-center justify-center rounded-[14px] border text-sm font-bold transition ${
                                           isSelected
                                             ? "border-[#24135f] bg-[#24135f] text-white"
