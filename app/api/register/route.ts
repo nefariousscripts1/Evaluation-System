@@ -28,7 +28,6 @@ export async function POST(req: Request) {
         name: String(name).trim(),
         role: "student",
         studentId: String(studentId).trim(),
-        agreedToTerms: true,
       },
     });
 

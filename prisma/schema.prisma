@@ -16,7 +16,6 @@ model User {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   deletedAt             DateTime?
-  agreedToTerms         Boolean                @default(false)
   department            String?
   studentId             String?                @unique
   evaluationsReceived   Evaluation[]           @relation("Evaluated")

@@ -73,7 +73,6 @@ export async function POST(request: Request) {
         role: "student",
         studentId,
         department: null,
-        agreedToTerms: true,
       },
       select: {
         id: true,
