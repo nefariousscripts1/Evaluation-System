@@ -153,8 +153,8 @@ export default function LoginPage() {
 
       await readApiResponse(res);
 
+      // HttpOnly cookie is automatically sent with next request
       router.push("/student/evaluate");
-      router.refresh();
     } catch (err) {
       console.error("Student access error:", err);
       setError(getApiErrorMessage(err, "Something went wrong while starting student access"));
