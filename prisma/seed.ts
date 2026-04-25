@@ -60,44 +60,6 @@ async function main() {
   }
 
   console.log("Official questionnaire synced");
-
-  // Create sample faculty
-  const facultyEmail = "faculty@university.edu";
-  const existingFaculty = await prisma.user.findUnique({
-    where: { email: facultyEmail },
-  });
-  if (!existingFaculty) {
-    const hashed = await bcrypt.hash("faculty123", 10);
-    await prisma.user.create({
-      data: {
-        email: facultyEmail,
-        password: hashed,
-        name: "Sample Faculty",
-        role: "faculty",
-        department: "Computer Science",
-      },
-    });
-    console.log("Sample faculty account created");
-  }
-
-  // Create a sample student
-  const studentEmail = "student@university.edu";
-  const existingStudent = await prisma.user.findUnique({
-    where: { email: studentEmail },
-  });
-  if (!existingStudent) {
-    const hashed = await bcrypt.hash("student123", 10);
-    await prisma.user.create({
-      data: {
-        email: studentEmail,
-        password: hashed,
-        name: "Sample Student",
-        role: "student",
-        studentId: "2024-0001",
-      },
-    });
-    console.log("Sample student account created");
-  }
 }
 
 main()
