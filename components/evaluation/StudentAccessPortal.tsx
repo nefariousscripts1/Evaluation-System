@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, LogOut, Search, Star, UserRound } from "lucide-react";
+import { Check, Loader2, LogOut, Search, Star, UserRound } from "lucide-react";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { groupQuestionsByCategory, PERFORMANCE_RATING_SCALE } from "@/lib/questionnaire";
 
 type Question = {
   id: number;
   questionText: string;
+  category?: string | null;
   isActive?: boolean;
 };
 
@@ -103,6 +105,8 @@ export default function StudentAccessPortal() {
 
   const answeredCount = questions.filter((question) => answers[question.id]?.rating).length;
   const targetName = session?.target?.name || session?.target?.email || "Instructor";
+  const groupedQuestions = groupQuestionsByCategory(questions);
+  let questionNumber = 0;
 
   async function handleValidateInstructorCode() {
     if (!instructorCode.trim()) {
@@ -510,7 +514,8 @@ export default function StudentAccessPortal() {
               <div>
                 <h2 className="text-[24px] font-bold text-[#24135f]">Evaluating {targetName}</h2>
                 <p className="mt-2 text-sm text-[#6f678d]">
-                  Rate each statement from strongly disagree to strongly agree.
+                  Read the instructions first, then rate each item using the descriptive
+                  performance scale from 5 (Outstanding) to 1 (Poor).
                 </p>
               </div>
               <div className="rounded-full border border-[#ebe4f9] bg-[#faf8ff] px-4 py-2 text-sm font-semibold text-[#24135f] shadow-[0_8px_20px_rgba(36,19,95,0.05)]">
@@ -518,55 +523,211 @@ export default function StudentAccessPortal() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-4">
-              {questions.map((question, index) => (
-                <div
-                  key={question.id}
-                  className="rounded-[20px] border border-[#efe8fb] bg-white p-4 shadow-[0_10px_24px_rgba(36,19,95,0.05)] sm:p-5"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#24135f] text-sm font-bold text-white">
-                      {index + 1}
+            {session.target ? (
+              <div className="mt-6 rounded-[22px] border border-[#e8e0f6] bg-[#faf8ff] p-5 shadow-[0_10px_24px_rgba(36,19,95,0.04)]">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#24135f] text-white shadow-[0_12px_24px_rgba(36,19,95,0.14)]">
+                      <UserRound size={28} />
                     </div>
-                    <p className="pt-1 text-sm font-semibold text-[#24135f] sm:text-base">
-                      {question.questionText}
-                    </p>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a7199]">
+                        Instructor
+                      </p>
+                      <h3 className="mt-1 text-xl font-extrabold text-[#24135f]">{targetName}</h3>
+                      <p className="mt-1 text-sm text-[#6f678d]">
+                        {session.target.role.replace(/_/g, " ")}
+                      </p>
+                      <p className="text-sm text-[#6f678d]">
+                        {session.target.department || "No department listed"}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <button
-                        key={rating}
-                        type="button"
-                        onClick={() =>
-                          setAnswers((prev) => ({
-                            ...prev,
-                            [question.id]: { rating },
-                          }))
-                        }
-                        className="min-h-[44px] min-w-[44px] rounded-full border border-[#e3d7ff] bg-white p-2 transition hover:border-[#24135f]"
-                        aria-label={`Rate ${rating} stars`}
-                      >
-                        <Star
-                          size={24}
-                          className={
-                            answers[question.id]?.rating >= rating
-                              ? "fill-[#ffc627] text-[#ffc627]"
-                              : "text-[#cbc4df]"
-                          }
-                        />
-                      </button>
-                    ))}
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-[16px] border border-[#e7def7] bg-white px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a7199]">
+                        Code
+                      </p>
+                      <p className="mt-1 text-sm font-bold tracking-[0.14em] text-[#24135f]">
+                        {session.target.code}
+                      </p>
+                    </div>
+                    <div className="rounded-[16px] border border-[#e7def7] bg-white px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a7199]">
+                        Academic Year
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-[#24135f]">
+                        {session.schedule.academicYear}
+                      </p>
+                    </div>
+                    <div className="rounded-[16px] border border-[#e7def7] bg-white px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a7199]">
+                        Semester
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-[#24135f]">
+                        {session.schedule.semester}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
-                    {answers[question.id]?.rating ? (
-                      <span className="text-sm font-semibold text-[#24135f]">
-                        {
-                          ["", "Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"][
-                            answers[question.id].rating
-                          ]
-                        }
+            <div className="mt-6 rounded-[22px] border border-[#efe8fb] bg-[#fbf9ff] p-4 shadow-[0_10px_24px_rgba(36,19,95,0.04)]">
+              <p className="text-sm font-semibold text-[#24135f]">Instructions</p>
+              <p className="mt-2 text-sm leading-6 text-[#6f678d]">
+                Please evaluate the faculty using the descriptive rating scale below. Base your
+                answers on the quality of performance shown in each statement, not on
+                strongly agree or strongly disagree.
+              </p>
+
+              <div className="mt-4 overflow-hidden rounded-[18px] border border-[#e7def7] bg-white">
+                <div className="grid grid-cols-[110px_1fr] border-b border-[#efe8fb] bg-[#f7f3ff] text-sm font-bold text-[#24135f] md:grid-cols-[110px_220px_1fr]">
+                  <div className="px-4 py-3">Numerical Rating</div>
+                  <div className="hidden border-l border-[#efe8fb] px-4 py-3 md:block">
+                    Descriptive Rating
+                  </div>
+                  <div className="border-l border-[#efe8fb] px-4 py-3">
+                    Qualitative Description
+                  </div>
+                </div>
+
+                {PERFORMANCE_RATING_SCALE.map((scale, index) => (
+                  <div
+                    key={scale.value}
+                    className={`grid grid-cols-[110px_1fr] text-sm text-[#24135f] md:grid-cols-[110px_220px_1fr] ${
+                      index !== PERFORMANCE_RATING_SCALE.length - 1
+                        ? "border-b border-[#efe8fb]"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-center px-4 py-3 font-bold">
+                      {scale.value}
+                    </div>
+                    <div className="hidden items-center border-l border-[#efe8fb] px-4 py-3 font-semibold md:flex">
+                      {scale.label}
+                    </div>
+                    <div className="border-l border-[#efe8fb] px-4 py-3 text-[#6f678d]">
+                      <span className="block font-semibold text-[#24135f] md:hidden">
+                        {scale.label}
                       </span>
-                    ) : null}
+                      {scale.description}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-6">
+              {groupedQuestions.map((group) => (
+                <div
+                  key={group.category}
+                  className="overflow-hidden rounded-[24px] border border-[#e8e0f6] bg-white shadow-[0_10px_24px_rgba(36,19,95,0.04)]"
+                >
+                  <div className="flex flex-col gap-3 border-b border-[#e8e0f6] bg-[#f7f3ff] px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a7199]">
+                        Category
+                      </p>
+                      <h3 className="mt-1 text-lg font-extrabold text-[#24135f]">
+                        {group.category}
+                      </h3>
+                      <p className="mt-1 text-sm text-[#6f678d]">
+                        {group.items.length} questionnaire items
+                      </p>
+                    </div>
+                    <div className="rounded-full border border-[#e3daf7] bg-white px-4 py-2 text-sm font-semibold text-[#24135f]">
+                      {
+                        group.items.filter((question) => answers[question.id]?.rating).length
+                      }{" "}
+                      of {group.items.length} answered
+                    </div>
+                  </div>
+
+                  <div className="hidden grid-cols-[84px_minmax(0,1fr)_320px] border-b border-[#efe8fb] bg-[#fcfbff] text-sm font-semibold text-[#24135f] lg:grid">
+                    <div className="px-5 py-3">No.</div>
+                    <div className="border-l border-[#efe8fb] px-5 py-3">Question</div>
+                    <div className="border-l border-[#efe8fb] px-5 py-3">Rating</div>
+                  </div>
+
+                  <div>
+                    {group.items.map((question) => {
+                      questionNumber += 1;
+
+                      return (
+                        <div
+                          key={question.id}
+                          className="border-b border-[#efe8fb] last:border-b-0"
+                        >
+                          <div className="grid gap-4 px-4 py-4 lg:grid-cols-[84px_minmax(0,1fr)_320px] lg:gap-0 lg:px-0 lg:py-0">
+                            <div className="flex items-start lg:items-stretch lg:justify-center lg:px-4 lg:py-5">
+                              <div className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-[#24135f] px-2 text-sm font-bold text-white">
+                                {questionNumber}
+                              </div>
+                            </div>
+
+                            <div className="min-w-0 lg:border-l lg:border-[#efe8fb] lg:px-5 lg:py-5">
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a7199] lg:hidden">
+                                Question
+                              </p>
+                              <p className="pt-1 text-sm font-semibold text-[#24135f] sm:text-base lg:pt-0">
+                                {question.questionText}
+                              </p>
+                            </div>
+
+                            <div className="lg:border-l lg:border-[#efe8fb] lg:px-5 lg:py-5">
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7a7199] lg:hidden">
+                                Rating
+                              </p>
+                              <div className="mt-2 space-y-3 lg:mt-0">
+                                <div className="grid grid-cols-5 gap-2 sm:gap-3">
+                                  {PERFORMANCE_RATING_SCALE.map((scale) => {
+                                    const isSelected = answers[question.id]?.rating === scale.value;
+
+                                    return (
+                                      <button
+                                        key={scale.value}
+                                        type="button"
+                                        onClick={() =>
+                                          setAnswers((prev) => ({
+                                            ...prev,
+                                            [question.id]: { rating: scale.value },
+                                          }))
+                                        }
+                                        className={`inline-flex h-[44px] min-w-0 items-center justify-center rounded-[14px] border text-sm font-bold transition ${
+                                          isSelected
+                                            ? "border-[#24135f] bg-[#24135f] text-white"
+                                            : "border-[#e3d7ff] bg-white text-[#24135f] hover:border-[#24135f]"
+                                        }`}
+                                        aria-label={`Rate ${scale.value} - ${scale.label}`}
+                                        title={`${scale.value} - ${scale.label}`}
+                                      >
+                                        <span className="inline-flex items-center gap-2">
+                                          <Star
+                                            size={16}
+                                            className={isSelected ? "fill-current" : ""}
+                                          />
+                                          <span>{scale.value}</span>
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                <div className="min-h-[24px] text-sm font-semibold text-[#24135f]">
+                                  {answers[question.id]?.rating
+                                    ? PERFORMANCE_RATING_SCALE.find(
+                                        (scale) => scale.value === answers[question.id].rating
+                                      )?.label
+                                    : ""}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Star, UserRound } from "lucide-react";
+import { Check, UserRound } from "lucide-react";
 import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
+import { groupQuestionsByCategory, PERFORMANCE_RATING_SCALE } from "@/lib/questionnaire";
 
 type EvaluationTarget = {
   id: number;
@@ -18,6 +19,7 @@ type EvaluationTarget = {
 type Question = {
   id: number;
   questionText: string;
+  category?: string | null;
   isActive?: boolean;
 };
 
@@ -120,6 +122,7 @@ export default function RoleEvaluationPortal({
 
   const selectedTarget = targets.find((target) => String(target.id) === selectedTargetId);
   const answeredCount = questions.filter((question) => answers[question.id]?.rating).length;
+  const groupedQuestions = groupQuestionsByCategory(questions);
 
   function handleNext() {
     if (!selectedTargetId) {
@@ -363,7 +366,7 @@ export default function RoleEvaluationPortal({
                   Evaluating {selectedTarget?.name || selectedTarget?.email}
                 </h2>
                 <p className="mt-2 text-sm text-[#6f678d]">
-                  Rate each statement from strongly disagree to strongly agree.
+                  Use the official performance scale from 5 (Outstanding) to 1 (Poor).
                 </p>
               </div>
               <div className="rounded-full border border-[#ebe4f9] bg-[#faf8ff] px-4 py-2 text-sm font-semibold text-[#24135f] shadow-[0_8px_20px_rgba(36,19,95,0.05)]">
@@ -371,56 +374,91 @@ export default function RoleEvaluationPortal({
               </div>
             </div>
 
-            <div className="mt-6 space-y-4">
-              {questions.map((question, index) => (
-                <div
-                  key={question.id}
-                  className="rounded-[20px] border border-[#efe8fb] bg-white p-4 shadow-[0_10px_24px_rgba(36,19,95,0.05)] sm:p-5"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#24135f] text-sm font-bold text-white">
-                      {index + 1}
+            <div className="mt-6 rounded-[22px] border border-[#efe8fb] bg-[#fbf9ff] p-4 shadow-[0_10px_24px_rgba(36,19,95,0.04)]">
+              <p className="text-sm font-semibold text-[#24135f]">Rating Scale</p>
+              <div className="mt-3 grid gap-3 lg:grid-cols-5">
+                {PERFORMANCE_RATING_SCALE.map((scale) => (
+                  <div
+                    key={scale.value}
+                    className="rounded-[16px] border border-[#e7def7] bg-white p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#24135f] text-sm font-bold text-white">
+                        {scale.value}
+                      </span>
+                      <span className="text-sm font-bold text-[#24135f]">{scale.label}</span>
                     </div>
-                    <p className="pt-1 text-sm font-semibold text-[#24135f] sm:text-base">
-                      {question.questionText}
+                    <p className="mt-2 text-xs leading-5 text-[#6f678d]">{scale.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-6">
+              {groupedQuestions.map((group) => (
+                <div key={group.category} className="space-y-4">
+                  <div className="rounded-[20px] border border-[#e5dcf7] bg-[#f7f3ff] px-5 py-4">
+                    <h3 className="text-lg font-extrabold text-[#24135f]">{group.category}</h3>
+                    <p className="mt-1 text-sm text-[#6f678d]">
+                      {group.items.length} questionnaire items
                     </p>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <button
-                        key={rating}
-                        type="button"
-                        onClick={() =>
-                          setAnswers((prev) => ({
-                            ...prev,
-                            [question.id]: { rating },
-                          }))
-                        }
-                        className="min-h-[44px] min-w-[44px] rounded-full border border-[#e3d7ff] bg-white p-2 transition hover:border-[#24135f]"
-                        aria-label={`Rate ${rating} stars`}
-                      >
-                        <Star
-                          size={24}
-                          className={
-                            answers[question.id]?.rating >= rating
-                              ? "fill-[#ffc627] text-[#ffc627]"
-                              : "text-[#cbc4df]"
-                          }
-                        />
-                      </button>
-                    ))}
+                  {group.items.map((question, index) => (
+                    <div
+                      key={question.id}
+                      className="rounded-[20px] border border-[#efe8fb] bg-white p-4 shadow-[0_10px_24px_rgba(36,19,95,0.05)] sm:p-5"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-[#24135f] px-2 text-sm font-bold text-white">
+                          {index + 1}
+                        </div>
+                        <p className="pt-1 text-sm font-semibold text-[#24135f] sm:text-base">
+                          {question.questionText}
+                        </p>
+                      </div>
 
-                    {answers[question.id]?.rating && (
-                      <span className="text-sm font-semibold text-[#24135f]">
-                        {
-                          ["", "Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"][
-                            answers[question.id].rating
-                          ]
-                        }
-                      </span>
-                    )}
-                  </div>
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        {PERFORMANCE_RATING_SCALE.map((scale) => {
+                          const isSelected = answers[question.id]?.rating === scale.value;
+
+                          return (
+                            <button
+                              key={scale.value}
+                              type="button"
+                              onClick={() =>
+                                setAnswers((prev) => ({
+                                  ...prev,
+                                  [question.id]: { rating: scale.value },
+                                }))
+                              }
+                              className={`min-h-[44px] rounded-[14px] border px-4 py-2 text-sm font-bold transition ${
+                                isSelected
+                                  ? "border-[#24135f] bg-[#24135f] text-white"
+                                  : "border-[#e3d7ff] bg-white text-[#24135f] hover:border-[#24135f]"
+                              }`}
+                              aria-label={`Rate ${scale.value} - ${scale.label}`}
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                {isSelected ? <Check size={16} /> : null}
+                                {scale.value}
+                              </span>
+                            </button>
+                          );
+                        })}
+
+                        {answers[question.id]?.rating ? (
+                          <span className="text-sm font-semibold text-[#24135f]">
+                            {
+                              PERFORMANCE_RATING_SCALE.find(
+                                (scale) => scale.value === answers[question.id].rating
+                              )?.label
+                            }
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ))}
 

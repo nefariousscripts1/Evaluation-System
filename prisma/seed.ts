@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { OFFICIAL_QUESTIONNAIRE } from "../lib/questionnaire";
 
 const prisma = new PrismaClient();
 
@@ -22,33 +23,43 @@ async function main() {
     console.log("Secretary account created");
   }
 
-  // Create sample questions
-  const questions = [
-    { questionText: "The instructor is well-prepared for class.", category: "Teaching" },
-    { questionText: "The instructor explains concepts clearly.", category: "Teaching" },
-    { questionText: "The instructor is respectful to students.", category: "Behavior" },
-    { questionText: "The instructor provides timely feedback.", category: "Performance" },
-    { questionText: "The instructor is knowledgeable in the subject matter.", category: "Teaching" },
-    { questionText: "The instructor uses effective teaching methods.", category: "Teaching" },
-    { questionText: "The instructor is approachable and helpful.", category: "Behavior" },
-    { questionText: "The instructor grades fairly and objectively.", category: "Performance" },
-  ];
+  const officialQuestions = OFFICIAL_QUESTIONNAIRE.flatMap((section) =>
+    section.questions.map((questionText) => ({
+      questionText,
+      category: section.category,
+    }))
+  );
 
-  for (const q of questions) {
+  await prisma.questionnaire.updateMany({
+    data: { isActive: false },
+  });
+
+  for (const question of officialQuestions) {
     const existing = await prisma.questionnaire.findFirst({
-      where: { questionText: q.questionText },
+      where: { questionText: question.questionText },
     });
-    if (!existing) {
-      await prisma.questionnaire.create({
+
+    if (existing) {
+      await prisma.questionnaire.update({
+        where: { id: existing.id },
         data: {
-          questionText: q.questionText,
-          category: q.category,
+          category: question.category,
           isActive: true,
         },
       });
+      continue;
     }
+
+    await prisma.questionnaire.create({
+      data: {
+        questionText: question.questionText,
+        category: question.category,
+        isActive: true,
+      },
+    });
   }
-  console.log("Sample questions created");
+
+  console.log("Official questionnaire synced");
 
   // Create sample faculty
   const facultyEmail = "faculty@university.edu";

@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const questions = await prisma.questionnaire.findMany({
-    orderBy: { category: "asc" },
+    orderBy: [{ category: "asc" }, { id: "asc" }],
   });
   return NextResponse.json(questions);
 }
