@@ -8,6 +8,7 @@ import InstructorsTable from "@/components/secretary/InstructorsTable";
 import AddInstructorModal from "@/components/secretary/AddInstructorModal";
 import EditInstructorModal from "@/components/secretary/EditInstructorModal";
 import DeleteInstructorModal from "@/components/secretary/DeleteInstructorModal";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 interface Instructor {
   id: number;
@@ -100,7 +101,15 @@ export default function InstructorManagement() {
     void fetchInstructors();
   };
 
-  if (loading) return <div className="p-8 text-center text-[#24135f]">Loading...</div>;
+  if (loading) {
+    return (
+      <PortalPageLoader
+        title="Manage Instructors"
+        description="Loading instructor profiles, departments, and active codes..."
+        cards={2}
+      />
+    );
+  }
 
   return (
     <>

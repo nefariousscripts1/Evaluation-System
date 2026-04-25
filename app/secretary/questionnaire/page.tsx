@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 interface Question {
   id: number;
@@ -97,7 +98,15 @@ export default function QuestionnaireManagement() {
     setIsModalOpen(true);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) {
+    return (
+      <PortalPageLoader
+        title="Questionnaires"
+        description="Loading evaluation questions and categories..."
+        cards={2}
+      />
+    );
+  }
 
   return (
     <>

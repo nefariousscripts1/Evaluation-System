@@ -3,52 +3,78 @@ import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcrypt";
+import { Prisma } from "@prisma/client";
 import { getActiveSchedule } from "@/lib/evaluation-session";
 import { ensureInstructorAccessCodesForSchedule } from "@/lib/instructor-access";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "secretary") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "secretary") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const activeSchedule = await getActiveSchedule();
+    if (activeSchedule) {
+      await ensureInstructorAccessCodesForSchedule(activeSchedule.id);
+    }
+
+    const instructors = await prisma.user.findMany({
+      where: { role: "faculty", deletedAt: null },
+      select: { id: true, name: true, email: true, role: true, department: true },
+      orderBy: { name: "asc" },
+    });
+
+    const activeCodes = activeSchedule
+      ? await prisma.instructorAccessCode.findMany({
+          where: {
+            scheduleId: activeSchedule.id,
+            instructorId: { in: instructors.map((item) => item.id) },
+          },
+          select: { instructorId: true, code: true },
+        })
+      : [];
+
+    const activeCodeMap = new Map(activeCodes.map((item) => [item.instructorId, item.code]));
+
+    return NextResponse.json({
+      activeSchedule: activeSchedule
+        ? {
+            id: activeSchedule.id,
+            academicYear: activeSchedule.academicYear,
+            semester: activeSchedule.semester,
+          }
+        : null,
+      instructors: instructors.map((instructor) => ({
+        id: instructor.id,
+        name: instructor.name,
+        email: instructor.email,
+        role: instructor.role,
+        department: instructor.department,
+        activeInstructorCode: activeCodeMap.get(instructor.id) ?? null,
+      })),
+    });
+  } catch (error) {
+    console.error("Failed to load instructors:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientInitializationError ||
+      error instanceof Prisma.PrismaClientRustPanicError
+    ) {
+      return NextResponse.json(
+        { error: "Database connection failed. Check DATABASE_URL and run Prisma migrations." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to load instructors from the database",
+      },
+      { status: 500 }
+    );
   }
-
-  const activeSchedule = await getActiveSchedule();
-  if (activeSchedule) {
-    await ensureInstructorAccessCodesForSchedule(activeSchedule.id);
-  }
-
-  const instructors = await prisma.user.findMany({
-    where: { role: "faculty", deletedAt: null },
-    select: { id: true, name: true, email: true, role: true, department: true },
-    orderBy: { name: "asc" },
-  });
-
-  const activeCodes = activeSchedule
-    ? await prisma.instructorAccessCode.findMany({
-        where: { scheduleId: activeSchedule.id, instructorId: { in: instructors.map((item) => item.id) } },
-        select: { instructorId: true, code: true },
-      })
-    : [];
-
-  const activeCodeMap = new Map(activeCodes.map((item) => [item.instructorId, item.code]));
-
-  return NextResponse.json({
-    activeSchedule: activeSchedule
-      ? {
-          id: activeSchedule.id,
-          academicYear: activeSchedule.academicYear,
-          semester: activeSchedule.semester,
-        }
-      : null,
-    instructors: instructors.map((instructor) => ({
-      id: instructor.id,
-      name: instructor.name,
-      email: instructor.email,
-      role: instructor.role,
-      department: instructor.department,
-      activeInstructorCode: activeCodeMap.get(instructor.id) ?? null,
-    })),
-  });
 }
 
 export async function POST(req: Request) {

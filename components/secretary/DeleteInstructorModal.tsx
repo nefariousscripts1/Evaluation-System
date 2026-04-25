@@ -23,15 +23,16 @@ export default function DeleteInstructorModal({ isOpen, onClose, onSuccess, inst
 
   const handleDeleteConfirm = async () => {
     if (!instructor) return;
-    
+
     setLoading(true);
-    const res = await fetch(`/api/instructors?id=${instructor.id}`, { method: "DELETE" });
-    
+    const res = await fetch(`/api/instructors/${instructor.id}`, { method: "DELETE" });
+
     if (res.ok) {
       onSuccess();
       onClose();
     } else {
-      alert("Failed to delete instructor");
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Failed to delete instructor");
     }
     setLoading(false);
   };

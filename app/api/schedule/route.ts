@@ -249,3 +249,63 @@ export async function POST(req: Request) {
     ...(await getScheduleSnapshot()), 
   });
 }
+
+export async function DELETE(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== "secretary") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const scheduleId = Number(searchParams.get("id"));
+
+  if (!Number.isInteger(scheduleId) || scheduleId <= 0) {
+    return NextResponse.json({ error: "Invalid schedule id" }, { status: 400 });
+  }
+
+  const schedule = await prisma.schedule.findUnique({
+    where: { id: scheduleId },
+    select: {
+      id: true,
+      isOpen: true,
+      _count: {
+        select: {
+          evaluations: true,
+          instructorAccessCodes: true,
+        },
+      },
+    },
+  });
+
+  if (!schedule) {
+    return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
+  }
+
+  if (schedule.isOpen) {
+    return NextResponse.json(
+      { error: "Close the active session before deleting it" },
+      { status: 400 }
+    );
+  }
+
+  if (schedule._count.evaluations > 0) {
+    return NextResponse.json(
+      { error: "This session cannot be deleted because evaluation records already exist" },
+      { status: 400 }
+    );
+  }
+
+  await prisma.$transaction([
+    prisma.instructorAccessCode.deleteMany({
+      where: { scheduleId },
+    }),
+    prisma.schedule.delete({
+      where: { id: scheduleId },
+    }),
+  ]);
+
+  return NextResponse.json({
+    message: "Session deleted successfully",
+    ...(await getScheduleSnapshot()),
+  });
+}

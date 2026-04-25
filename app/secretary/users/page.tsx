@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X, AlertTriangle, Pencil, Trash2, Search } from "lucide-react";
 import AppSelect from "@/components/ui/AppSelect";
 import AppMultiSelect from "@/components/ui/AppMultiSelect";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import { getErrorMessage } from "@/lib/error-message";
 
 interface User {
@@ -206,7 +207,15 @@ export default function UsersManagement() {
     });
   }, [searchTerm, selectedRole, users]);
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) {
+    return (
+      <PortalPageLoader
+        title="Users Management"
+        description="Loading staff accounts, roles, and department assignments..."
+        cards={2}
+      />
+    );
+  }
 
   return (
     <>

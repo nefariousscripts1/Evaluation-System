@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DashboardContent from "./DashboardContent";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 
 type DashboardPayload = React.ComponentProps<typeof DashboardContent>;
 
@@ -83,7 +84,13 @@ export default function SecretaryDashboard() {
   }, [status, session?.user?.role, router]);
 
   if (loading) {
-    return <div className="p-8 text-center text-[#24135f]">Loading...</div>;
+    return (
+      <PortalPageLoader
+        title="Secretary Dashboard"
+        description="Loading summary cards, faculty activity, and schedule snapshots..."
+        cards={4}
+      />
+    );
   }
 
   if (error) {

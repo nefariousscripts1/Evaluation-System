@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Copy, RefreshCw } from "lucide-react";
+import { AlertTriangle, Copy, RefreshCw, Trash2, X } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import AppDatePicker from "@/components/ui/AppDatePicker";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import AppSelect from "@/components/ui/AppSelect";
 import { getErrorMessage } from "@/lib/error-message";
 import { buildAcademicYearOptions, SEMESTER_OPTIONS } from "@/lib/evaluation-session";
@@ -52,6 +53,8 @@ export default function ScheduleManagement() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [resultsNotifyLoadingId, setResultsNotifyLoadingId] = useState<number | null>(null);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
+  const [schedulePendingDelete, setSchedulePendingDelete] = useState<ScheduleSummary | null>(null);
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState<ScheduleFormState>({
     academicYear: academicYearOptions[academicYearOptions.length - 2] ?? academicYearOptions[0],
@@ -228,8 +231,40 @@ export default function ScheduleManagement() {
     }
   };
 
+  const handleDeleteSchedule = async (schedule: ScheduleSummary) => {
+    setDeleteLoadingId(schedule.id);
+    setMessage("");
+
+    try {
+      const res = await fetch(`/api/schedule?id=${schedule.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to delete session");
+      }
+
+      hydrateFromResponse(data as ScheduleResponse);
+      setMessage(data?.message || "Session deleted successfully");
+      setSchedulePendingDelete(null);
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to delete session");
+    } finally {
+      setDeleteLoadingId(null);
+    }
+  };
+
   if (loading) {
-    return <div className="p-8 text-center text-[#24135f]">Loading...</div>;
+    return (
+      <PortalPageLoader
+        title="Evaluation Session Access"
+        description="Loading active session details, portal codes, and recent schedule history..."
+        cards={2}
+      />
+    );
   }
 
   return (
@@ -447,13 +482,13 @@ export default function ScheduleManagement() {
 
           </section>
 
-          <section className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm">
+          <section className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm lg:max-h-[880px] lg:overflow-hidden">
             <h2 className="text-[22px] font-extrabold text-[#24135f]">Recent Sessions</h2>
             <p className="mt-2 text-sm text-[#6d6686]">
               Every new opening creates a separate Academic Year and Semester session record.
             </p>
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-6 space-y-3 lg:max-h-[760px] lg:overflow-y-auto lg:pr-2">
               {recentSchedules.length > 0 ? (
                 recentSchedules.map((schedule) => (
                   <div
@@ -487,16 +522,36 @@ export default function ScheduleManagement() {
                       <p className="text-sm text-[#6d6686]">
                         Send a private email to faculty when their results for this session are ready.
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => void handleNotifyResults(schedule)}
-                        disabled={resultsNotifyLoadingId === schedule.id}
-                        className="inline-flex items-center justify-center rounded-[12px] border border-[#d8d2e6] bg-white px-4 py-2 text-sm font-bold text-[#24135f] transition hover:bg-[#f7f4ff] disabled:opacity-50"
-                      >
-                        {resultsNotifyLoadingId === schedule.id
-                          ? "Sending..."
-                          : "Notify Staff Results"}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleNotifyResults(schedule)}
+                          disabled={resultsNotifyLoadingId === schedule.id}
+                          className="inline-flex items-center justify-center rounded-[12px] border border-[#d8d2e6] bg-white px-4 py-2 text-sm font-bold text-[#24135f] transition hover:bg-[#f7f4ff] disabled:opacity-50"
+                        >
+                          {resultsNotifyLoadingId === schedule.id
+                            ? "Sending..."
+                            : "Notify Results"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSchedulePendingDelete(schedule)}
+                          disabled={
+                            deleteLoadingId === schedule.id ||
+                            resultsNotifyLoadingId === schedule.id ||
+                            activeSchedule?.id === schedule.id
+                          }
+                          className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[#f1c4c4] bg-white px-4 py-2 text-sm font-bold text-[#b42318] transition hover:bg-[#fff4f4] disabled:cursor-not-allowed disabled:opacity-50"
+                          title={
+                            activeSchedule?.id === schedule.id
+                              ? "Close the active session before deleting it"
+                              : "Delete this session"
+                          }
+                        >
+                          <Trash2 size={16} />
+                          {deleteLoadingId === schedule.id ? "Deleting..." : "Delete"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -509,6 +564,61 @@ export default function ScheduleManagement() {
           </section>
         </div>
       </div>
+
+      {schedulePendingDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="relative w-full max-w-[430px] rounded-[20px] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#ece7f7] p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                  <AlertTriangle size={20} className="text-red-600" />
+                </div>
+                <h2 className="text-[18px] font-bold text-[#24135f]">Delete Session</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSchedulePendingDelete(null)}
+                disabled={deleteLoadingId === schedulePendingDelete.id}
+                className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-gray-100 disabled:opacity-50"
+              >
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-center text-[15px] text-gray-700">
+                Delete the{" "}
+                <span className="font-bold text-[#24135f]">
+                  {schedulePendingDelete.academicYear} {schedulePendingDelete.semester}
+                </span>{" "}
+                session?
+              </p>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                This removes the session record and cannot be undone.
+              </p>
+
+              <div className="mt-6 flex justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSchedulePendingDelete(null)}
+                  disabled={deleteLoadingId === schedulePendingDelete.id}
+                  className="rounded-lg border border-gray-300 px-6 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteSchedule(schedulePendingDelete)}
+                  disabled={deleteLoadingId === schedulePendingDelete.id}
+                  className="rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleteLoadingId === schedulePendingDelete.id ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

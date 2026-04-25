@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import { getErrorMessage } from "@/lib/error-message";
 
 type StudentRecord = {
@@ -154,7 +155,13 @@ export default function StudentManagementPage() {
   }, [searchTerm, students]);
 
   if (loading) {
-    return <div className="p-8 text-center text-[#24135f]">Loading...</div>;
+    return (
+      <PortalPageLoader
+        title="Student Management"
+        description="Loading student access records and management tools..."
+        cards={2}
+      />
+    );
   }
 
   return (
