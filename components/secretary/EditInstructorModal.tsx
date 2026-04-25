@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import AppMultiSelect from "@/components/ui/AppMultiSelect";
 
 interface Instructor {
   id: number;
@@ -19,8 +20,9 @@ interface EditInstructorModalProps {
 }
 
 const departmentOptions = [
-  { value: "CSM", label: "College of Science and Management (CSM)" },
-  { value: "CTE", label: "College of Teacher and Education (CTE)" },
+  { value: "CSM", label: "CSM", sublabel: "College of Science and Management" },
+  { value: "CTE", label: "CTE", sublabel: "College of Teacher Education" },
+  { value: "SAS", label: "SAS", sublabel: "School of Advanced Studies" },
 ];
 
 export default function EditInstructorModal({ isOpen, onClose, onSuccess, instructor }: EditInstructorModalProps) {
@@ -45,15 +47,6 @@ export default function EditInstructorModal({ isOpen, onClose, onSuccess, instru
       });
     }
   }, [instructor]);
-
-  const handleDepartmentToggle = (deptValue: string) => {
-    setFormData(prev => ({
-      ...prev,
-      departments: prev.departments.includes(deptValue)
-        ? prev.departments.filter(d => d !== deptValue)
-        : [...prev.departments, deptValue]
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,23 +126,20 @@ export default function EditInstructorModal({ isOpen, onClose, onSuccess, instru
 
           <div>
             <label className="mb-1.5 block text-[13px] font-semibold text-[#24135f]">
-              Department (Select one or both)
+              Department
             </label>
-            <div className="space-y-2">
-              {departmentOptions.map((dept) => (
-                <label key={dept.value} className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.departments.includes(dept.value)}
-                    onChange={() => handleDepartmentToggle(dept.value)}
-                    className="w-4 h-4 rounded border-[#6c63a8] text-[#24135f] focus:ring-[#24135f]"
-                  />
-                  <span className="text-sm text-gray-700">{dept.label}</span>
-                </label>
-              ))}
-            </div>
+            <AppMultiSelect
+              values={formData.departments}
+              onChange={(nextDepartments) =>
+                setFormData({ ...formData, departments: nextDepartments })
+              }
+              options={departmentOptions}
+              placeholder="Select one, two, or three departments"
+              triggerClassName="min-h-[38px] rounded-[8px] border-[#6d63a3] px-3 py-2 text-[14px] shadow-none"
+              menuClassName="rounded-[16px]"
+            />
             <p className="mt-1 text-xs text-gray-400">
-              Select CSM, CTE, or both if the instructor handles both departments
+              You can select up to three departments for the same instructor
             </p>
           </div>
 
