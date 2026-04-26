@@ -32,7 +32,7 @@ const roleFilterOptions = [
   { label: "Faculty", value: "faculty" },
   { label: "Chairpersons", value: "chairperson" },
   { label: "Deans", value: "dean" },
-  { label: "Directors", value: "director" },
+  { label: "Director of Instructions", value: "director" },
   { label: "Campus Directors", value: "campus_director" },
   { label: "Secretaries", value: "secretary" },
 ];
