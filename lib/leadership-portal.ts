@@ -2,8 +2,8 @@ import prisma from "@/lib/db";
 import { ResultsNotReleasedError, assertResultsReleasedForAcademicYear, filterReleasedAcademicYears } from "@/lib/results-release";
 import {
   getReportableRoleLabel,
+  campusDirectorEvaluatedRoles,
   isCampusDirectorRoleFilter,
-  reportableRoles,
   type CampusDirectorRoleFilter,
   type ReportableRole,
 } from "@/lib/reporting-roles";
@@ -705,7 +705,7 @@ function resolveCampusDirectorRoleFilter(requestedRole: string | null) {
 }
 
 function getCampusDirectorRoles(role: CampusDirectorRoleFilter) {
-  return role === "all" ? [...reportableRoles] : [role];
+  return role === "all" ? [...campusDirectorEvaluatedRoles] : [role];
 }
 
 export async function getCampusDirectorResultsData(params: {

@@ -50,8 +50,7 @@ function getAppPortalUrl() {
 }
 
 function getFacultyResultsUrl() {
-  const baseUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
-  return `${baseUrl}/results`;
+  return getAppPortalUrl();
 }
 
 export function getEmailDeliveryProvider() {

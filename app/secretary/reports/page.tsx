@@ -30,6 +30,8 @@ type ReportsResponse = {
   results: Result[];
   years: string[];
   semesters: string[];
+  completedCount: number;
+  totalCount: number;
 };
 
 type SummaryCommentsResponse = {
@@ -55,6 +57,8 @@ export default function ReportsPage() {
 
   const [results, setResults] = useState<Result[]>([]);
   const [resultsLoading, setResultsLoading] = useState(true);
+  const [reportCompletedCount, setReportCompletedCount] = useState(0);
+  const [reportTotalCount, setReportTotalCount] = useState(0);
   const [years, setYears] = useState<string[]>([]);
   const [semesters, setSemesters] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -122,11 +126,15 @@ export default function ReportsPage() {
 
         const data = await readApiResponse<ReportsResponse>(res);
         setResults(data.results || []);
+        setReportCompletedCount(data.completedCount || 0);
+        setReportTotalCount(data.totalCount || 0);
         setYears(data.years || []);
         setSemesters(data.semesters || []);
       } catch (error) {
         console.error("Failed to fetch reports:", error);
         setResults([]);
+        setReportCompletedCount(0);
+        setReportTotalCount(0);
         setYears([]);
         setSemesters([]);
       } finally {
@@ -219,9 +227,9 @@ export default function ReportsPage() {
     return totalRating / filteredResults.length;
   }, [filteredResults]);
 
-  const completedCount = filteredResults.length;
-  const totalCount = filteredResults.length || 1;
-  const completionRate = completedCount
+  const completedCount = reportCompletedCount;
+  const totalCount = reportTotalCount;
+  const completionRate = totalCount > 0
     ? Math.round((completedCount / totalCount) * 100)
     : 0;
 

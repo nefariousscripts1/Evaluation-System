@@ -3,9 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
 import {
+  campusDirectorEvaluatedRoles,
   getReportableRoleLabel,
   isCampusDirectorRoleFilter,
-  reportableRoles,
 } from "@/lib/reporting-roles";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const requestedRole = searchParams.get("role")?.trim().toLowerCase() ?? "all";
     const roleFilter = isCampusDirectorRoleFilter(requestedRole) ? requestedRole : "all";
-    const roles = roleFilter === "all" ? [...reportableRoles] : [roleFilter];
+    const roles = roleFilter === "all" ? [...campusDirectorEvaluatedRoles] : [roleFilter];
 
     const targets = await prisma.user.findMany({
       where: {
@@ -38,7 +38,9 @@ export async function GET(request: Request) {
       orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }],
     });
 
-    const roleOrder = new Map<string, number>(reportableRoles.map((role, index) => [role, index]));
+    const roleOrder = new Map<string, number>(
+      campusDirectorEvaluatedRoles.map((role, index) => [role, index])
+    );
 
     const sortedTargets = targets.sort((left, right) => {
       const leftRoleOrder = roleOrder.get(left.role) ?? Number.MAX_SAFE_INTEGER;

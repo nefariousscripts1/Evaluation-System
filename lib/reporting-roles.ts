@@ -6,15 +6,23 @@ export const reportableRoles = [
   "campus_director",
 ] as const;
 
+export const campusDirectorEvaluatedRoles = [
+  "faculty",
+  "chairperson",
+  "dean",
+  "director",
+] as const;
+
 export type ReportableRole = (typeof reportableRoles)[number];
-export type CampusDirectorRoleFilter = "all" | ReportableRole;
+export type CampusDirectorEvaluatedRole = (typeof campusDirectorEvaluatedRoles)[number];
+export type CampusDirectorRoleFilter = "all" | CampusDirectorEvaluatedRole;
 
 export function isReportableRole(role: string): role is ReportableRole {
   return reportableRoles.includes(role as ReportableRole);
 }
 
 export function isCampusDirectorRoleFilter(role: string): role is CampusDirectorRoleFilter {
-  return role === "all" || isReportableRole(role);
+  return role === "all" || campusDirectorEvaluatedRoles.includes(role as CampusDirectorEvaluatedRole);
 }
 
 export function getReportableRoleLabel(role: string) {
@@ -65,7 +73,7 @@ export function getCampusDirectorRoleFilterPluralLabel(role: CampusDirectorRoleF
 export function getCampusDirectorRoleOptions() {
   return [
     { value: "all" as const, label: "All Roles" },
-    ...reportableRoles.map((role) => ({
+    ...campusDirectorEvaluatedRoles.map((role) => ({
       value: role,
       label: getReportableRoleLabel(role),
     })),

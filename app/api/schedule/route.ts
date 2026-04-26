@@ -32,6 +32,7 @@ async function getScheduleSnapshot() {
         startDate: true,
         endDate: true,
         isOpen: true,
+        resultsReleased: true,
         accessCode: true,
         createdAt: true,
       },

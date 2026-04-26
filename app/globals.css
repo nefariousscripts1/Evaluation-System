@@ -240,12 +240,12 @@
   }
 
   .app-table-head {
-    background: #f7f4ff;
+    background: #24135f;
   }
 
   .app-table-head th {
     @apply px-6 py-4 text-xs font-bold uppercase tracking-[0.16em];
-    color: var(--ui-text);
+    color: #ffffff;
   }
 
   .app-table-row {

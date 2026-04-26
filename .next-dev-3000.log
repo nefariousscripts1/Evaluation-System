@@ -1,13 +1,5 @@
 
 > digital-evaluation-system@1.0.0 dev
-> next dev
+> next dev -p 3000
 
-▲ Next.js 16.2.4 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://192.168.254.103:3000
-- Environments: .env
-✓ Ready in 359ms
-Creating turbopack project { dir: 'C:\\Users\\Jing\\Evaluation-System', testMode: true }
-
- GET /api/auth/csrf 200 in 963ms (next.js: 934ms, application-code: 29ms)
 [?25h

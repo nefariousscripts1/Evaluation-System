@@ -16,35 +16,41 @@ export async function GET(request: Request) {
       ...(semester ? { semester } : {}),
     };
 
-    const users = await prisma.user.findMany({
-      where: {
-        role: {
-          in: ["faculty", "chairperson", "dean", "director", "campus_director"],
+    const [users, totalInstructorCount] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          role: "faculty",
+          deletedAt: null,
+          evaluationsReceived: {
+            some: where,
+          },
         },
-        deletedAt: null,
-        evaluationsReceived: {
-          some: where,
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        evaluationsReceived: {
-          where,
-          select: {
-            id: true,
-            academicYear: true,
-            answers: {
-              select: {
-                rating: true,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          evaluationsReceived: {
+            where,
+            select: {
+              id: true,
+              academicYear: true,
+              answers: {
+                select: {
+                  rating: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.user.count({
+        where: {
+          role: "faculty",
+          deletedAt: null,
+        },
+      }),
+    ]);
 
     const results = users
       .map((user) => {
@@ -71,6 +77,12 @@ export async function GET(request: Request) {
       .sort((left, right) => right.averageRating - left.averageRating);
 
     const yearsData = await prisma.evaluation.findMany({
+      where: {
+        evaluated: {
+          role: "faculty",
+          deletedAt: null,
+        },
+      },
       distinct: ["academicYear"],
       select: { academicYear: true },
       orderBy: { academicYear: "desc" },
@@ -80,6 +92,8 @@ export async function GET(request: Request) {
       results,
       years: yearsData.map((item) => item.academicYear),
       semesters: SEMESTER_OPTIONS,
+      completedCount: results.length,
+      totalCount: totalInstructorCount,
     });
   } catch (error) {
     return handleApiError(error, "Failed to fetch reports");

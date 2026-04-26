@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { z } from "zod";
 import { SEMESTER_OPTIONS } from "@/lib/evaluation-session";
 import {
+  campusDirectorEvaluatedRoles,
   reportableRoles,
   type CampusDirectorRoleFilter,
 } from "@/lib/reporting-roles";
@@ -435,7 +436,10 @@ export const campusDirectorTargetQuerySchema = z.object({
     .optional()
     .transform((value) => sanitizeText(value || "").toLowerCase())
     .refine(
-      (value) => value === "" || value === "all" || reportableRoles.includes(value as typeof reportableRoles[number]),
+      (value) =>
+        value === "" ||
+        value === "all" ||
+        campusDirectorEvaluatedRoles.includes(value as typeof campusDirectorEvaluatedRoles[number]),
       "Invalid role filter"
     )
     .transform((value) => (value || "all") as CampusDirectorRoleFilter),

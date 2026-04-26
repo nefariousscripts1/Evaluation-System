@@ -19,19 +19,34 @@ export function isResultsNotReleasedError(error: unknown): error is ResultsNotRe
 }
 
 export async function getReleasedAcademicYears() {
-  const releasedSchedules = await prisma.schedule.findMany({
-    where: {
-      isOpen: false,
-      endDate: {
-        lte: new Date(),
+  const [releasedSchedules, resultYears] = await Promise.all([
+    prisma.schedule.findMany({
+      where: {
+        OR: [
+          { resultsReleased: true },
+          {
+            isOpen: false,
+            endDate: {
+              lte: new Date(),
+            },
+          },
+        ],
       },
-    },
-    distinct: ["academicYear"],
-    select: { academicYear: true },
-    orderBy: { academicYear: "desc" },
-  });
+      distinct: ["academicYear"],
+      select: { academicYear: true },
+      orderBy: { academicYear: "desc" },
+    }),
+    prisma.result.findMany({
+      distinct: ["academicYear"],
+      select: { academicYear: true },
+    }),
+  ]);
 
-  return releasedSchedules.map((schedule) => schedule.academicYear);
+  const yearsWithResults = new Set(resultYears.map((result) => result.academicYear));
+
+  return releasedSchedules
+    .map((schedule) => schedule.academicYear)
+    .filter((academicYear) => yearsWithResults.has(academicYear));
 }
 
 export async function filterReleasedAcademicYears(years: string[]) {
@@ -47,10 +62,15 @@ export async function assertResultsReleasedForAcademicYear(academicYear: string)
   const releaseCount = await prisma.schedule.count({
     where: {
       academicYear,
-      isOpen: false,
-      endDate: {
-        lte: new Date(),
-      },
+      OR: [
+        { resultsReleased: true },
+        {
+          isOpen: false,
+          endDate: {
+            lte: new Date(),
+          },
+        },
+      ],
     },
   });
 

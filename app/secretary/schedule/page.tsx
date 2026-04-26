@@ -20,6 +20,7 @@ type ScheduleSummary = {
   startDate: string;
   endDate: string;
   isOpen: boolean;
+  resultsReleased: boolean;
   accessCode: string | null;
   createdAt: string;
 };
@@ -46,6 +47,11 @@ type ScheduleFormState = {
   scheduleId: number | null;
 };
 
+type ResultsNotifyStatus = {
+  tone: "success" | "warning" | "error";
+  message: string;
+};
+
 const academicYearOptions = buildAcademicYearOptions();
 
 export default function ScheduleManagement() {
@@ -55,6 +61,9 @@ export default function ScheduleManagement() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [resultsNotifyLoadingId, setResultsNotifyLoadingId] = useState<number | null>(null);
+  const [resultsNotifyStatuses, setResultsNotifyStatuses] = useState<
+    Record<number, ResultsNotifyStatus>
+  >({});
   const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
   const [schedulePendingDelete, setSchedulePendingDelete] = useState<ScheduleSummary | null>(null);
   const [copied, setCopied] = useState(false);
@@ -158,7 +167,11 @@ export default function ScheduleManagement() {
       const res = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsedSchedule.data),
+        body: JSON.stringify({
+          ...parsedSchedule.data,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+        }),
       });
 
       const data = await readApiResponse<ScheduleResponse>(res);
@@ -196,6 +209,11 @@ export default function ScheduleManagement() {
   const handleNotifyResults = async (schedule: ScheduleSummary) => {
     setResultsNotifyLoadingId(schedule.id);
     setMessage("");
+    setResultsNotifyStatuses((current) => {
+      const next = { ...current };
+      delete next[schedule.id];
+      return next;
+    });
 
     try {
       const res = await fetch("/api/schedule/results-notification", {
@@ -216,13 +234,37 @@ export default function ScheduleManagement() {
         };
       }>(res);
 
-      setMessage(
+      const nextMessage =
         data?.announcement?.delivered
           ? `${data.message}. Sent to ${data.announcement.recipientCount} staff recipient(s) via ${data.announcement.provider}.`
-          : "Staff results notification could not be delivered from this environment."
+          : data.message || "Staff results were released, but email delivery is not configured.";
+
+      setRecentSchedules((current) =>
+        current.map((item) =>
+          item.id === schedule.id ? { ...item, resultsReleased: true } : item
+        )
       );
+      setActiveSchedule((current) =>
+        current?.id === schedule.id ? { ...current, resultsReleased: true } : current
+      );
+      setResultsNotifyStatuses((current) => ({
+        ...current,
+        [schedule.id]: {
+          tone: data?.announcement?.delivered ? "success" : "warning",
+          message: nextMessage,
+        },
+      }));
+      setMessage(nextMessage);
     } catch (error) {
-      setMessage(getApiErrorMessage(error, "Failed to send staff results notification"));
+      const nextMessage = getApiErrorMessage(error, "Failed to send staff results notification");
+      setResultsNotifyStatuses((current) => ({
+        ...current,
+        [schedule.id]: {
+          tone: "error",
+          message: nextMessage,
+        },
+      }));
+      setMessage(nextMessage);
     } finally {
       setResultsNotifyLoadingId(null);
     }
@@ -483,11 +525,20 @@ export default function ScheduleManagement() {
 
             <div className="mt-6 space-y-3 lg:max-h-[760px] lg:overflow-y-auto lg:pr-2">
               {recentSchedules.length > 0 ? (
-                recentSchedules.map((schedule) => (
-                  <div
-                    key={schedule.id}
-                    className="rounded-[16px] border border-[#ece7f7] bg-[#faf8ff] p-4"
-                  >
+                recentSchedules.map((schedule) => {
+                  const notifyStatus = resultsNotifyStatuses[schedule.id];
+                  const notifyStatusClass =
+                    notifyStatus?.tone === "error"
+                      ? "border-red-200 bg-red-50 text-red-700"
+                      : notifyStatus?.tone === "warning"
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-green-200 bg-green-50 text-green-700";
+
+                  return (
+                    <div
+                      key={schedule.id}
+                      className="rounded-[16px] border border-[#ece7f7] bg-[#faf8ff] p-4"
+                    >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-bold text-[#24135f]">
@@ -501,19 +552,25 @@ export default function ScheduleManagement() {
                       <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
                         <span
                           className={`rounded-full px-3 py-1 ${
-                            activeSchedule?.id === schedule.id
+                            schedule.resultsReleased
+                              ? "bg-[#eaf8ee] text-[#18794e]"
+                              : activeSchedule?.id === schedule.id
                               ? "bg-[#eaf8ee] text-[#18794e]"
                               : "bg-white text-[#5b5576]"
                           }`}
                         >
-                          {activeSchedule?.id === schedule.id ? "Active" : "Closed"}
+                          {schedule.resultsReleased
+                            ? "Results Released"
+                            : activeSchedule?.id === schedule.id
+                            ? "Active"
+                            : "Closed"}
                         </span>
                       </div>
                     </div>
 
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm text-[#6d6686]">
-                        Send a private email to faculty when their results for this session are ready.
+                        Release results and send a private email to staff with available ratings.
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
@@ -546,8 +603,16 @@ export default function ScheduleManagement() {
                         </button>
                       </div>
                     </div>
+                    {notifyStatus ? (
+                      <div
+                        className={`mt-3 rounded-[12px] border px-3 py-2 text-sm ${notifyStatusClass}`}
+                      >
+                        {notifyStatus.message}
+                      </div>
+                    ) : null}
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="rounded-[16px] border border-dashed border-[#d6d0e7] bg-[#faf8ff] p-6 text-sm text-[#6d6686]">
                   No sessions have been created yet.
