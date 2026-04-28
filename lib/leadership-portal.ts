@@ -1,5 +1,11 @@
 import prisma from "@/lib/db";
-import { ResultsNotReleasedError, assertResultsReleasedForAcademicYear, filterReleasedAcademicYears } from "@/lib/results-release";
+import { SEMESTER_OPTIONS, isValidSemester } from "@/lib/evaluation-session";
+import {
+  ResultsNotReleasedError,
+  assertResultsReleasedForAcademicYear,
+  filterReleasedAcademicYears,
+  getReleasedAcademicPeriods,
+} from "@/lib/results-release";
 import {
   getReportableRoleLabel,
   campusDirectorEvaluatedRoles,
@@ -32,6 +38,8 @@ export type LeadershipTargetResult = {
 export type LeadershipResultsResponse = {
   academicYear: string;
   years: string[];
+  semesters: string[];
+  semester: string;
   myRatings: {
     evaluatorName: string;
     evaluatorRole: string;
@@ -79,6 +87,8 @@ export type LeadershipCommentsResponse = {
 export type SingleTargetResultsResponse = {
   academicYear: string;
   years: string[];
+  semesters: string[];
+  semester: string;
   averageRating: number;
   completionRate: number;
   completedCount: number;
@@ -106,6 +116,8 @@ export type SingleTargetCommentsResponse = {
 export type CampusDirectorResultsResponse = {
   academicYear: string;
   years: string[];
+  semesters: string[];
+  semester: string;
   role: CampusDirectorRoleFilter;
   averageRating: number;
   completionRate: number;
@@ -132,7 +144,7 @@ export type CampusDirectorCommentsResponse = {
   total: number;
 };
 
-const semesterOptions = ["all"] as const;
+const commentSemesterOptions = ["all"] as const;
 
 export function fallbackAcademicYear() {
   const year = new Date().getFullYear();
@@ -201,6 +213,95 @@ export async function resolveAcademicYears(options?: { releasedOnly?: boolean })
   return filterReleasedAcademicYears(years);
 }
 
+async function resolveReleasedYearAndSemesters() {
+  const periods = await getReleasedAcademicPeriods();
+  const years = Array.from(new Set(periods.map((period) => period.academicYear)));
+  const semestersByYear = new Map<string, string[]>();
+
+  for (const year of years) {
+    const availableSemesters = SEMESTER_OPTIONS.filter((semester) =>
+      periods.some((period) => period.academicYear === year && period.semester === semester)
+    );
+
+    semestersByYear.set(year, availableSemesters);
+  }
+
+  return { years, semestersByYear };
+}
+
+function resolveSelectedSemester(requestedSemester: string | null, semesters: string[]) {
+  if (requestedSemester && isValidSemester(requestedSemester) && semesters.includes(requestedSemester)) {
+    return requestedSemester;
+  }
+
+  return semesters[0] ?? SEMESTER_OPTIONS[0];
+}
+
+async function buildTargetResultsFromEvaluations(params: {
+  academicYear: string;
+  semester: string;
+  roles: ReportableRole[];
+}) {
+  const evaluations = await prisma.evaluation.findMany({
+    where: {
+      academicYear: params.academicYear,
+      semester: params.semester,
+      evaluated: {
+        role: { in: params.roles },
+        deletedAt: null,
+      },
+    },
+    include: {
+      evaluated: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true,
+        },
+      },
+      answers: {
+        select: {
+          rating: true,
+        },
+      },
+    },
+  });
+
+  const groupedResults = new Map<number, LeadershipTargetResult & { ratingSum: number; ratingCount: number }>();
+
+  for (const evaluation of evaluations) {
+    const current =
+      groupedResults.get(evaluation.evaluatedId) ??
+      {
+        id: evaluation.evaluatedId,
+        academicYear: evaluation.academicYear,
+        averageRating: 0,
+        user: evaluation.evaluated,
+        ratingSum: 0,
+        ratingCount: 0,
+      };
+
+    for (const answer of evaluation.answers) {
+      current.ratingSum += answer.rating;
+      current.ratingCount += 1;
+    }
+
+    groupedResults.set(evaluation.evaluatedId, current);
+  }
+
+  return Array.from(groupedResults.values())
+    .map(({ ratingSum, ratingCount, ...result }) => ({
+      ...result,
+      averageRating: ratingCount > 0 ? Number((ratingSum / ratingCount).toFixed(2)) : 0,
+    }))
+    .sort(
+      (left, right) =>
+        right.averageRating - left.averageRating || left.user.id - right.user.id
+    );
+}
+
 export async function getLeadershipResultsData(params: {
   request: Request;
   sessionUserId: number;
@@ -212,7 +313,7 @@ export async function getLeadershipResultsData(params: {
   const { request, sessionUserId, sessionUserName, sessionUserEmail, viewerRoleLabel, targetRole } =
     params;
 
-  const years = await resolveAcademicYears({ releasedOnly: true });
+  const { years, semestersByYear } = await resolveReleasedYearAndSemesters();
   const { searchParams } = new URL(request.url);
   const requestedYear = searchParams.get("year")?.trim();
   const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
@@ -221,12 +322,16 @@ export async function getLeadershipResultsData(params: {
     throw new ResultsNotReleasedError(requestedYear || undefined);
   }
 
-  await assertResultsReleasedForAcademicYear(academicYear);
+  const semesters = semestersByYear.get(academicYear) ?? [...SEMESTER_OPTIONS];
+  const semester = resolveSelectedSemester(searchParams.get("semester")?.trim() ?? null, semesters);
+
+  await assertResultsReleasedForAcademicYear(academicYear, semester);
 
   const userEvaluations = await prisma.evaluation.findMany({
     where: {
       evaluatedId: sessionUserId,
       academicYear,
+      semester,
     },
     include: {
       answers: {
@@ -250,26 +355,10 @@ export async function getLeadershipResultsData(params: {
         )
       : 0;
 
-  const targetResults = await prisma.result.findMany({
-    where: {
-      academicYear,
-      user: {
-        role: targetRole,
-        deletedAt: null,
-      },
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          department: true,
-        },
-      },
-    },
-    orderBy: [{ averageRating: "desc" }, { userId: "asc" }],
+  const targetResults = await buildTargetResultsFromEvaluations({
+    academicYear,
+    semester,
+    roles: [targetRole],
   });
 
   const totalTargets = await prisma.user.count({
@@ -295,6 +384,8 @@ export async function getLeadershipResultsData(params: {
   const response: LeadershipResultsResponse = {
     academicYear,
     years,
+    semesters,
+    semester,
     myRatings: {
       evaluatorName: sessionUserName || sessionUserEmail || viewerRoleLabel,
       evaluatorRole: viewerRoleLabel,
@@ -319,7 +410,7 @@ export async function getSingleTargetResultsData(params: {
   targetRole: ReportableRole;
 }) {
   const { request, targetRole } = params;
-  const years = await resolveAcademicYears({ releasedOnly: true });
+  const { years, semestersByYear } = await resolveReleasedYearAndSemesters();
   const { searchParams } = new URL(request.url);
   const requestedYear = searchParams.get("year")?.trim();
   const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
@@ -328,28 +419,15 @@ export async function getSingleTargetResultsData(params: {
     throw new ResultsNotReleasedError(requestedYear || undefined);
   }
 
-  await assertResultsReleasedForAcademicYear(academicYear);
+  const semesters = semestersByYear.get(academicYear) ?? [...SEMESTER_OPTIONS];
+  const semester = resolveSelectedSemester(searchParams.get("semester")?.trim() ?? null, semesters);
 
-  const targetResults = await prisma.result.findMany({
-    where: {
-      academicYear,
-      user: {
-        role: targetRole,
-        deletedAt: null,
-      },
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          department: true,
-        },
-      },
-    },
-    orderBy: [{ averageRating: "desc" }, { userId: "asc" }],
+  await assertResultsReleasedForAcademicYear(academicYear, semester);
+
+  const targetResults = await buildTargetResultsFromEvaluations({
+    academicYear,
+    semester,
+    roles: [targetRole],
   });
 
   const totalTargets = await prisma.user.count({
@@ -375,6 +453,8 @@ export async function getSingleTargetResultsData(params: {
   const response: SingleTargetResultsResponse = {
     academicYear,
     years,
+    semesters,
+    semester,
     averageRating,
     completionRate,
     completedCount: targetResults.length,
@@ -515,7 +595,7 @@ export async function getLeadershipCommentsData(params: {
   const selectedTargetId = Number.parseInt(searchParams.get("targetId") ?? "", 10);
   const requestedSemester = searchParams.get("semester")?.trim().toLowerCase() ?? "all";
 
-  if (!semesterOptions.includes(requestedSemester as (typeof semesterOptions)[number])) {
+  if (!commentSemesterOptions.includes(requestedSemester as (typeof commentSemesterOptions)[number])) {
     throw new Error("Invalid semester filter");
   }
 
@@ -614,7 +694,7 @@ export async function getSingleTargetCommentsData(params: {
   const selectedTargetId = Number.parseInt(searchParams.get("targetId") ?? "", 10);
   const requestedSemester = searchParams.get("semester")?.trim().toLowerCase() ?? "all";
 
-  if (!semesterOptions.includes(requestedSemester as (typeof semesterOptions)[number])) {
+  if (!commentSemesterOptions.includes(requestedSemester as (typeof commentSemesterOptions)[number])) {
     throw new Error("Invalid semester filter");
   }
 
@@ -712,7 +792,7 @@ export async function getCampusDirectorResultsData(params: {
   request: Request;
 }) {
   const { request } = params;
-  const years = await resolveAcademicYears({ releasedOnly: true });
+  const { years, semestersByYear } = await resolveReleasedYearAndSemesters();
   const { searchParams } = new URL(request.url);
   const requestedYear = searchParams.get("year")?.trim();
   const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
@@ -721,31 +801,18 @@ export async function getCampusDirectorResultsData(params: {
     throw new ResultsNotReleasedError(requestedYear || undefined);
   }
 
-  await assertResultsReleasedForAcademicYear(academicYear);
+  const semesters = semestersByYear.get(academicYear) ?? [...SEMESTER_OPTIONS];
+  const semester = resolveSelectedSemester(searchParams.get("semester")?.trim() ?? null, semesters);
+
+  await assertResultsReleasedForAcademicYear(academicYear, semester);
 
   const role = resolveCampusDirectorRoleFilter(searchParams.get("role"));
   const roles = getCampusDirectorRoles(role);
 
-  const results = await prisma.result.findMany({
-    where: {
-      academicYear,
-      user: {
-        role: { in: roles },
-        deletedAt: null,
-      },
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          department: true,
-        },
-      },
-    },
-    orderBy: [{ averageRating: "desc" }, { user: { role: "asc" } }, { userId: "asc" }],
+  const results = await buildTargetResultsFromEvaluations({
+    academicYear,
+    semester,
+    roles,
   });
 
   const totalTargets = await prisma.user.count({
@@ -768,6 +835,8 @@ export async function getCampusDirectorResultsData(params: {
   const response: CampusDirectorResultsResponse = {
     academicYear,
     years,
+    semesters,
+    semester,
     role,
     averageRating,
     completionRate,
@@ -790,7 +859,7 @@ export async function getCampusDirectorCommentsData(params: {
   const selectedTargetId = Number.parseInt(searchParams.get("targetId") ?? "", 10);
   const requestedSemester = searchParams.get("semester")?.trim().toLowerCase() ?? "all";
 
-  if (!semesterOptions.includes(requestedSemester as (typeof semesterOptions)[number])) {
+  if (!commentSemesterOptions.includes(requestedSemester as (typeof commentSemesterOptions)[number])) {
     throw new Error("Invalid semester filter");
   }
 

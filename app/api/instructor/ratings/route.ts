@@ -1,11 +1,12 @@
 import prisma from "@/lib/db";
+import { SEMESTER_OPTIONS, isValidSemester } from "@/lib/evaluation-session";
 import { apiError, apiSuccess, handleApiError, parseSearchParams } from "@/lib/api";
 import { requireApiUserId } from "@/lib/server-auth";
 import { yearQuerySchema } from "@/lib/validation";
 import {
   ResultsNotReleasedError,
   assertResultsReleasedForAcademicYear,
-  filterReleasedAcademicYears,
+  getReleasedAcademicPeriods,
   isResultsNotReleasedError,
 } from "@/lib/results-release";
 
@@ -27,11 +28,17 @@ function formatRoleLabel(role: SummaryRole) {
   return role === "student" ? "Student" : "Chairperson";
 }
 
-async function getSummaryForRole(userId: number, academicYear: string, role: SummaryRole) {
+async function getSummaryForRole(
+  userId: number,
+  academicYear: string,
+  semester: string,
+  role: SummaryRole
+) {
   const evaluations = await prisma.evaluation.findMany({
     where: {
       evaluatedId: userId,
       academicYear,
+      semester,
       evaluator: { role },
     },
     include: {
@@ -80,14 +87,8 @@ export async function GET(request: Request) {
   try {
     const { userId } = await requireApiUserId(["faculty"]);
 
-    const yearsData = await prisma.evaluation.findMany({
-      where: { evaluatedId: userId },
-      distinct: ["academicYear"],
-      select: { academicYear: true },
-      orderBy: { academicYear: "desc" },
-    });
-
-    const years = await filterReleasedAcademicYears(yearsData.map((item) => item.academicYear));
+    const releasedPeriods = await getReleasedAcademicPeriods();
+    const years = Array.from(new Set(releasedPeriods.map((period) => period.academicYear)));
     const { year: requestedYear } = parseSearchParams(request, yearQuerySchema);
     const academicYear = requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
 
@@ -95,16 +96,29 @@ export async function GET(request: Request) {
       throw new ResultsNotReleasedError(requestedYear || undefined);
     }
 
-    await assertResultsReleasedForAcademicYear(academicYear);
+    const semesters = SEMESTER_OPTIONS.filter((semester) =>
+      releasedPeriods.some(
+        (period) => period.academicYear === academicYear && period.semester === semester
+      )
+    );
+    const requestedSemester = new URL(request.url).searchParams.get("semester")?.trim() ?? null;
+    const semester =
+      requestedSemester && isValidSemester(requestedSemester) && semesters.includes(requestedSemester)
+        ? requestedSemester
+        : semesters[0] ?? SEMESTER_OPTIONS[0];
+
+    await assertResultsReleasedForAcademicYear(academicYear, semester);
 
     const [studentEvaluations, chairpersonEvaluation] = await Promise.all([
-      getSummaryForRole(userId, academicYear, "student"),
-      getSummaryForRole(userId, academicYear, "chairperson"),
+      getSummaryForRole(userId, academicYear, semester, "student"),
+      getSummaryForRole(userId, academicYear, semester, "chairperson"),
     ]);
 
     return apiSuccess({
       academicYear,
       years,
+      semesters,
+      semester,
       studentEvaluations,
       chairpersonEvaluation,
     });

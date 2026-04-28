@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, Star } from "lucide-react";
 import RatingSummaryCard from "@/components/faculty/RatingSummaryCard";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
+import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
@@ -39,6 +40,8 @@ type TargetResult = {
 type LeadershipResultsResponse = {
   academicYear: string;
   years: string[];
+  semesters: string[];
+  semester: string;
   myRatings: MyRatings;
   targetRatings: {
     averageRating: number;
@@ -92,6 +95,8 @@ export default function RoleResultsDashboard({
 }: RoleResultsDashboardProps) {
   const [academicYear, setAcademicYear] = useState("");
   const [years, setYears] = useState<string[]>([]);
+  const [semester, setSemester] = useState("");
+  const [semesters, setSemesters] = useState<string[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
@@ -146,6 +151,9 @@ export default function RoleResultsDashboard({
         if (academicYear) {
           params.set("year", academicYear);
         }
+        if (semester) {
+          params.set("semester", semester);
+        }
 
         const res = await fetch(`${apiEndpoint}?${params.toString()}`, {
           cache: "no-store",
@@ -154,6 +162,8 @@ export default function RoleResultsDashboard({
 
         setAcademicYear(data.academicYear);
         setYears(data.years);
+        setSemester(data.semester);
+        setSemesters(data.semesters);
         setMyRatings(data.myRatings);
         setTargetResults(data.targetRatings.results);
         setAverageRating(data.targetRatings.averageRating);
@@ -168,7 +178,7 @@ export default function RoleResultsDashboard({
     };
 
     fetchResults();
-  }, [academicYear, apiEndpoint, targetLabel]);
+  }, [academicYear, apiEndpoint, semester, targetLabel]);
 
   const filteredResults = useMemo(() => {
     if (selectedTargetId) {
@@ -251,9 +261,17 @@ export default function RoleResultsDashboard({
         </div>
 
         <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
+          <div className="w-full md:max-w-[220px]">
+            <AppSelect
+              value={semester}
+              onChange={setSemester}
+              options={semesters.map((option) => ({ value: option, label: option }))}
+              triggerClassName="min-h-[46px] rounded-[16px] text-[14px] sm:min-h-[44px]"
+            />
+          </div>
           <AcademicYearSelect
             value={academicYear}
-            options={years.length > 0 ? years : [academicYear || "No Years"]}
+            options={years.length > 0 ? years : academicYear ? [academicYear] : []}
             onChange={setAcademicYear}
           />
         </div>

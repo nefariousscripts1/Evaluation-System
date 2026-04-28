@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import RatingSummaryCard from "@/components/faculty/RatingSummaryCard";
+import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
@@ -25,6 +26,8 @@ type EvaluationSummary = {
 type InstructorRatingsResponse = {
   academicYear: string;
   years: string[];
+  semesters: string[];
+  semester: string;
   studentEvaluations: EvaluationSummary;
   chairpersonEvaluation: EvaluationSummary;
 };
@@ -48,6 +51,8 @@ function emptySummary(label: string): EvaluationSummary {
 export default function FacultyRatingsPage() {
   const [academicYear, setAcademicYear] = useState("");
   const [years, setYears] = useState<string[]>([]);
+  const [semester, setSemester] = useState("");
+  const [semesters, setSemesters] = useState<string[]>([]);
   const [studentEvaluations, setStudentEvaluations] = useState<EvaluationSummary>(
     emptySummary("Students")
   );
@@ -65,6 +70,7 @@ export default function FacultyRatingsPage() {
 
         const params = new URLSearchParams();
         if (academicYear) params.set("year", academicYear);
+        if (semester) params.set("semester", semester);
 
         const res = await fetch(`/api/instructor/ratings?${params.toString()}`, {
           cache: "no-store",
@@ -73,6 +79,8 @@ export default function FacultyRatingsPage() {
 
         setYears(data.years.length > 0 ? data.years : [data.academicYear]);
         setAcademicYear(data.academicYear);
+        setSemester(data.semester);
+        setSemesters(data.semesters);
         setStudentEvaluations(data.studentEvaluations);
         setChairpersonEvaluation(data.chairpersonEvaluation);
       } catch (err) {
@@ -83,7 +91,7 @@ export default function FacultyRatingsPage() {
     };
 
     fetchRatings();
-  }, [academicYear]);
+  }, [academicYear, semester]);
 
   if (loading) {
     return (
@@ -103,9 +111,17 @@ export default function FacultyRatingsPage() {
         </div>
 
         <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
+          <div className="w-full md:max-w-[220px]">
+            <AppSelect
+              value={semester}
+              onChange={setSemester}
+              options={semesters.map((option) => ({ value: option, label: option }))}
+              triggerClassName="min-h-[46px] rounded-[16px] text-[14px] sm:min-h-[44px]"
+            />
+          </div>
           <AcademicYearSelect
             value={academicYear}
-            options={years.length > 0 ? years : [academicYear || "No Years"]}
+            options={years.length > 0 ? years : academicYear ? [academicYear] : []}
             onChange={setAcademicYear}
           />
         </div>

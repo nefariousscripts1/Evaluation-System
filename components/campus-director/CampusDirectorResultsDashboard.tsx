@@ -35,6 +35,8 @@ type ResultItem = {
 type CampusDirectorResultsResponse = {
   academicYear: string;
   years: string[];
+  semesters: string[];
+  semester: string;
   role: CampusDirectorRoleFilter;
   averageRating: number;
   completionRate: number;
@@ -48,6 +50,8 @@ const roleOptions = getCampusDirectorRoleOptions();
 export default function CampusDirectorResultsDashboard() {
   const [academicYear, setAcademicYear] = useState("");
   const [years, setYears] = useState<string[]>([]);
+  const [semester, setSemester] = useState("");
+  const [semesters, setSemesters] = useState<string[]>([]);
   const [role, setRole] = useState<CampusDirectorRoleFilter>("all");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -118,6 +122,9 @@ export default function CampusDirectorResultsDashboard() {
         if (academicYear) {
           params.set("year", academicYear);
         }
+        if (semester) {
+          params.set("semester", semester);
+        }
 
         const res = await fetch(`/api/campus-director/results?${params.toString()}`, {
           cache: "no-store",
@@ -126,6 +133,8 @@ export default function CampusDirectorResultsDashboard() {
 
         setAcademicYear(data.academicYear);
         setYears(data.years.length > 0 ? data.years : [data.academicYear]);
+        setSemester(data.semester);
+        setSemesters(data.semesters);
         setResults(data.results || []);
         setAverageRating(data.averageRating || 0);
         setCompletionRate(data.completionRate || 0);
@@ -140,7 +149,7 @@ export default function CampusDirectorResultsDashboard() {
     };
 
     fetchResults();
-  }, [academicYear, role]);
+  }, [academicYear, role, semester]);
 
   const filteredResults = useMemo(() => {
     if (selectedTargetId) {
@@ -258,7 +267,7 @@ export default function CampusDirectorResultsDashboard() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_220px]">
+            <div className="mt-6 grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_220px_220px]">
               <div>
                 <AppSelect
                   value={role}
@@ -329,10 +338,19 @@ export default function CampusDirectorResultsDashboard() {
                 </button>
               </div>
 
+              <div>
+                <AppSelect
+                  value={semester}
+                  onChange={setSemester}
+                  options={semesters.map((option) => ({ value: option, label: option }))}
+                  triggerClassName="min-h-[44px] rounded-[16px] text-[13px]"
+                />
+              </div>
+
               <div className="w-full">
                 <AcademicYearSelect
                   value={academicYear}
-                  options={years.length > 0 ? years : [academicYear || "No Years"]}
+                  options={years.length > 0 ? years : academicYear ? [academicYear] : []}
                   onChange={setAcademicYear}
                   hideLabel
                   className="justify-end"

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Star } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
+import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 
@@ -22,6 +23,8 @@ type TargetResult = {
 type SingleTargetResultsResponse = {
   academicYear: string;
   years: string[];
+  semesters: string[];
+  semester: string;
   averageRating: number;
   completionRate: number;
   completedCount: number;
@@ -52,6 +55,8 @@ export default function SingleTargetResultsDashboard({
 }: SingleTargetResultsDashboardProps) {
   const [academicYear, setAcademicYear] = useState("");
   const [years, setYears] = useState<string[]>([]);
+  const [semester, setSemester] = useState("");
+  const [semesters, setSemesters] = useState<string[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
@@ -105,6 +110,9 @@ export default function SingleTargetResultsDashboard({
         if (academicYear) {
           params.set("year", academicYear);
         }
+        if (semester) {
+          params.set("semester", semester);
+        }
 
         const res = await fetch(`${apiEndpoint}?${params.toString()}`, {
           cache: "no-store",
@@ -113,6 +121,8 @@ export default function SingleTargetResultsDashboard({
 
         setAcademicYear(data.academicYear);
         setYears(data.years.length > 0 ? data.years : [data.academicYear]);
+        setSemester(data.semester);
+        setSemesters(data.semesters);
         setResults(data.results || []);
         setAverageRating(data.averageRating || 0);
         setCompletionRate(data.completionRate || 0);
@@ -126,7 +136,7 @@ export default function SingleTargetResultsDashboard({
     };
 
     fetchResults();
-  }, [academicYear, apiEndpoint, targetLabel]);
+  }, [academicYear, apiEndpoint, semester, targetLabel]);
 
   const filteredResults = useMemo(() => {
     if (selectedTargetId) {
@@ -300,14 +310,24 @@ export default function SingleTargetResultsDashboard({
                 </button>
               </div>
 
-              <div className="w-full lg:max-w-[220px]">
-                <AcademicYearSelect
-                  value={academicYear}
-                  options={years.length > 0 ? years : [academicYear || "No Years"]}
-                  onChange={setAcademicYear}
-                  hideLabel
-                  className="justify-end"
-                />
+              <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+                <div className="w-full lg:w-[220px]">
+                  <AppSelect
+                    value={semester}
+                    onChange={setSemester}
+                    options={semesters.map((option) => ({ value: option, label: option }))}
+                    triggerClassName="min-h-[44px] rounded-[16px] text-[13px]"
+                  />
+                </div>
+                <div className="w-full lg:w-[220px]">
+                  <AcademicYearSelect
+                    value={academicYear}
+                    options={years.length > 0 ? years : academicYear ? [academicYear] : []}
+                    onChange={setAcademicYear}
+                    hideLabel
+                    className="justify-end"
+                  />
+                </div>
               </div>
             </div>
 
