@@ -65,6 +65,7 @@ export async function createUser(data: {
       email: data.email,
       password: hashed,
       name: data.name,
+      mustChangePassword: true,
       role: data.role as any,
     },
   });

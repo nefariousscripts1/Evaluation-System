@@ -6,34 +6,12 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
 import AppLogo from "@/components/AppLogo";
-import {
-  Home,
-  User,
-  ClipboardList,
-  Calendar,
-  FileText,
-  LogOut,
-  BarChart3,
-  Users,
-  IdCard,
-  Star,
-  LayoutDashboard,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
-  X,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-
-type NavItem = {
-  href: string;
-  icon: LucideIcon | undefined;
-  label: string;
-};
+import { ChevronLeft, ChevronRight, LogOut, Menu, X } from "lucide-react";
+import { getNavigationConfig, isNavigationItemActive } from "@/lib/navigation";
 
 export default function Sidebar() {
   const { data: session } = useSession();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const role = session?.user?.role;
@@ -43,117 +21,8 @@ export default function Sidebar() {
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
-
-  // Secretary Sidebar
-  const secretaryNavItems: NavItem[] = [
-    { href: "/secretary/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/secretary/instructors", icon: User, label: "Manage Instructors" },
-    { href: "/secretary/questionnaire", icon: ClipboardList, label: "Manage Questionnaires" },
-    { href: "/secretary/schedule", icon: Calendar, label: "Evaluation Session" },
-    { href: "/secretary/students", icon: IdCard, label: "Student Management" },
-    { href: "/secretary/users", icon: Users, label: "Users Management" },
-    { href: "/secretary/reports", icon: FileText, label: "Results" },
-  ];
-
-  // Student Sidebar
-  const studentNavItems: NavItem[] = [
-    { href: "/student/evaluate", icon: Star, label: "Evaluate Instructor" },
-  ];
-
-  // Faculty Sidebar
-  const facultyNavItems: NavItem[] = [
-    { href: "/results", icon: LayoutDashboard, label: "Results" },
-    { href: "/faculty/ratings", icon: BarChart3, label: "View My Ratings" },
-    { href: "/faculty/comments", icon: FileText, label: "View Comments" },
-  ];
-
-  // Chairperson Sidebar
-  const chairpersonNavItems: NavItem[] = [
-    { href: "/chairperson/results", icon: BarChart3, label: "View Evaluation Results" },
-    { href: "/chairperson/evaluate", icon: Star, label: "Evaluate Faculty" },
-    { href: "/chairperson/comments", icon: FileText, label: "View Comments" },
-  ];
-
-  // Dean Sidebar
-  const deanNavItems: NavItem[] = [
-    { href: "/dean/results", icon: BarChart3, label: "View Evaluation Results" },
-    { href: "/dean/evaluate", icon: Star, label: "Evaluate Chairperson" },
-    { href: "/dean/comments", icon: FileText, label: "View Comments" },
-  ];
-
-  // Director Sidebar
-  const directorNavItems: NavItem[] = [
-    { href: "/director/results", icon: BarChart3, label: "View Evaluation Results" },
-    { href: "/director/evaluate", icon: Star, label: "Evaluate Dean" },
-    { href: "/director/comments", icon: FileText, label: "View Comments" },
-  ];
-
-  // Campus Director Sidebar
-  const campusDirectorNavItems: NavItem[] = [
-    { href: "/campus-director/evaluate", icon: Star, label: "Evaluate DOI" },
-    { href: "/campus-director/comments", icon: FileText, label: "View Comments" },
-    { href: "/campus-director/results", icon: BarChart3, label: "View Ratings" },
-  ];
-
-  // Get sidebar items based on role
-  const getNavItems = () => {
-    switch (role) {
-      case "secretary":
-        return secretaryNavItems;
-      case "student":
-        return studentNavItems;
-      case "faculty":
-        return facultyNavItems;
-      case "chairperson":
-        return chairpersonNavItems;
-      case "dean":
-        return deanNavItems;
-      case "director":
-        return directorNavItems;
-      case "campus_director":
-        return campusDirectorNavItems;
-      default:
-        return [];
-    }
-  };
-
-  // Get portal title based on role
-  const getPortalTitle = () => {
-    switch (role) {
-      case "secretary":
-        return "Secretary Portal";
-      case "student":
-        return "Student Portal";
-      case "faculty":
-        return "Faculty Portal";
-      case "chairperson":
-        return "Chairperson Portal";
-      case "dean":
-        return "Dean Portal";
-      case "director":
-        return "DOI Portal";
-      case "campus_director":
-        return "Campus Director Portal";
-      default:
-        return "Portal";
-    }
-  };
-
-  const navItems = getNavItems();
-  const portalTitle = getPortalTitle();
+  const { items: navItems, portalTitle } = getNavigationConfig(role);
   const initial = userName.charAt(0).toUpperCase() || "U";
-
-  const isActive = (href: string, label?: string) => {
-    if (role === "faculty" && pathname === "/results") {
-      return label === "Results";
-    }
-
-    if (role === "secretary" && href === "/secretary/reports") {
-      return pathname?.startsWith("/secretary/reports") || pathname?.startsWith("/secretary/summary-comments");
-    }
-
-    return pathname?.startsWith(href);
-  };
 
   return (
     <>
@@ -221,17 +90,18 @@ export default function Sidebar() {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-6">
           {navItems.map((item) => {
-            const Icon = item.icon ?? Home;
+            const Icon = item.icon;
 
             return (
               <Link
                 key={`${item.href}-${item.label}`}
                 href={item.href}
                 className={`mb-2 flex min-h-[46px] items-center gap-3 rounded-[16px] px-4 py-3 text-[14px] font-semibold transition ${
-                  isActive(item.href, item.label)
+                  isNavigationItemActive(pathname, item)
                     ? "bg-[#24135f] text-white shadow-[0_16px_32px_rgba(36,19,95,0.18)]"
                     : "text-[#24135f] hover:bg-[#f7f4ff]"
                 }`}
+                aria-current={isNavigationItemActive(pathname, item) ? "page" : undefined}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>

@@ -126,7 +126,7 @@ export const emailSchema = z
 
 export const passwordSchema = z
   .string()
-  .min(6, "Password must be at least 6 characters long")
+  .min(8, "Password must be at least 8 characters long")
   .max(72, "Password must be 72 characters or fewer");
 
 export const staffRoleSchema = z.enum(STAFF_ROLES);
@@ -337,6 +337,26 @@ export const instructorUpdateSchema = z.object({
 export const studentRecordSchema = z.object({
   studentId: studentIdSchema,
 });
+
+export const ownProfileUpdateSchema = z.object({
+  name: nameSchema,
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, "Please confirm your new password"),
+  })
+  .superRefine(({ newPassword, confirmPassword }, ctx) => {
+    if (newPassword !== confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmPassword"],
+        message: "New password and confirmation do not match",
+      });
+    }
+  });
 
 export const questionnaireCreateSchema = z.object({
   questionText: z

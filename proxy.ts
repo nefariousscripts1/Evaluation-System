@@ -9,6 +9,8 @@ const PUBLIC_ROUTES = [
   "/reset-password",
 ];
 
+const PASSWORD_CHANGE_ROUTE = "/change-password";
+
 function isStudentRoute(pathname: string) {
   return pathname === "/student" || pathname.startsWith("/student/");
 }
@@ -51,6 +53,15 @@ export default withAuth(
     }
 
     const role = token.role as string;
+    const mustChangePassword = token.mustChangePassword === true;
+
+    if (mustChangePassword && path !== PASSWORD_CHANGE_ROUTE) {
+      return NextResponse.redirect(new URL(PASSWORD_CHANGE_ROUTE, req.url));
+    }
+
+    if (!mustChangePassword && path === PASSWORD_CHANGE_ROUTE) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
 
     if (role === "student") {
       if (path === "/student/evaluate" || path === "/student" || path === "/") {

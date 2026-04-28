@@ -19,6 +19,7 @@ const PUBLIC_SHELLLESS_ROUTES = new Set([
   "/forgot-password",
   "/reset-password",
 ]);
+const AUTH_SHELLLESS_ROUTES = new Set(["/change-password"]);
 
 function normalizePathname(pathname: string | null) {
   if (!pathname) {
@@ -41,15 +42,30 @@ export default async function RootLayout({
   const session = await getAppSession();
   const pathname = normalizePathname((await headers()).get("x-pathname"));
   const isPublicShelllessRoute = PUBLIC_SHELLLESS_ROUTES.has(pathname);
+  const isAuthShelllessRoute = AUTH_SHELLLESS_ROUTES.has(pathname);
   const isStudentPortalRoute = isStudentRoute(pathname);
-  const isShelllessRoute = isPublicShelllessRoute || isStudentPortalRoute;
+  const isShelllessRoute = isPublicShelllessRoute || isAuthShelllessRoute || isStudentPortalRoute;
 
   if (!session && pathname && !isShelllessRoute) {
     redirect("/login");
   }
 
+  if (!session && isAuthShelllessRoute) {
+    redirect("/login");
+  }
+
+  if (session?.user.mustChangePassword && pathname !== "/change-password") {
+    redirect("/change-password");
+  }
+
+  if (session && pathname === "/change-password" && !session.user.mustChangePassword) {
+    redirect(getDefaultRouteForRole(session));
+  }
+
   if (session && isPublicShelllessRoute) {
-    const defaultRoute = getDefaultRouteForRole(session);
+    const defaultRoute = session.user.mustChangePassword
+      ? "/change-password"
+      : getDefaultRouteForRole(session);
 
     if (defaultRoute !== pathname) {
       redirect(defaultRoute);

@@ -17,6 +17,7 @@ async function main() {
         email: secretaryEmail,
         password: hashed,
         name: "Secretary Admin",
+        mustChangePassword: true,
         role: "secretary",
       },
     });

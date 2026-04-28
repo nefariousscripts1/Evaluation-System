@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 export default function ProtectedSessionMonitor() {
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -14,6 +14,13 @@ export default function ProtectedSessionMonitor() {
       router.refresh();
     }
   }, [router, status]);
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user.mustChangePassword) {
+      router.replace("/change-password");
+      router.refresh();
+    }
+  }, [router, session?.user.mustChangePassword, status]);
 
   useEffect(() => {
     const validateSession = async () => {

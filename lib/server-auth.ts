@@ -38,6 +38,7 @@ async function validateSession(session: Session | null) {
       email: true,
       name: true,
       role: true,
+      mustChangePassword: true,
     },
   });
 
@@ -53,12 +54,23 @@ async function validateSession(session: Session | null) {
       email: user.email,
       name: user.name,
       role: user.role,
+      mustChangePassword: user.mustChangePassword,
     },
   };
 }
 
 export async function getAppSession() {
   return validateSession(await getServerSession(authOptions));
+}
+
+export async function requirePageSession() {
+  const session = await getAppSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  return session;
 }
 
 export async function requireApiSession(allowedRoles?: AppRole[]) {

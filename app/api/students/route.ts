@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         name: null,
         email: buildStudentPlaceholderEmail(studentId),
         password: placeholderPassword,
+        mustChangePassword: true,
         role: "student",
         studentId,
         department: null,

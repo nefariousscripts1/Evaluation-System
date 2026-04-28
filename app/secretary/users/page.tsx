@@ -4,28 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus, X, AlertTriangle, Pencil, Trash2, Search } from "lucide-react";
-import AppSelect from "@/components/ui/AppSelect";
-import AppMultiSelect from "@/components/ui/AppMultiSelect";
+import UserForm, { type UserFormValues } from "@/components/forms/UserForm";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { getErrorMessage } from "@/lib/error-message";
+import type { AppRole } from "@/lib/server-auth";
 
 interface User {
   id: number;
   name: string | null;
   email: string;
-  role: string;
+  role: AppRole;
   department: string | null;
 }
-
-const formRoles = [
-  { label: "Dean", value: "dean" },
-  { label: "Chairperson", value: "chairperson" },
-  { label: "Director of Instructions", value: "director" },
-  { label: "Campus Director", value: "campus_director" },
-  { label: "Faculty", value: "faculty" },
-  { label: "Secretary", value: "secretary" },
-];
 
 const roleFilterOptions = [
   { label: "All Roles", value: "all" },
@@ -46,11 +37,15 @@ const roleLabels: Record<string, string> = {
   secretary: "Secretary",
 };
 
-const departmentOptions = [
-  { label: "CSM", value: "CSM", sublabel: "College of Science and Management" },
-  { label: "CTE", value: "CTE", sublabel: "College of Teacher Education" },
-  { label: "SAS", value: "SAS", sublabel: "School of Advanced Studies" },
-];
+function createInitialFormData(): UserFormValues {
+  return {
+    name: "",
+    email: "",
+    password: "",
+    role: "faculty",
+    departments: [],
+  };
+}
 
 export default function UsersManagement() {
   const { data: session, status } = useSession();
@@ -66,29 +61,12 @@ export default function UsersManagement() {
   const [error, setError] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "faculty",
-    departments: [] as string[],
-  });
+  const [formData, setFormData] = useState<UserFormValues>(createInitialFormData);
   const errorMessage = error ? getErrorMessage(error) : "";
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-      return;
-    }
-    if (status === "authenticated" && session?.user?.role !== "secretary") {
-      router.push("/unauthorized");
-      return;
-    }
-    void fetchUsers();
-  }, [status, session, router]);
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/users");
       const data = await readApiResponse<User[]>(res);
       setUsers(data);
@@ -100,9 +78,27 @@ export default function UsersManagement() {
     }
   };
 
+  useEffect(() => {
+    if (status === "loading") {
+      return;
+    }
+
+    if (status === "unauthenticated") {
+      router.push("/login");
+      return;
+    }
+
+    if (session?.user?.role !== "secretary") {
+      router.push("/unauthorized");
+      return;
+    }
+
+    void fetchUsers();
+  }, [status, session?.user?.role, router]);
+
   const handleAddUser = () => {
     setEditingUser(null);
-    setFormData({ name: "", email: "", password: "", role: "faculty", departments: [] });
+    setFormData(createInitialFormData());
     setError("");
     setIsModalOpen(true);
   };
@@ -125,7 +121,8 @@ export default function UsersManagement() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
-    setFormData({ name: "", email: "", password: "", role: "faculty", departments: [] });
+    setFormData(createInitialFormData());
+    setError("");
   };
 
   const openDeleteModal = (user: User) => {
@@ -217,6 +214,7 @@ export default function UsersManagement() {
 
           <div className="mb-4 flex justify-end">
             <button
+              type="button"
               onClick={handleAddUser}
               className="app-btn-primary px-5 py-2.5 text-[14px]"
             >
@@ -297,16 +295,20 @@ export default function UsersManagement() {
                       <td className="app-table-cell">
                         <div className="flex items-center justify-center gap-3">
                           <button
+                            type="button"
                             onClick={() => handleEditUser(user)}
                             className="app-icon-btn h-9 w-9 border-0 bg-[#24135f] text-white hover:bg-[#1a0f4a] hover:text-white"
                             title="Edit"
+                            aria-label={`Edit ${user.name || user.email}`}
                           >
                             <Pencil size={16} />
                           </button>
                           <button
+                            type="button"
                             onClick={() => openDeleteModal(user)}
                             className="app-icon-btn h-9 w-9 border-0 bg-[#c53b4f] text-white hover:bg-[#a93042] hover:text-white"
                             title="Delete"
+                            aria-label={`Delete ${user.name || user.email}`}
                           >
                             <Trash2 size={16} />
                           </button>
@@ -345,98 +347,15 @@ export default function UsersManagement() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 px-8 py-6">
-              <div>
-                <label className="mb-1 block text-[12px] font-bold text-[#24135f]">
-                  Select Role
-                </label>
-                <AppSelect
-                  value={formData.role}
-                  onChange={(nextValue) => setFormData({ ...formData, role: nextValue })}
-                  options={formRoles}
-                  triggerClassName="min-h-10 rounded-[10px] border-[#6d63a3] text-[14px] shadow-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-[12px] font-bold text-[#24135f]">Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Dr., Phd. Full Name"
-                  className="h-10 w-full rounded-[8px] border border-[#6d63a3] px-3 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f] placeholder:text-[#9d98b8]"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-[12px] font-bold text-[#24135f]">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="name@bisu.edu.ph"
-                  className="h-10 w-full rounded-[8px] border border-[#6d63a3] px-3 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f] placeholder:text-[#9d98b8]"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-[12px] font-bold text-[#24135f]">
-                  Password {editingUser && "(leave blank to keep current)"}
-                </label>
-                <input
-                  type="password"
-                  required={!editingUser}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Enter password"
-                  className="h-10 w-full rounded-[8px] border border-[#6d63a3] px-3 text-[14px] text-[#24135f] outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f] placeholder:text-[#9d98b8]"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-[12px] font-bold text-[#24135f]">
-                  Department
-                </label>
-                <AppMultiSelect
-                  values={formData.departments}
-                  onChange={(nextDepartments) =>
-                    setFormData({ ...formData, departments: nextDepartments })
-                  }
-                  options={departmentOptions}
-                  placeholder="Select one, two, or three departments"
-                  triggerClassName="min-h-[38px] rounded-[8px] border-[#6d63a3] px-3 py-2 text-[14px] shadow-none"
-                  menuClassName="rounded-[16px]"
-                />
-                <p className="mt-1 text-[11px] text-[#8a84a4]">
-                  You can select up to three departments for the same account.
-                </p>
-              </div>
-
-              {error ? <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">{errorMessage}</div> : null}
-
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="mt-2 h-12 w-full rounded-[6px] bg-[#24135f] text-[14px] font-extrabold text-white transition hover:bg-[#1a0f4a] disabled:opacity-50"
-              >
-                {formLoading ? "Saving..." : editingUser ? "Update" : "Create"}
-              </button>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="text-[12px] text-[#24135f] hover:underline"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+            <UserForm
+              values={formData}
+              onChange={setFormData}
+              onSubmit={handleSubmit}
+              onCancel={handleCloseModal}
+              isSubmitting={formLoading}
+              errorMessage={errorMessage}
+              isEditing={Boolean(editingUser)}
+            />
           </div>
         </div>
       )}

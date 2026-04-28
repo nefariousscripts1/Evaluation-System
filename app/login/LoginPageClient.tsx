@@ -19,16 +19,6 @@ const staffRoles = [
   { label: "Secretary", value: "secretary" },
 ];
 
-function getRedirectPath(role: string) {
-  if (role === "secretary") return "/secretary/dashboard";
-  if (role === "faculty") return "/results";
-  if (role === "chairperson") return "/chairperson/results";
-  if (role === "dean") return "/dean/results";
-  if (role === "director") return "/director/results";
-  if (role === "campus_director") return "/campus-director/results";
-  return "/login";
-}
-
 export default function LoginPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -108,16 +98,16 @@ export default function LoginPageClient() {
         password,
         role,
         redirect: false,
+        callbackUrl: "/",
       });
 
-      if (result?.error) {
+      if (!result || result.error) {
         setError("Invalid email, password, or role");
         setLoading(false);
         return;
       }
 
-      router.replace(getRedirectPath(role));
-      router.refresh();
+      window.location.assign(result.url || "/");
     } catch (err) {
       console.error("Login error:", err);
       setError("Something went wrong during login");

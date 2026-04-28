@@ -62,6 +62,7 @@ export async function POST(request: Request) {
         name: payload.name,
         email: payload.email,
         password: hashedPassword,
+        mustChangePassword: true,
         role: payload.role,
         department: payload.department,
         studentId: null,

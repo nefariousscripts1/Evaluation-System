@@ -12,6 +12,7 @@ model User {
   email                 String                 @unique
   password              String
   name                  String?
+  mustChangePassword    Boolean                @default(true)
   role                  Role
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt

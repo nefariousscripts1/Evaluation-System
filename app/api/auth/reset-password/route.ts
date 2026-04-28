@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     await prisma.user.update({
       where: { email: payload.email },
-      data: { password: hashedPassword },
+      data: { password: hashedPassword, mustChangePassword: false },
     });
 
     return apiSuccess({ message: "Password reset successfully" });

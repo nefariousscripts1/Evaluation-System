@@ -97,6 +97,7 @@ export async function PUT(
       email: string;
       role: typeof payload.role;
       department: string | null;
+      mustChangePassword?: boolean;
       password?: string;
     } = {
       name: payload.name,
@@ -107,6 +108,7 @@ export async function PUT(
 
     if (payload.password) {
       updateData.password = await bcrypt.hash(payload.password, 10);
+      updateData.mustChangePassword = true;
     }
 
     const user = await prisma.user.update({

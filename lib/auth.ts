@@ -43,16 +43,29 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
+          mustChangePassword: user.mustChangePassword,
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        token.name = user.name;
         token.role = user.role;
+        token.mustChangePassword = user.mustChangePassword;
+      }
+
+      if (trigger === "update") {
+        if (typeof session?.name === "string") {
+          token.name = session.name;
+        }
+
+        if (typeof session?.mustChangePassword === "boolean") {
+          token.mustChangePassword = session.mustChangePassword;
+        }
       }
 
       return token;
@@ -71,6 +84,7 @@ export const authOptions: NextAuthOptions = {
           email: true,
           name: true,
           role: true,
+          mustChangePassword: true,
           deletedAt: true,
         },
       });
@@ -84,18 +98,22 @@ export const authOptions: NextAuthOptions = {
             email: "",
             name: "",
             role: "",
+            mustChangePassword: false,
           },
         };
       }
 
       token.id = String(currentUser.id);
       token.email = currentUser.email;
+      token.name = currentUser.name;
       token.role = currentUser.role;
+      token.mustChangePassword = currentUser.mustChangePassword;
 
       session.user.id = String(currentUser.id);
       session.user.email = currentUser.email;
       session.user.name = currentUser.name;
       session.user.role = currentUser.role;
+      session.user.mustChangePassword = currentUser.mustChangePassword;
 
       return session;
     },

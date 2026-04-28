@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={8}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="app-input h-11 rounded-[14px]"
@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={8}
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   className="app-input h-11 rounded-[14px]"
