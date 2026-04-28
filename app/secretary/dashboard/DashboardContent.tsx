@@ -184,7 +184,7 @@ export default function DashboardContent({
           {/* Evaluation Schedule Section */}
           <section className="rounded-[18px] border border-[#dddddd] bg-white px-4 py-10">
             <h2 className="text-[16px] font-extrabold text-[#24135f]">
-              Evaluation Schedule
+              Evaluation Session
             </h2>
 
             {activeSchedule?.accessCode ? (

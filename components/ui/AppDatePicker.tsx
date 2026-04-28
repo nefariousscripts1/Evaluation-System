@@ -189,20 +189,20 @@ export default function AppDatePicker({
         </button>
 
         {open ? (
-          <div className="absolute left-0 right-0 top-[calc(100%+10px)] z-30 rounded-[22px] border border-[#e4ddf2] bg-white p-4 shadow-[0_24px_56px_rgba(36,19,95,0.16)]">
+          <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-full max-w-[360px] rounded-[20px] border border-[#e4ddf2] bg-white p-3 shadow-[0_24px_56px_rgba(36,19,95,0.16)] sm:max-w-[380px]">
             <div className="flex items-center justify-between">
               <button
                 type="button"
                 onClick={goToPreviousMonth}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e0f1] text-[#24135f] transition hover:bg-[#f7f4ff]"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e0f1] text-[#24135f] transition hover:bg-[#f7f4ff]"
                 aria-label="Previous month"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} />
               </button>
 
               <div className="text-center">
-                <p className="text-[15px] font-bold text-[#24135f]">{monthLabel}</p>
-                <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#8a84a4]">
+                <p className="text-[14px] font-bold text-[#24135f]">{monthLabel}</p>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-[#8a84a4]">
                   Pick a date
                 </p>
               </div>
@@ -210,18 +210,18 @@ export default function AppDatePicker({
               <button
                 type="button"
                 onClick={goToNextMonth}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e0f1] text-[#24135f] transition hover:bg-[#f7f4ff]"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e0f1] text-[#24135f] transition hover:bg-[#f7f4ff]"
                 aria-label="Next month"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={16} />
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-7 gap-2">
+            <div className="mt-3 grid grid-cols-7 gap-1.5">
               {WEEKDAY_LABELS.map((weekday) => (
                 <div
                   key={weekday}
-                  className="text-center text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a84a4]"
+                  className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-[#8a84a4]"
                 >
                   {weekday}
                 </div>
@@ -239,7 +239,7 @@ export default function AppDatePicker({
                     type="button"
                     onClick={() => selectDate(day)}
                     disabled={disabled}
-                    className={`flex aspect-square items-center justify-center rounded-[14px] text-[14px] font-semibold transition ${
+                    className={`flex h-10 w-10 items-center justify-center rounded-[12px] text-[13px] font-semibold transition sm:h-11 sm:w-11 ${
                       isSelected
                         ? "bg-[#24135f] text-white shadow-[0_12px_24px_rgba(36,19,95,0.18)]"
                         : isToday
@@ -255,14 +255,14 @@ export default function AppDatePicker({
               })}
             </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#eee8f7] pt-4">
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-[#eee8f7] pt-3">
               <button
                 type="button"
                 onClick={() => {
                   onChange("");
                   setOpen(false);
                 }}
-                className="text-[13px] font-semibold text-[#7b7498] transition hover:text-[#24135f]"
+                className="text-[12px] font-semibold text-[#7b7498] transition hover:text-[#24135f]"
               >
                 Clear
               </button>
@@ -275,13 +275,13 @@ export default function AppDatePicker({
                   }
                 }}
                 disabled={!canSelectToday}
-                className="inline-flex items-center rounded-full bg-[#f7f4ff] px-4 py-2 text-[13px] font-bold text-[#24135f] transition hover:bg-[#eee7ff] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center rounded-full bg-[#f7f4ff] px-3 py-1.5 text-[12px] font-bold text-[#24135f] transition hover:bg-[#eee7ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Today
               </button>
             </div>
 
-            <p className="mt-3 text-[12px] text-[#8a84a4]">
+            <p className="mt-2 text-[11px] text-[#8a84a4]">
               {monthEnd.toLocaleDateString("en-PH", {
                 month: "long",
                 year: "numeric",

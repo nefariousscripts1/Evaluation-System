@@ -29,6 +29,10 @@ function normalizePathname(pathname: string | null) {
   return pathOnly !== "/" ? pathOnly.replace(/\/+$/, "") : pathOnly;
 }
 
+function isStudentRoute(pathname: string) {
+  return pathname === "/student" || pathname.startsWith("/student/");
+}
+
 export default async function RootLayout({
   children,
 }: {
@@ -37,8 +41,10 @@ export default async function RootLayout({
   const session = await getAppSession();
   const pathname = normalizePathname((await headers()).get("x-pathname"));
   const isPublicShelllessRoute = PUBLIC_SHELLLESS_ROUTES.has(pathname);
+  const isStudentPortalRoute = isStudentRoute(pathname);
+  const isShelllessRoute = isPublicShelllessRoute || isStudentPortalRoute;
 
-  if (!session && pathname && !isPublicShelllessRoute) {
+  if (!session && pathname && !isShelllessRoute) {
     redirect("/login");
   }
 
@@ -54,7 +60,7 @@ export default async function RootLayout({
     <html lang="en">
       <body className="font-sans">
         <SessionProvider session={session}>
-          {session && !isPublicShelllessRoute ? (
+          {session && !isShelllessRoute ? (
             <div className="app-shell-bg flex min-h-screen min-w-0">
               <ProtectedSessionMonitor />
               <Sidebar />

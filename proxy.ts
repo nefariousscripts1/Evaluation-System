@@ -5,10 +5,13 @@ const PUBLIC_ROUTES = [
   "/",
   "/login",
   "/register",
-  "/student/evaluate",
   "/forgot-password",
   "/reset-password",
 ];
+
+function isStudentRoute(pathname: string) {
+  return pathname === "/student" || pathname.startsWith("/student/");
+}
 
 function withPathnameHeader(req: { headers: Headers; nextUrl: { pathname: string } }) {
   const requestHeaders = new Headers(req.headers);
@@ -31,7 +34,7 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    if (PUBLIC_ROUTES.includes(path)) {
+    if (PUBLIC_ROUTES.includes(path) || isStudentRoute(path)) {
       return withPathnameHeader(req);
     }
 

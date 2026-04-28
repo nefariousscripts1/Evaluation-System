@@ -207,7 +207,7 @@ export default function UsersManagement() {
   return (
     <>
       <main className="app-page">
-        <div className="mx-auto max-w-[1600px]">
+        <div className="app-page-card">
           <div className="mb-6">
             <h1 className="text-[28px] font-extrabold text-[#24135f]">Users Management</h1>
             <p className="mt-2 text-sm text-[#6c6684]">

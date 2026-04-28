@@ -304,7 +304,7 @@ export default function ScheduleManagement() {
 
   return (
     <main className="px-4 py-4 sm:px-5 sm:py-6">
-      <div className="mx-auto max-w-[1600px] space-y-5">
+      <div className="app-page-card space-y-5">
         <div className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -329,10 +329,10 @@ export default function ScheduleManagement() {
         </div>
 
         {activeSchedule ? (
-          <section className="rounded-[20px] border border-[#dbeadf] bg-white p-6 shadow-sm">
+          <section className="rounded-[20px] border border-[#ddd7ee] bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#18794e]">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#24135f]">
                   Active Session
                 </p>
                 <h2 className="mt-2 text-[24px] font-extrabold text-[#24135f]">
@@ -361,8 +361,8 @@ export default function ScheduleManagement() {
             </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-[0.7fr_1.3fr]">
-              <div className="rounded-[18px] bg-[#f7fbf8] p-5">
-                <p className="text-sm font-semibold text-[#18794e]">Student submissions</p>
+              <div className="rounded-[18px] border border-[#ece7f7] bg-[#faf8ff] p-5">
+                <p className="text-sm font-semibold text-[#24135f]">Student submissions</p>
                 <p className="mt-2 text-3xl font-extrabold text-[#24135f]">{submissionCount}</p>
                 <p className="mt-1 text-sm text-[#6d6686]">
                   Distinct student evaluation sessions recorded in the current period
@@ -464,7 +464,7 @@ export default function ScheduleManagement() {
                 >
                   <div
                     className={`relative h-[30px] w-[56px] rounded-full transition ${
-                      formData.status === "Open" ? "bg-[#00d14f]" : "bg-[#cfcfcf]"
+                      formData.status === "Open" ? "bg-[#24135f]" : "bg-[#cfcfcf]"
                     }`}
                   >
                     <span
@@ -495,7 +495,7 @@ export default function ScheduleManagement() {
                     messageText.toLowerCase().includes("error") ||
                     messageText.toLowerCase().includes("invalid")
                       ? "bg-red-50 text-red-600"
-                      : "bg-green-50 text-green-600"
+                      : "bg-[#f7f4ff] text-[#24135f]"
                   }`}
                 >
                   {messageText}
@@ -532,7 +532,7 @@ export default function ScheduleManagement() {
                       ? "border-red-200 bg-red-50 text-red-700"
                       : notifyStatus?.tone === "warning"
                       ? "border-amber-200 bg-amber-50 text-amber-800"
-                      : "border-green-200 bg-green-50 text-green-700";
+                      : "border-[#ddd7ee] bg-[#f7f4ff] text-[#24135f]";
 
                   return (
                     <div
@@ -553,9 +553,9 @@ export default function ScheduleManagement() {
                         <span
                           className={`rounded-full px-3 py-1 ${
                             schedule.resultsReleased
-                              ? "bg-[#eaf8ee] text-[#18794e]"
+                              ? "bg-[#f1edfb] text-[#24135f]"
                               : activeSchedule?.id === schedule.id
-                              ? "bg-[#eaf8ee] text-[#18794e]"
+                              ? "bg-[#f1edfb] text-[#24135f]"
                               : "bg-white text-[#5b5576]"
                           }`}
                         >
@@ -652,7 +652,8 @@ export default function ScheduleManagement() {
                 session?
               </p>
               <p className="mt-2 text-center text-sm text-gray-500">
-                This removes the session record and cannot be undone.
+                This removes the session record, instructor codes, and any evaluation records tied
+                to this session. This cannot be undone.
               </p>
 
               <div className="mt-6 flex justify-center gap-3">

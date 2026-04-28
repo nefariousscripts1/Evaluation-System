@@ -107,8 +107,8 @@ export default function InstructorManagement() {
 
   return (
     <>
-      <main className="px-5 py-6">
-        <div className="mx-auto max-w-[1600px]">
+      <main className="app-page">
+        <div className="app-page-card">
           <div className="mb-6">
             <h1 className="text-[28px] font-extrabold text-[#24135f]">Manage Instructors</h1>
             <p className="mt-2 text-sm text-[#6f678d]">

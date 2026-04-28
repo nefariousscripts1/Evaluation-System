@@ -240,24 +240,42 @@ export async function DELETE(req: Request) {
       return apiError("Close the active session before deleting it", 400);
     }
 
-    if (schedule._count.evaluations > 0) {
-      return apiError(
-        "This session cannot be deleted because evaluation records already exist",
-        400
-      );
-    }
+    await prisma.$transaction(async (tx) => {
+      if (schedule._count.evaluations > 0) {
+        const evaluationIds = await tx.evaluation.findMany({
+          where: { scheduleId },
+          select: { id: true },
+        });
 
-    await prisma.$transaction([
-      prisma.instructorAccessCode.deleteMany({
+        if (evaluationIds.length > 0) {
+          await tx.evaluationAnswer.deleteMany({
+            where: {
+              evaluationId: {
+                in: evaluationIds.map((evaluation) => evaluation.id),
+              },
+            },
+          });
+        }
+
+        await tx.evaluation.deleteMany({
+          where: { scheduleId },
+        });
+      }
+
+      await tx.instructorAccessCode.deleteMany({
         where: { scheduleId },
-      }),
-      prisma.schedule.delete({
+      });
+
+      await tx.schedule.delete({
         where: { id: scheduleId },
-      }),
-    ]);
+      });
+    });
 
     return apiSuccess({
-      message: "Session deleted successfully",
+      message:
+        schedule._count.evaluations > 0
+          ? "Session and related evaluation records deleted successfully"
+          : "Session deleted successfully",
       ...(await getScheduleSnapshot()),
     });
   } catch (error) {

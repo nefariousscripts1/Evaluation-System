@@ -49,7 +49,7 @@ export default function Sidebar() {
     { href: "/secretary/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/secretary/instructors", icon: User, label: "Manage Instructors" },
     { href: "/secretary/questionnaire", icon: ClipboardList, label: "Manage Questionnaires" },
-    { href: "/secretary/schedule", icon: Calendar, label: "Evaluation Schedule" },
+    { href: "/secretary/schedule", icon: Calendar, label: "Evaluation Session" },
     { href: "/secretary/students", icon: IdCard, label: "Student Management" },
     { href: "/secretary/users", icon: Users, label: "Users Management" },
     { href: "/secretary/reports", icon: FileText, label: "Results" },
