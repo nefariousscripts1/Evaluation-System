@@ -58,10 +58,6 @@ export default async function RootLayout({
     redirect("/change-password");
   }
 
-  if (session && pathname === "/change-password" && !session.user.mustChangePassword) {
-    redirect(getDefaultRouteForRole(session));
-  }
-
   if (session && isPublicShelllessRoute) {
     const defaultRoute = session.user.mustChangePassword
       ? "/change-password"

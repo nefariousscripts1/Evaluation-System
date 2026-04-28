@@ -31,6 +31,7 @@ function getDefaultRouteForRole(role?: string) {
 export default function ChangePasswordPageClient() {
   const router = useRouter();
   const { data: session, update } = useSession();
+  const mustChangePassword = Boolean(session?.user.mustChangePassword);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -73,7 +74,7 @@ export default function ChangePasswordPageClient() {
       setNewPassword("");
       setConfirmPassword("");
       await update({ mustChangePassword: data.mustChangePassword });
-      router.replace(getDefaultRouteForRole(session?.user.role));
+      router.replace(mustChangePassword ? getDefaultRouteForRole(session?.user.role) : "/profile");
       router.refresh();
     } catch (submitError) {
       setError(getApiErrorMessage(submitError, "Failed to change password"));
@@ -89,8 +90,9 @@ export default function ChangePasswordPageClient() {
           <div className="rounded-t-[28px] bg-[#24135f] px-6 py-6 text-white sm:px-8">
             <h1 className="text-[26px] font-extrabold leading-tight">Change Your Password</h1>
             <p className="mt-2 text-sm text-white/80">
-              Your account is protected, but you need to set a new password before entering the
-              app.
+              {mustChangePassword
+                ? "Your account is protected, but you need to set a new password before entering the app."
+                : "Update your password here to keep your account secure."}
             </p>
           </div>
 
