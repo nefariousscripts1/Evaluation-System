@@ -1,0 +1,44 @@
+[33mbf2477a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{0}: reset: moving to HEAD~1
+[33mcaa18b0[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{1}: reset: moving to origin/main
+[33mcaa18b0[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{2}: commit: Directors fix
+[33mbf2477a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{3}: commit: Update bugs
+[33m0e2564f[m HEAD@{4}: commit: Update Session
+[33m2d9a1e9[m HEAD@{5}: commit: Highlight and scroll to unanswered evaluation questions
+[33m6e3867d[m HEAD@{6}: commit: Updated Manage Instructor
+[33m39d24a8[m HEAD@{7}: commit: Update seed and deploy latest changes
+[33m610300d[m HEAD@{8}: commit: Remove agreedToTerms from user schema
+[33m215d7ae[m HEAD@{9}: commit: your message
+[33m3cf329a[m HEAD@{10}: commit: Fix error
+[33m704be43[m HEAD@{11}: commit: remove summer
+[33m27109d6[m HEAD@{12}: commit: Fix schedule and instructor loading
+[33mbf9ae54[m HEAD@{13}: commit: Harden secretary dashboard loading
+[33m993c0cd[m HEAD@{14}: commit: fix
+[33m6cfb27f[m HEAD@{15}: commit: Fix
+[33m0e18fae[m HEAD@{16}: commit: fix dashboard
+[33m0767d67[m HEAD@{17}: commit: Update
+[33md860919[m HEAD@{18}: commit: update
+[33m2deb453[m HEAD@{19}: commit: initial deploy
+[33m1617ccb[m HEAD@{20}: commit: Fix student evaluate page syntax
+[33mf361103[m HEAD@{21}: commit: Update Student
+[33mc5f55d4[m HEAD@{22}: commit: Improve session handling across the system
+[33m2258d52[m HEAD@{23}: commit: Fix secretary mobile layout overflow
+[33mfd1022e[m HEAD@{24}: commit: Make role portals responsive for mobile and tablet
+[33m8a30558[m HEAD@{25}: commit: Make role portals responsive for mobile and tablet
+[33m5e763c3[m HEAD@{26}: commit: Improve chairperson comments search loading
+[33m4f801e1[m HEAD@{27}: commit: Add faculty suggestions to chairperson results search
+[33m7a00159[m HEAD@{28}: commit: Add mobile-friendly role portals and password reset flow
+[33m2ffbb71[m HEAD@{29}: commit: Improve registration error handling
+[33m5d91b52[m HEAD@{30}: commit: Remove logo badge styling
+[33m6892e0b[m HEAD@{31}: commit: Fix logo rendering on Vercel
+[33md048c78[m HEAD@{32}: commit: Fix Vercel build issues
+[33m81c0328[m HEAD@{33}: commit: Fix all dynamic API routes for Next.js 15 params as Promise
+[33md0b8b1b[m HEAD@{34}: commit: Update lucide-react to v1.8.0 and fix Next.js 15 compatibility
+[33m011f6c0[m HEAD@{35}: commit: Upgrade to Next.js 15.5.9 and fix dynamic route params
+[33md8f18dd[m HEAD@{36}: commit: Fresh Prisma migration
+[33m4912829[m HEAD@{37}: Branch: renamed refs/heads/main to refs/heads/main
+[33m4912829[m HEAD@{39}: commit: Initial commit
+[33mbc71f0b[m[33m ([m[1;31morigin/master[m[33m)[m HEAD@{40}: Branch: renamed refs/heads/master to refs/heads/main
+[33mbc71f0b[m[33m ([m[1;31morigin/master[m[33m)[m HEAD@{42}: commit: Update: Student evaluation page, middleware fixes, and role-based redirects
+[33m5dd4c53[m HEAD@{43}: commit: Update: Fix instructor edit modal and separate loading states
+[33mc11338b[m HEAD@{44}: commit: OKAY KA KAU
+[33mea0e2b5[m HEAD@{45}: commit (initial): Initial commit: Digital Evaluation System
