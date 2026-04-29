@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { getDefaultRouteForRole } from "@/lib/server-auth";
 import { getReleasedAcademicYears } from "@/lib/results-release";
 
 export default async function ResultsPage() {
@@ -16,6 +17,10 @@ export default async function ResultsPage() {
   const releasedYears = await getReleasedAcademicYears();
   const releasedYearsFilter = releasedYears.length > 0 ? releasedYears : ["__never__"];
 
+  if (role && role !== "faculty") {
+    redirect(getDefaultRouteForRole(session));
+  }
+
   let results = [];
   let title = "Evaluation Results";
 
@@ -29,48 +34,6 @@ export default async function ResultsPage() {
       include: { user: true },
       orderBy: { academicYear: "desc" },
     });
-  } else if (role === "chairperson") {
-    title = "Program Faculty Results";
-    results = await prisma.result.findMany({
-      where: {
-        academicYear: { in: releasedYearsFilter },
-        user: { role: "faculty" },
-      },
-      include: { user: true },
-      orderBy: { academicYear: "desc" },
-    });
-  } else if (role === "dean") {
-    title = "Department Faculty Results";
-    results = await prisma.result.findMany({
-      where: {
-        academicYear: { in: releasedYearsFilter },
-        user: { role: "faculty" },
-      },
-      include: { user: true },
-      orderBy: { academicYear: "desc" },
-    });
-  } else if (role === "director") {
-    title = "Dean Evaluation Results";
-    results = await prisma.result.findMany({
-      where: {
-        academicYear: { in: releasedYearsFilter },
-        user: { role: "dean" },
-      },
-      include: { user: true },
-      orderBy: { academicYear: "desc" },
-    });
-  } else if (role === "campus_director") {
-    title = "Director of Instruction Results";
-    results = await prisma.result.findMany({
-      where: {
-        academicYear: { in: releasedYearsFilter },
-        user: { role: "director" },
-      },
-      include: { user: true },
-      orderBy: { academicYear: "desc" },
-    });
-  } else if (role === "secretary") {
-    redirect("/secretary/reports");
   } else {
     redirect("/evaluate");
   }

@@ -427,14 +427,21 @@ const positivePageQuerySchema = z
 
 export const summaryCommentsQuerySchema = z.object({
   search: textSearchSchema.optional().default(""),
+  commentSearch: textSearchSchema.optional().default(""),
   academicYear: academicYearSchema.optional(),
   semester: z.union([semesterSchema, z.undefined()]),
+  instructorId: z
+    .string()
+    .regex(/^\d+$/, "Invalid instructor ID")
+    .transform((value) => Number.parseInt(value, 10))
+    .optional(),
   page: positivePageQuerySchema.optional().default(1),
-  pageSize: positivePageQuerySchema.optional().default(5),
+  pageSize: positivePageQuerySchema.optional().default(10),
 });
 
 export const leadershipCommentsQuerySchema = z.object({
   search: textSearchSchema.optional().default(""),
+  commentSearch: textSearchSchema.optional().default(""),
   academicYear: academicYearSchema.optional(),
   semester: z.string().optional().default("all"),
   page: positivePageQuerySchema.optional().default(1),

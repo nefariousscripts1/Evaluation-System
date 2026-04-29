@@ -1,8 +1,8 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import bcrypt from "bcrypt";
 import prisma from "@/lib/db";
+import { hashPassword, verifyPassword } from "@/lib/password-auth";
 import { staffLoginSchema } from "@/lib/validation";
 
 export const authOptions: NextAuthOptions = {
@@ -32,10 +32,19 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const isValid = await bcrypt.compare(password, user.password);
+        const passwordResult = await verifyPassword(password, user.password);
 
-        if (!isValid) {
+        if (!passwordResult.isValid) {
           return null;
+        }
+
+        if (passwordResult.shouldRehash) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              password: await hashPassword(password),
+            },
+          });
         }
 
         return {

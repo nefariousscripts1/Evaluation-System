@@ -21,8 +21,17 @@ type SingleTargetCommentsResponse = {
     name: string;
     label: string;
   } | null;
+  targets: Array<{
+    instructor_id: number;
+    instructor_name: string;
+    academic_year: string;
+    semester: string;
+    total_comments: number;
+  }>;
+  targetTotal: number;
   comments: SummaryComment[];
   total: number;
+  targetCount: number;
 };
 
 type TargetOption = {
@@ -65,13 +74,15 @@ export default function SingleTargetCommentsView({
   useEffect(() => {
     const fetchTargetOptions = async () => {
       try {
-        const res = await fetch("/api/evaluations/targets", { cache: "no-store" });
+        const params = new URLSearchParams({ scope: "subordinate" });
+        const res = await fetch(`/api/results/targets?${params.toString()}`, { cache: "no-store" });
         const data = await readApiResponse<
           Array<{
             id: number;
             name: string | null;
             email: string;
             department: string | null;
+            roleLabel?: string;
           }>
         >(res);
 
@@ -84,8 +95,8 @@ export default function SingleTargetCommentsView({
             })
           )
         );
-      } catch (err) {
-        console.error(err);
+      } catch {
+        setTargetOptions([]);
       }
     };
 

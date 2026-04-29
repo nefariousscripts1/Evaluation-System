@@ -8,16 +8,8 @@ import { Check, ChevronDown, Lock, ShieldCheck, User, UserSquare2 } from "lucide
 import AppLogo from "@/components/AppLogo";
 import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { getErrorMessage } from "@/lib/error-message";
+import { resolveStaffRoleSelection, staffRoleOptions } from "@/lib/staff-roles";
 import { staffLoginSchema, studentAccessStartSchema } from "@/lib/validation";
-
-const staffRoles = [
-  { label: "Campus Director", value: "campus_director" },
-  { label: "Chairperson", value: "chairperson" },
-  { label: "Dean", value: "dean" },
-  { label: "Director of Instructions", value: "director" },
-  { label: "Instructor/Faculty", value: "faculty" },
-  { label: "Secretary", value: "secretary" },
-];
 
 export default function LoginPageClient() {
   const router = useRouter();
@@ -33,6 +25,7 @@ export default function LoginPageClient() {
   const [openRoleDropdown, setOpenRoleDropdown] = useState(false);
   const [openRoleDropdownUpward, setOpenRoleDropdownUpward] = useState(false);
   const errorMessage = error ? getErrorMessage(error) : "";
+  const normalizedSelectedRole = resolveStaffRoleSelection(selectedRole);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -56,7 +49,7 @@ export default function LoginPageClient() {
     }
 
     const dropdownRect = dropdownRef.current.getBoundingClientRect();
-    const estimatedMenuHeight = Math.min(staffRoles.length * 56 + 16, 220);
+    const estimatedMenuHeight = Math.min(staffRoleOptions.length * 56 + 16, 220);
     const spaceBelow = window.innerHeight - dropdownRect.bottom;
     const spaceAbove = dropdownRect.top;
 
@@ -78,7 +71,7 @@ export default function LoginPageClient() {
     const formData = new FormData(e.currentTarget);
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const password = String(formData.get("password") || "");
-    const role = selectedRole.trim();
+    const role = normalizedSelectedRole;
 
     const parsedCredentials = staffLoginSchema.safeParse({
       email,
@@ -199,7 +192,7 @@ export default function LoginPageClient() {
                 <div>
                   <h2 className="text-lg font-extrabold text-[#24135f]">Staff Login</h2>
                   <p className="mt-1 text-sm text-[#6e6888]">
-                    Sign in using your BISU email, password, and assigned staff role.
+                    Sign in using your account email, password, and assigned staff role.
                   </p>
                 </div>
 
@@ -238,13 +231,15 @@ export default function LoginPageClient() {
                       Staff Role
                     </label>
 
+                    <input type="hidden" name="role" value={normalizedSelectedRole} />
                     <button
                       type="button"
                       onClick={() => setOpenRoleDropdown((prev) => !prev)}
                       className="app-input flex h-11 items-center justify-between rounded-[14px]"
                     >
                       <span className={selectedRole ? "font-semibold" : "text-[#8d88a5]"}>
-                        {staffRoles.find((role) => role.value === selectedRole)?.label || "Select your role"}
+                        {staffRoleOptions.find((role) => role.value === selectedRole)?.label ||
+                          "Select your role"}
                       </span>
                       <ChevronDown
                         size={18}
@@ -260,7 +255,7 @@ export default function LoginPageClient() {
                             : "top-[calc(100%+10px)]"
                         }`}
                       >
-                        {staffRoles.map((role) => {
+                        {staffRoleOptions.map((role) => {
                           const isSelected = selectedRole === role.value;
 
                           return (

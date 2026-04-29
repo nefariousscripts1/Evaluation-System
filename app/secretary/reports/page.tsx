@@ -6,7 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, MessageSquareText, Search, Star } from "lucide-react";
 import AcademicYearSelect from "@/components/secretary/AcademicYearSelect";
 import PaginationControls from "@/components/secretary/PaginationControls";
-import ProfileInfoCard from "@/components/secretary/ProfileInfoCard";
+import SummaryCommentsInstructorTable, {
+  SummaryCommentsInstructorRow,
+} from "@/components/secretary/SummaryCommentsInstructorTable";
 import SummaryCommentsTable, {
   SummaryComment,
 } from "@/components/secretary/SummaryCommentsTable";
@@ -35,18 +37,20 @@ type ReportsResponse = {
 };
 
 type SummaryCommentsResponse = {
+  academicYear: string;
+  semester: string;
   years: string[];
   semesters: string[];
-  selectedInstructor: {
-    id: number;
-    name: string;
-    label: string;
-  } | null;
+  selectedInstructor: SummaryCommentsInstructorRow | null;
+  instructors: SummaryCommentsInstructorRow[];
+  instructorTotal: number;
   comments: SummaryComment[];
   total: number;
+  instructorCount: number;
 };
 
-const pageSize = 5;
+const instructorListPageSize = 10;
+const detailPageSizeOptions = ["10", "20"] as const;
 
 export default function ReportsPage() {
   const { data: session, status } = useSession();
@@ -67,24 +71,34 @@ export default function ReportsPage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [commentSearchInput, setCommentSearchInput] = useState("");
+  const [commentSearchTerm, setCommentSearchTerm] = useState("");
   const [academicYearOptions, setAcademicYearOptions] = useState<string[]>([]);
   const [commentSemesterOptions, setCommentSemesterOptions] = useState<string[]>([]);
   const [commentAcademicYear, setCommentAcademicYear] = useState("");
   const [commentSemester, setCommentSemester] = useState("");
-  const [page, setPage] = useState(1);
+  const [selectedInstructorId, setSelectedInstructorId] = useState<number | null>(null);
+  const [instructorPage, setInstructorPage] = useState(1);
+  const [detailPage, setDetailPage] = useState(1);
+  const [detailPageSize, setDetailPageSize] = useState<string>("10");
+  const [instructors, setInstructors] = useState<SummaryCommentsInstructorRow[]>([]);
   const [comments, setComments] = useState<SummaryComment[]>([]);
+  const [selectedInstructor, setSelectedInstructor] = useState<SummaryCommentsInstructorRow | null>(null);
+  const [instructorTotal, setInstructorTotal] = useState(0);
   const [total, setTotal] = useState(0);
-  const [selectedInstructor, setSelectedInstructor] =
-    useState<SummaryCommentsResponse["selectedInstructor"]>(null);
+  const [instructorCount, setInstructorCount] = useState(0);
   const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentMessage, setCommentMessage] = useState(
-    "Search for an instructor to view student comments."
-  );
 
-  const startIndex = (page - 1) * pageSize;
-  const startDisplay = total === 0 ? 0 : startIndex + 1;
-  const endDisplay = Math.min(startIndex + pageSize, total);
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const showingInstructorDetail = selectedInstructorId !== null;
+  const activePage = showingInstructorDetail ? detailPage : instructorPage;
+  const activePageSize = showingInstructorDetail
+    ? Number.parseInt(detailPageSize, 10)
+    : instructorListPageSize;
+  const startIndex = (activePage - 1) * activePageSize;
+  const visibleTotal = showingInstructorDetail ? total : instructorTotal;
+  const startDisplay = visibleTotal === 0 ? 0 : startIndex + 1;
+  const endDisplay = Math.min(startIndex + activePageSize, visibleTotal);
+  const totalPages = Math.max(1, Math.ceil(visibleTotal / activePageSize));
 
   useEffect(() => {
     setActiveTab(searchParams.get("tab") === "comments" ? "comments" : "results");
@@ -150,17 +164,26 @@ export default function ReportsPage() {
       return;
     }
 
+    const controller = new AbortController();
+    let isCurrentRequest = true;
+
     const fetchComments = async () => {
       try {
         setCommentsLoading(true);
 
         const params = new URLSearchParams({
-          page: String(page),
-          pageSize: String(pageSize),
+          page: String(activePage),
+          pageSize: String(activePageSize),
         });
 
         if (searchTerm) {
           params.set("search", searchTerm);
+        }
+        if (commentSearchTerm) {
+          params.set("commentSearch", commentSearchTerm);
+        }
+        if (selectedInstructorId) {
+          params.set("instructorId", String(selectedInstructorId));
         }
 
         if (commentAcademicYear) {
@@ -172,45 +195,72 @@ export default function ReportsPage() {
 
         const res = await fetch(`/api/summary-comments?${params.toString()}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         const data = await readApiResponse<SummaryCommentsResponse>(res);
 
-        if (data.years.length > 0) {
-          setAcademicYearOptions(data.years);
-          if (!commentAcademicYear || !data.years.includes(commentAcademicYear)) {
-            setCommentAcademicYear(data.years[0]);
-          }
+        if (!isCurrentRequest) {
+          return;
         }
-        setCommentSemesterOptions(data.semesters || []);
 
+        setAcademicYearOptions(data.years || []);
+        setCommentSemesterOptions(data.semesters || []);
         setSelectedInstructor(data.selectedInstructor);
+        setInstructors(data.instructors || []);
+        setInstructorTotal(data.instructorTotal || 0);
         setComments(data.comments || []);
         setTotal(data.total || 0);
+        setInstructorCount(data.instructorCount || 0);
 
-        if (!searchTerm) {
-          setCommentMessage("Search for an instructor to view student comments.");
-        } else if (!data.selectedInstructor) {
-          setCommentMessage("No instructor matched your search.");
-        } else if ((data.total || 0) === 0) {
-          setCommentMessage(
-            "No student comments found for this instructor in the selected academic year."
-          );
-        } else {
-          setCommentMessage("");
+        if (selectedInstructorId && !data.selectedInstructor) {
+          setSelectedInstructorId(null);
+        }
+
+        if (data.academicYear && data.academicYear !== commentAcademicYear) {
+          setCommentAcademicYear(data.academicYear);
+        }
+        if ((data.semester || "") !== commentSemester) {
+          setCommentSemester(data.semester || "");
         }
       } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
+        if (!isCurrentRequest) {
+          return;
+        }
+
         console.error("Failed to load summary comments:", error);
         setSelectedInstructor(null);
+        setInstructors([]);
+        setInstructorTotal(0);
         setComments([]);
         setTotal(0);
-        setCommentMessage("Unable to load summary comments right now.");
+        setInstructorCount(0);
       } finally {
-        setCommentsLoading(false);
+        if (isCurrentRequest) {
+          setCommentsLoading(false);
+        }
       }
     };
 
     void fetchComments();
-  }, [activeTab, commentAcademicYear, commentSemester, page, searchTerm, status]);
+    return () => {
+      isCurrentRequest = false;
+      controller.abort();
+    };
+  }, [
+    activePage,
+    activePageSize,
+    activeTab,
+    commentAcademicYear,
+    commentSearchTerm,
+    commentSemester,
+    searchTerm,
+    selectedInstructorId,
+    status,
+  ]);
 
   const filteredResults = useMemo(() => {
     return results.filter((item) =>
@@ -259,17 +309,39 @@ export default function ReportsPage() {
 
   const handleCommentAcademicYearChange = (value: string) => {
     setCommentAcademicYear(value);
-    setPage(1);
+    setInstructorPage(1);
+    setDetailPage(1);
   };
 
   const handleCommentSemesterChange = (value: string) => {
     setCommentSemester(value);
-    setPage(1);
+    setInstructorPage(1);
+    setDetailPage(1);
   };
 
   const handleCommentSearch = () => {
-    setPage(1);
+    setInstructorPage(1);
     setSearchTerm(searchInput.trim());
+  };
+
+  const handleInstructorSelect = (instructorId: number) => {
+    setSelectedInstructorId(instructorId);
+    setDetailPage(1);
+    setCommentSearchInput("");
+    setCommentSearchTerm("");
+  };
+
+  const handleCommentDetailSearch = () => {
+    setDetailPage(1);
+    setCommentSearchTerm(commentSearchInput.trim());
+  };
+
+  const handleBackToInstructorList = () => {
+    setSelectedInstructorId(null);
+    setSelectedInstructor(null);
+    setCommentSearchInput("");
+    setCommentSearchTerm("");
+    setDetailPage(1);
   };
 
   if (activeTab === "results" && resultsLoading) {
@@ -286,8 +358,8 @@ export default function ReportsPage() {
   if (
     activeTab === "comments" &&
     commentsLoading &&
-    !selectedInstructor &&
     !searchTerm &&
+    instructors.length === 0 &&
     comments.length === 0
   ) {
     return (
@@ -475,43 +547,66 @@ export default function ReportsPage() {
           </>
         ) : (
           <div className="mt-6 space-y-5 rounded-[24px] border border-[#e3e3e3] bg-white p-5 shadow-[0_14px_34px_rgba(36,19,95,0.06)]">
-            {selectedInstructor ? (
-              <ProfileInfoCard name={selectedInstructor.name} label={selectedInstructor.label} />
-            ) : (
-              <div className="rounded-[8px] border border-dashed border-[#d8d2e6] bg-[#faf8ff] px-5 py-4 text-[14px] text-[#6c6684]">
-                {commentMessage}
-              </div>
-            )}
+            <div className="rounded-[18px] border border-[#ece7f6] bg-[#faf8ff] px-5 py-4 text-[14px] text-[#6c6684]">
+              {showingInstructorDetail
+                ? `Showing anonymous comments for ${
+                    selectedInstructor?.instructor_name || "the selected instructor"
+                  } in ${commentAcademicYear || "the selected academic year"}${
+                    commentSemester ? ` | ${commentSemester}` : ""
+                  }.`
+                : searchTerm
+                ? `Showing instructor groups matching "${searchTerm}" in ${
+                    commentAcademicYear || "the selected academic year"
+                  }${commentSemester ? ` | ${commentSemester}` : ""}.`
+                : `Showing all instructor groups with comments for ${
+                    commentAcademicYear || "the selected academic year"
+                  }${commentSemester ? ` | ${commentSemester}` : ""}.`}
+              {!showingInstructorDetail && visibleTotal > 0
+                ? ` ${instructorCount} instructor${instructorCount === 1 ? "" : "s"} matched.`
+                : ""}
+            </div>
 
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex w-full flex-col gap-3 md:flex-row md:items-center">
-                <div className="relative w-full md:max-w-[320px]">
-                  <Search
-                    size={16}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8e89aa]"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Search Instructor"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleCommentSearch();
-                      }
-                    }}
-                    className="app-input h-[44px] rounded-[16px] pl-10 text-[14px]"
-                  />
-                </div>
+                {showingInstructorDetail ? (
+                  <button
+                    type="button"
+                    onClick={handleBackToInstructorList}
+                    className="min-h-[44px] rounded-full border border-[#d8d2e6] bg-white px-5 py-2 text-[14px] font-semibold text-[#24135f] transition hover:bg-[#f7f4ff]"
+                  >
+                    Back to Instructor List
+                  </button>
+                ) : (
+                  <>
+                    <div className="relative w-full md:max-w-[320px]">
+                      <Search
+                        size={16}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8e89aa]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Search Instructor"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleCommentSearch();
+                          }
+                        }}
+                        className="app-input h-[44px] rounded-[16px] pl-10 text-[14px]"
+                      />
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={handleCommentSearch}
-                  className="app-btn-primary min-h-[44px] px-5 py-2 text-[14px]"
-                >
-                  Search
-                </button>
+                    <button
+                      type="button"
+                      onClick={handleCommentSearch}
+                      className="app-btn-primary min-h-[44px] px-5 py-2 text-[14px]"
+                    >
+                      Search
+                    </button>
+                  </>
+                )}
               </div>
 
               <div className="flex justify-start lg:justify-end">
@@ -536,35 +631,111 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {searchTerm && selectedInstructor && total === 0 ? (
-              <p className="text-[13px] text-[#6c6684]">
-                No comments were saved for{" "}
-                <span className="font-semibold text-[#24135f]">{selectedInstructor.name}</span> in{" "}
-                <span className="font-semibold text-[#24135f]">{commentAcademicYear}</span>.
-              </p>
-            ) : null}
+            {showingInstructorDetail ? (
+              <>
+                <div className="rounded-[18px] border border-[#ece7f6] bg-white px-5 py-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-[20px] font-extrabold text-[#24135f]">
+                        {selectedInstructor?.instructor_name || "Instructor"}
+                      </p>
+                      <p className="mt-1 text-[13px] text-[#6c6684]">
+                        {commentAcademicYear || "-"} | {commentSemester || "All Semesters"}
+                      </p>
+                      <p className="mt-2 text-[13px] font-semibold text-[#24135f]">
+                        {total} comment{total === 1 ? "" : "s"} found
+                      </p>
+                    </div>
 
-            {!searchTerm && commentAcademicYear ? (
-              <p className="text-[13px] text-[#6c6684]">
-                Search for an instructor. Latest available academic year is{" "}
-                <span className="font-semibold text-[#24135f]">{commentAcademicYear}</span>.
-              </p>
-            ) : null}
+                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
+                      <div className="relative w-full sm:w-[300px]">
+                        <Search
+                          size={16}
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8e89aa]"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Search within comments"
+                          value={commentSearchInput}
+                          onChange={(e) => setCommentSearchInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleCommentDetailSearch();
+                            }
+                          }}
+                          className="app-input h-[44px] rounded-[16px] pl-10 text-[14px]"
+                        />
+                      </div>
 
-            <div className="rounded-[18px]">
-              <SummaryCommentsTable comments={comments} startIndex={startDisplay} />
-            </div>
+                      <button
+                        type="button"
+                        onClick={handleCommentDetailSearch}
+                        className="app-btn-primary min-h-[44px] px-5 py-2 text-[14px]"
+                      >
+                        Search Comments
+                      </button>
+
+                      <div className="w-full sm:w-[150px]">
+                        <AppSelect
+                          value={detailPageSize}
+                          onChange={(value) => {
+                            setDetailPageSize(value);
+                            setDetailPage(1);
+                          }}
+                          options={detailPageSizeOptions.map((value) => ({
+                            value,
+                            label: `${value} per page`,
+                          }))}
+                          triggerClassName="min-h-[44px] rounded-[16px] text-[14px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[18px]">
+                  <SummaryCommentsTable
+                    comments={comments}
+                    startIndex={startDisplay}
+                    emptyMessage="No comments found for the selected filters."
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="rounded-[18px]">
+                <SummaryCommentsInstructorTable
+                  instructors={instructors}
+                  onSelectInstructor={handleInstructorSelect}
+                  emptyMessage="No comments found for the selected filters."
+                />
+              </div>
+            )}
 
             {commentsLoading ? <InlineLoadingIndicator label="Refreshing comments..." /> : null}
 
             <PaginationControls
               start={startDisplay}
               end={endDisplay}
-              total={total}
-              hasPrevious={page > 1}
-              hasNext={page < totalPages}
-              onPrevious={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+              total={visibleTotal}
+              hasPrevious={activePage > 1}
+              hasNext={activePage < totalPages}
+              onPrevious={() => {
+                if (showingInstructorDetail) {
+                  setDetailPage((current) => Math.max(1, current - 1));
+                  return;
+                }
+
+                setInstructorPage((current) => Math.max(1, current - 1));
+              }}
+              onNext={() => {
+                if (showingInstructorDetail) {
+                  setDetailPage((current) => Math.min(totalPages, current + 1));
+                  return;
+                }
+
+                setInstructorPage((current) => Math.min(totalPages, current + 1));
+              }}
             />
           </div>
         )}

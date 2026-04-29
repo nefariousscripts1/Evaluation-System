@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/db";
 import { SEMESTER_OPTIONS, isValidSemester } from "@/lib/evaluation-session";
 import {
@@ -13,6 +14,20 @@ import {
   type CampusDirectorRoleFilter,
   type ReportableRole,
 } from "@/lib/reporting-roles";
+import {
+  buildSummaryCommentRecords,
+  filterInstructorCommentRecords,
+  filterSummaryCommentRecords,
+  groupSummaryCommentRecordsByInstructor,
+  paginateInstructorGroups,
+  paginateSummaryCommentRecords,
+  type SummaryCommentInstructorGroup,
+  type SummaryCommentRecord,
+} from "@/lib/summary-comments";
+import {
+  buildAccessibleResultsUserWhere,
+  type ResultsAccessContext,
+} from "@/lib/results-access";
 
 export type RatingBreakdown = {
   fiveStar: number;
@@ -26,6 +41,12 @@ export type LeadershipTargetResult = {
   id: number;
   academicYear: string;
   averageRating: number;
+  instructor_id: number;
+  instructor_name: string;
+  instructor_role: string;
+  department_id: string | null;
+  college_id: string | null;
+  semester: string;
   user: {
     id: number;
     name: string | null;
@@ -66,7 +87,7 @@ export type LeadershipCommentItem = {
 
 export type LeadershipCommentsResponse = {
   academicYear: string;
-  years: string[];
+  years: string[]; 
   semesters: string[];
   semester: string;
   mySummaryComments: LeadershipCommentItem[];
@@ -76,11 +97,11 @@ export type LeadershipCommentsResponse = {
       name: string;
       label: string;
     } | null;
-    comments: Array<{
-      id: number;
-      comment: string;
-    }>;
+    targets: SummaryCommentInstructorGroup[];
+    targetTotal: number;
+    comments: SummaryCommentRecord[];
     total: number;
+    targetCount: number;
   };
 };
 
@@ -106,11 +127,11 @@ export type SingleTargetCommentsResponse = {
     name: string;
     label: string;
   } | null;
-  comments: Array<{
-    id: number;
-    comment: string;
-  }>;
+  targets: SummaryCommentInstructorGroup[];
+  targetTotal: number;
+  comments: SummaryCommentRecord[];
   total: number;
+  targetCount: number;
 };
 
 export type CampusDirectorResultsResponse = {
@@ -137,11 +158,11 @@ export type CampusDirectorCommentsResponse = {
     name: string;
     label: string;
   } | null;
-  comments: Array<{
-    id: number;
-    comment: string;
-  }>;
+  targets: SummaryCommentInstructorGroup[];
+  targetTotal: number;
+  comments: SummaryCommentRecord[];
   total: number;
+  targetCount: number;
 };
 
 const commentSemesterOptions = ["all"] as const;
@@ -240,16 +261,13 @@ function resolveSelectedSemester(requestedSemester: string | null, semesters: st
 async function buildTargetResultsFromEvaluations(params: {
   academicYear: string;
   semester: string;
-  roles: ReportableRole[];
+  evaluatedUserWhere: Prisma.UserWhereInput;
 }) {
   const evaluations = await prisma.evaluation.findMany({
     where: {
       academicYear: params.academicYear,
       semester: params.semester,
-      evaluated: {
-        role: { in: params.roles },
-        deletedAt: null,
-      },
+      evaluated: params.evaluatedUserWhere,
     },
     include: {
       evaluated: {
@@ -278,6 +296,12 @@ async function buildTargetResultsFromEvaluations(params: {
         id: evaluation.evaluatedId,
         academicYear: evaluation.academicYear,
         averageRating: 0,
+        instructor_id: evaluation.evaluatedId,
+        instructor_name: evaluation.evaluated.name || evaluation.evaluated.email,
+        instructor_role: evaluation.evaluated.role,
+        department_id: evaluation.evaluated.department ?? null,
+        college_id: evaluation.evaluated.department ?? null,
+        semester: evaluation.semester,
         user: evaluation.evaluated,
         ratingSum: 0,
         ratingCount: 0,
@@ -309,8 +333,17 @@ export async function getLeadershipResultsData(params: {
   sessionUserEmail?: string | null;
   viewerRoleLabel: string;
   targetRole: "faculty" | "chairperson" | "dean" | "director";
+  accessContext: ResultsAccessContext;
 }) {
-  const { request, sessionUserId, sessionUserName, sessionUserEmail, viewerRoleLabel, targetRole } =
+  const {
+    request,
+    sessionUserId,
+    sessionUserName,
+    sessionUserEmail,
+    viewerRoleLabel,
+    targetRole,
+    accessContext,
+  } =
     params;
 
   const { years, semestersByYear } = await resolveReleasedYearAndSemesters();
@@ -355,17 +388,20 @@ export async function getLeadershipResultsData(params: {
         )
       : 0;
 
+  const accessibleTargetUsersWhere = buildAccessibleResultsUserWhere(accessContext, {
+    includeOwn: true,
+    includeSubordinate: true,
+    restrictToRoles: [accessContext.role, targetRole],
+  });
+
   const targetResults = await buildTargetResultsFromEvaluations({
     academicYear,
     semester,
-    roles: [targetRole],
+    evaluatedUserWhere: accessibleTargetUsersWhere,
   });
 
   const totalTargets = await prisma.user.count({
-    where: {
-      role: targetRole,
-      deletedAt: null,
-    },
+    where: accessibleTargetUsersWhere,
   });
 
   const averageRating =
@@ -408,8 +444,9 @@ export async function getLeadershipResultsData(params: {
 export async function getSingleTargetResultsData(params: {
   request: Request;
   targetRole: ReportableRole;
+  accessContext: ResultsAccessContext;
 }) {
-  const { request, targetRole } = params;
+  const { request, targetRole, accessContext } = params;
   const { years, semestersByYear } = await resolveReleasedYearAndSemesters();
   const { searchParams } = new URL(request.url);
   const requestedYear = searchParams.get("year")?.trim();
@@ -424,17 +461,20 @@ export async function getSingleTargetResultsData(params: {
 
   await assertResultsReleasedForAcademicYear(academicYear, semester);
 
+  const accessibleTargetUsersWhere = buildAccessibleResultsUserWhere(accessContext, {
+    includeOwn: true,
+    includeSubordinate: true,
+    restrictToRoles: [accessContext.role, targetRole],
+  });
+
   const targetResults = await buildTargetResultsFromEvaluations({
     academicYear,
     semester,
-    roles: [targetRole],
+    evaluatedUserWhere: accessibleTargetUsersWhere,
   });
 
   const totalTargets = await prisma.user.count({
-    where: {
-      role: targetRole,
-      deletedAt: null,
-    },
+    where: accessibleTargetUsersWhere,
   });
 
   const averageRating =
@@ -463,10 +503,6 @@ export async function getSingleTargetResultsData(params: {
   };
 
   return response;
-}
-
-function normalizeCommentKey(comment: string) {
-  return comment.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 async function buildCommentItemsForUser(userId: number, academicYear: string) {
@@ -525,59 +561,108 @@ async function buildCommentItemsForUser(userId: number, academicYear: string) {
   });
 }
 
-async function buildTargetComments(params: {
-  targetId: number;
-  targetLabel?: string;
+async function buildTargetCommentRecords(params: {
   academicYear: string;
-  page: number;
-  pageSize: number;
+  semester?: string;
+  evaluatedUserWhere: Prisma.UserWhereInput;
 }) {
-  const { targetId, targetLabel, academicYear, page, pageSize } = params;
-
-  const target = await prisma.user.findUnique({
-    where: { id: targetId },
+  const evaluations = await prisma.evaluation.findMany({
+    where: {
+      academicYear: params.academicYear,
+      ...(params.semester ? { semester: params.semester } : {}),
+      evaluated: params.evaluatedUserWhere,
+      OR: [
+        { generalComment: { not: null } },
+        { answers: { some: { comment: { not: null } } } },
+      ],
+    },
     select: {
       id: true,
-      name: true,
-      email: true,
-      role: true,
+      academicYear: true,
+      semester: true,
+      createdAt: true,
+      generalComment: true,
+      evaluated: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true,
+        },
+      },
+      answers: {
+        where: { comment: { not: null } },
+        select: {
+          id: true,
+          comment: true,
+        },
+      },
     },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 
-  if (!target) {
-    return {
-      selectedTarget: null,
-      comments: [] as Array<{ id: number; comment: string }>,
-      total: 0,
-    };
+  const labelByTargetId = new Map<number, string>();
+  for (const evaluation of evaluations) {
+    labelByTargetId.set(
+      evaluation.evaluated.id,
+      getReportableRoleLabel(evaluation.evaluated.role as ReportableRole)
+    );
   }
 
-  const rawItems = await buildCommentItemsForUser(targetId, academicYear);
-  const seenComments = new Set<string>();
-  const deduplicated = rawItems.filter((item) => {
-    const normalized = normalizeCommentKey(item.comment);
+  return {
+    records: buildSummaryCommentRecords(evaluations),
+    labelByTargetId,
+  };
+}
 
-    if (!normalized || seenComments.has(normalized)) {
-      return false;
-    }
-
-    seenComments.add(normalized);
-    return true;
-  });
-
-  const startIndex = (page - 1) * pageSize;
+function buildGroupedTargetComments(params: {
+  records: SummaryCommentRecord[];
+  page: number;
+  pageSize: number;
+  search: string;
+  commentSearch: string;
+  selectedTargetId: number | null;
+  labelByTargetId: Map<number, string>;
+  fallbackTargetLabel?: string;
+}) {
+  const filteredRecords = filterSummaryCommentRecords(params.records, params.search);
+  const targets = groupSummaryCommentRecordsByInstructor(filteredRecords);
+  const paginatedTargets = paginateInstructorGroups(targets, params.page, params.pageSize);
+  const matchingTargetIds = new Set(targets.map((target) => target.instructor_id));
+  const validSelectedTargetId =
+    params.selectedTargetId && matchingTargetIds.has(params.selectedTargetId)
+      ? params.selectedTargetId
+      : null;
+  const selectedTargetGroup =
+    validSelectedTargetId === null
+      ? null
+      : targets.find((target) => target.instructor_id === validSelectedTargetId) ?? null;
+  const filteredComments =
+    validSelectedTargetId === null
+      ? []
+      : filterInstructorCommentRecords(filteredRecords, validSelectedTargetId, params.commentSearch);
 
   return {
-    selectedTarget: {
-      id: target.id,
-      name: target.name || target.email,
-      label: targetLabel || getReportableRoleLabel(target.role as ReportableRole),
-    },
-    comments: deduplicated.slice(startIndex, startIndex + pageSize).map((item) => ({
-      id: item.id,
-      comment: item.comment,
-    })),
-    total: deduplicated.length,
+    selectedTarget:
+      selectedTargetGroup === null
+        ? null
+        : {
+            id: selectedTargetGroup.instructor_id,
+            name: selectedTargetGroup.instructor_name,
+            label:
+              params.labelByTargetId.get(selectedTargetGroup.instructor_id) ??
+              params.fallbackTargetLabel ??
+              "Target",
+          },
+    targets: paginatedTargets,
+    targetTotal: targets.length,
+    comments:
+      validSelectedTargetId === null
+        ? []
+        : paginateSummaryCommentRecords(filteredComments, params.page, params.pageSize),
+    total: filteredComments.length,
+    targetCount: matchingTargetIds.size,
   };
 }
 
@@ -586,12 +671,14 @@ export async function getLeadershipCommentsData(params: {
   sessionUserId: number;
   targetRole: ReportableRole;
   targetLabel: string;
+  accessContext: ResultsAccessContext;
 }) {
-  const { request, sessionUserId, targetRole, targetLabel } = params;
+  const { request, sessionUserId, targetRole, targetLabel, accessContext } = params;
   const { searchParams } = new URL(request.url);
   const page = Math.max(Number.parseInt(searchParams.get("page") ?? "1", 10), 1);
-  const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "5", 10), 1);
+  const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "10", 10), 1);
   const search = searchParams.get("search")?.trim() ?? "";
+  const commentSearch = searchParams.get("commentSearch")?.trim() ?? "";
   const selectedTargetId = Number.parseInt(searchParams.get("targetId") ?? "", 10);
   const requestedSemester = searchParams.get("semester")?.trim().toLowerCase() ?? "all";
 
@@ -610,64 +697,25 @@ export async function getLeadershipCommentsData(params: {
   await assertResultsReleasedForAcademicYear(academicYear);
 
   const mySummaryComments = await buildCommentItemsForUser(sessionUserId, academicYear);
-
-  const selectedTarget =
-    Number.isInteger(selectedTargetId) && selectedTargetId > 0
-      ? await prisma.user.findFirst({
-          where: {
-            id: selectedTargetId,
-            role: targetRole,
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-          },
-        })
-      : search.length > 0
-      ? await prisma.user.findFirst({
-          where: {
-            role: targetRole,
-            deletedAt: null,
-            OR: [{ name: { contains: search } }, { email: { contains: search } }],
-          },
-          orderBy: [{ name: "asc" }, { email: "asc" }],
-          select: {
-            id: true,
-          },
-        })
-      : await prisma.user.findFirst({
-          where: {
-            role: targetRole,
-            deletedAt: null,
-            evaluationsReceived: {
-              some: {
-                academicYear,
-                OR: [
-                  { generalComment: { not: null } },
-                  { answers: { some: { comment: { not: null } } } },
-                ],
-              },
-            },
-          },
-          orderBy: [{ name: "asc" }, { email: "asc" }],
-          select: {
-            id: true,
-          },
-        });
-
-  const targetComments = selectedTarget
-    ? await buildTargetComments({
-        targetId: selectedTarget.id,
-        targetLabel,
-        academicYear,
-        page,
-        pageSize,
-      })
-    : {
-        selectedTarget: null,
-        comments: [] as Array<{ id: number; comment: string }>,
-        total: 0,
-      };
+  const accessibleTargetUsersWhere = buildAccessibleResultsUserWhere(accessContext, {
+    includeOwn: true,
+    includeSubordinate: true,
+    restrictToRoles: [accessContext.role, targetRole],
+  });
+  const targetCommentData = await buildTargetCommentRecords({
+    academicYear,
+    evaluatedUserWhere: accessibleTargetUsersWhere,
+  });
+  const targetComments = buildGroupedTargetComments({
+    records: targetCommentData.records,
+    page,
+    pageSize,
+    search,
+    commentSearch,
+    selectedTargetId: Number.isInteger(selectedTargetId) && selectedTargetId > 0 ? selectedTargetId : null,
+    labelByTargetId: targetCommentData.labelByTargetId,
+    fallbackTargetLabel: targetLabel,
+  });
 
   const response: LeadershipCommentsResponse = {
     academicYear,
@@ -685,12 +733,14 @@ export async function getSingleTargetCommentsData(params: {
   request: Request;
   targetRole: ReportableRole;
   targetLabel: string;
+  accessContext: ResultsAccessContext;
 }) {
-  const { request, targetRole, targetLabel } = params;
+  const { request, targetRole, targetLabel, accessContext } = params;
   const { searchParams } = new URL(request.url);
   const page = Math.max(Number.parseInt(searchParams.get("page") ?? "1", 10), 1);
-  const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "5", 10), 1);
+  const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "10", 10), 1);
   const search = searchParams.get("search")?.trim() ?? "";
+  const commentSearch = searchParams.get("commentSearch")?.trim() ?? "";
   const selectedTargetId = Number.parseInt(searchParams.get("targetId") ?? "", 10);
   const requestedSemester = searchParams.get("semester")?.trim().toLowerCase() ?? "all";
 
@@ -708,63 +758,25 @@ export async function getSingleTargetCommentsData(params: {
 
   await assertResultsReleasedForAcademicYear(academicYear);
 
-  const selectedTarget =
-    Number.isInteger(selectedTargetId) && selectedTargetId > 0
-      ? await prisma.user.findFirst({
-          where: {
-            id: selectedTargetId,
-            role: targetRole,
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-          },
-        })
-      : search.length > 0
-      ? await prisma.user.findFirst({
-          where: {
-            role: targetRole,
-            deletedAt: null,
-            OR: [{ name: { contains: search } }, { email: { contains: search } }],
-          },
-          orderBy: [{ name: "asc" }, { email: "asc" }],
-          select: {
-            id: true,
-          },
-        })
-      : await prisma.user.findFirst({
-          where: {
-            role: targetRole,
-            deletedAt: null,
-            evaluationsReceived: {
-              some: {
-                academicYear,
-                OR: [
-                  { generalComment: { not: null } },
-                  { answers: { some: { comment: { not: null } } } },
-                ],
-              },
-            },
-          },
-          orderBy: [{ name: "asc" }, { email: "asc" }],
-          select: {
-            id: true,
-          },
-        });
-
-  const targetComments = selectedTarget
-    ? await buildTargetComments({
-        targetId: selectedTarget.id,
-        targetLabel,
-        academicYear,
-        page,
-        pageSize,
-      })
-    : {
-        selectedTarget: null,
-        comments: [] as Array<{ id: number; comment: string }>,
-        total: 0,
-      };
+  const accessibleTargetUsersWhere = buildAccessibleResultsUserWhere(accessContext, {
+    includeOwn: true,
+    includeSubordinate: true,
+    restrictToRoles: [accessContext.role, targetRole],
+  });
+  const targetCommentData = await buildTargetCommentRecords({
+    academicYear,
+    evaluatedUserWhere: accessibleTargetUsersWhere,
+  });
+  const targetComments = buildGroupedTargetComments({
+    records: targetCommentData.records,
+    page,
+    pageSize,
+    search,
+    commentSearch,
+    selectedTargetId: Number.isInteger(selectedTargetId) && selectedTargetId > 0 ? selectedTargetId : null,
+    labelByTargetId: targetCommentData.labelByTargetId,
+    fallbackTargetLabel: targetLabel,
+  });
 
   const response: SingleTargetCommentsResponse = {
     academicYear,
@@ -772,8 +784,11 @@ export async function getSingleTargetCommentsData(params: {
     semesters: ["All Semesters"],
     semester: "all",
     selectedTarget: targetComments.selectedTarget,
+    targets: targetComments.targets,
+    targetTotal: targetComments.targetTotal,
     comments: targetComments.comments,
     total: targetComments.total,
+    targetCount: targetComments.targetCount,
   };
 
   return response;
@@ -790,8 +805,9 @@ function getCampusDirectorRoles(role: CampusDirectorRoleFilter) {
 
 export async function getCampusDirectorResultsData(params: {
   request: Request;
+  accessContext: ResultsAccessContext;
 }) {
-  const { request } = params;
+  const { request, accessContext } = params;
   const { years, semestersByYear } = await resolveReleasedYearAndSemesters();
   const { searchParams } = new URL(request.url);
   const requestedYear = searchParams.get("year")?.trim();
@@ -808,18 +824,21 @@ export async function getCampusDirectorResultsData(params: {
 
   const role = resolveCampusDirectorRoleFilter(searchParams.get("role"));
   const roles = getCampusDirectorRoles(role);
+  const visibleRoles = role === "all" ? [...roles, accessContext.role] : roles;
+  const accessibleTargetUsersWhere = buildAccessibleResultsUserWhere(accessContext, {
+    includeOwn: role === "all",
+    includeSubordinate: true,
+    restrictToRoles: visibleRoles,
+  });
 
   const results = await buildTargetResultsFromEvaluations({
     academicYear,
     semester,
-    roles,
+    evaluatedUserWhere: accessibleTargetUsersWhere,
   });
 
   const totalTargets = await prisma.user.count({
-    where: {
-      role: { in: roles },
-      deletedAt: null,
-    },
+    where: accessibleTargetUsersWhere,
   });
 
   const averageRating =
@@ -850,12 +869,14 @@ export async function getCampusDirectorResultsData(params: {
 
 export async function getCampusDirectorCommentsData(params: {
   request: Request;
+  accessContext: ResultsAccessContext;
 }) {
-  const { request } = params;
+  const { request, accessContext } = params;
   const { searchParams } = new URL(request.url);
   const page = Math.max(Number.parseInt(searchParams.get("page") ?? "1", 10), 1);
-  const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "5", 10), 1);
+  const pageSize = Math.max(Number.parseInt(searchParams.get("pageSize") ?? "10", 10), 1);
   const search = searchParams.get("search")?.trim() ?? "";
+  const commentSearch = searchParams.get("commentSearch")?.trim() ?? "";
   const selectedTargetId = Number.parseInt(searchParams.get("targetId") ?? "", 10);
   const requestedSemester = searchParams.get("semester")?.trim().toLowerCase() ?? "all";
 
@@ -875,67 +896,25 @@ export async function getCampusDirectorCommentsData(params: {
 
   const role = resolveCampusDirectorRoleFilter(searchParams.get("role"));
   const roles = getCampusDirectorRoles(role);
-
-  const selectedTarget =
-    Number.isInteger(selectedTargetId) && selectedTargetId > 0
-      ? await prisma.user.findFirst({
-          where: {
-            id: selectedTargetId,
-            role: { in: roles },
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-            role: true,
-          },
-        })
-      : search.length > 0
-      ? await prisma.user.findFirst({
-          where: {
-            role: { in: roles },
-            deletedAt: null,
-            OR: [{ name: { contains: search } }, { email: { contains: search } }],
-          },
-          orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }],
-          select: {
-            id: true,
-            role: true,
-          },
-        })
-      : await prisma.user.findFirst({
-          where: {
-            role: { in: roles },
-            deletedAt: null,
-            evaluationsReceived: {
-              some: {
-                academicYear,
-                OR: [
-                  { generalComment: { not: null } },
-                  { answers: { some: { comment: { not: null } } } },
-                ],
-              },
-            },
-          },
-          orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }],
-          select: {
-            id: true,
-            role: true,
-          },
-        });
-
-  const targetComments = selectedTarget
-    ? await buildTargetComments({
-        targetId: selectedTarget.id,
-        targetLabel: getReportableRoleLabel(selectedTarget.role as ReportableRole),
-        academicYear,
-        page,
-        pageSize,
-      })
-    : {
-        selectedTarget: null,
-        comments: [] as Array<{ id: number; comment: string }>,
-        total: 0,
-      };
+  const visibleRoles = role === "all" ? [...roles, accessContext.role] : roles;
+  const accessibleTargetUsersWhere = buildAccessibleResultsUserWhere(accessContext, {
+    includeOwn: role === "all",
+    includeSubordinate: true,
+    restrictToRoles: visibleRoles,
+  });
+  const targetCommentData = await buildTargetCommentRecords({
+    academicYear,
+    evaluatedUserWhere: accessibleTargetUsersWhere,
+  });
+  const targetComments = buildGroupedTargetComments({
+    records: targetCommentData.records,
+    page,
+    pageSize,
+    search,
+    commentSearch,
+    selectedTargetId: Number.isInteger(selectedTargetId) && selectedTargetId > 0 ? selectedTargetId : null,
+    labelByTargetId: targetCommentData.labelByTargetId,
+  });
 
   const response: CampusDirectorCommentsResponse = {
     academicYear,
@@ -944,8 +923,11 @@ export async function getCampusDirectorCommentsData(params: {
     semester: "all",
     role,
     selectedTarget: targetComments.selectedTarget,
+    targets: targetComments.targets,
+    targetTotal: targetComments.targetTotal,
     comments: targetComments.comments,
     total: targetComments.total,
+    targetCount: targetComments.targetCount,
   };
 
   return response;

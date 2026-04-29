@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { apiSuccess, handleApiError } from "@/lib/api";
+import { buildAccessibleResultsUserWhere, getResultsAccessContext } from "@/lib/results-access";
 import {
   campusDirectorEvaluatedRoles,
   getReportableRoleLabel,
@@ -17,17 +19,25 @@ export async function GET(request: Request) {
     if (!session || session.user.role !== "campus_director") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+    const accessContext = getResultsAccessContext(session);
+    if (!accessContext) {
+      return apiSuccess([], { preserveRoot: false });
+    }
 
     const { searchParams } = new URL(request.url);
     const requestedRole = searchParams.get("role")?.trim().toLowerCase() ?? "all";
     const roleFilter = isCampusDirectorRoleFilter(requestedRole) ? requestedRole : "all";
-    const roles = roleFilter === "all" ? [...campusDirectorEvaluatedRoles] : [roleFilter];
+    const roles =
+      roleFilter === "all"
+        ? [...campusDirectorEvaluatedRoles, "campus_director" as const]
+        : [roleFilter];
 
     const targets = await prisma.user.findMany({
-      where: {
-        role: { in: roles },
-        deletedAt: null,
-      },
+      where: buildAccessibleResultsUserWhere(accessContext, {
+        includeOwn: roleFilter === "all",
+        includeSubordinate: true,
+        restrictToRoles: roles,
+      }),
       select: {
         id: true,
         name: true,
@@ -64,7 +74,6 @@ export async function GET(request: Request) {
       }))
     );
   } catch (error) {
-    console.error("Campus director targets API error:", error);
-    return NextResponse.json({ message: "Failed to fetch campus director targets" }, { status: 500 });
+    return handleApiError(error, "Failed to fetch campus director targets");
   }
 }

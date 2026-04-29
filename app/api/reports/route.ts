@@ -2,27 +2,43 @@ import prisma from "@/lib/db";
 import { SEMESTER_OPTIONS } from "@/lib/evaluation-session";
 import { apiSuccess, handleApiError, parseSearchParams } from "@/lib/api";
 import { requireApiSession } from "@/lib/server-auth";
+import {
+  buildAccessibleResultsUserWhere,
+  getResultsAccessContext,
+  resultsViewerRoles,
+} from "@/lib/results-access";
 import { reportsQuerySchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    await requireApiSession(["secretary"]);
+    const session = await requireApiSession(resultsViewerRoles);
+    const accessContext = getResultsAccessContext(session);
     const { academicYear, semester } = parseSearchParams(request, reportsQuerySchema);
 
-    const where = {
+    if (!accessContext) {
+      return apiSuccess({
+        results: [],
+        years: [],
+        semesters: SEMESTER_OPTIONS,
+        completedCount: 0,
+        totalCount: 0,
+      });
+    }
+
+    const accessibleUsersWhere = buildAccessibleResultsUserWhere(accessContext);
+    const evaluationWhere = {
       ...(academicYear ? { academicYear } : {}),
       ...(semester ? { semester } : {}),
     };
 
-    const [users, totalInstructorCount] = await Promise.all([
+    const [users, totalInstructorCount, yearsData] = await Promise.all([
       prisma.user.findMany({
         where: {
-          role: "faculty",
-          deletedAt: null,
+          ...accessibleUsersWhere,
           evaluationsReceived: {
-            some: where,
+            some: evaluationWhere,
           },
         },
         select: {
@@ -30,11 +46,13 @@ export async function GET(request: Request) {
           name: true,
           email: true,
           role: true,
+          department: true,
           evaluationsReceived: {
-            where,
+            where: evaluationWhere,
             select: {
               id: true,
               academicYear: true,
+              semester: true,
               answers: {
                 select: {
                   rating: true,
@@ -45,10 +63,15 @@ export async function GET(request: Request) {
         },
       }),
       prisma.user.count({
+        where: accessibleUsersWhere,
+      }),
+      prisma.evaluation.findMany({
         where: {
-          role: "faculty",
-          deletedAt: null,
+          evaluated: accessibleUsersWhere,
         },
+        distinct: ["academicYear"],
+        select: { academicYear: true },
+        orderBy: { academicYear: "desc" },
       }),
     ]);
 
@@ -65,30 +88,28 @@ export async function GET(request: Request) {
 
         return {
           id: user.id,
+          instructor_id: user.id,
+          instructor_name: user.name || user.email,
+          instructor_role: user.role,
+          department_id: user.department ?? null,
+          college_id: user.department ?? null,
+          academic_year: academicYear || user.evaluationsReceived[0]?.academicYear || "",
+          semester: semester || user.evaluationsReceived[0]?.semester || "",
           user: {
+            id: user.id,
             name: user.name,
             email: user.email,
             role: user.role,
+            department: user.department,
           },
           academicYear: academicYear || user.evaluationsReceived[0]?.academicYear || "",
-          averageRating,
+          averageRating: Number(averageRating.toFixed(2)),
         };
       })
       .sort((left, right) => right.averageRating - left.averageRating);
 
-    const yearsData = await prisma.evaluation.findMany({
-      where: {
-        evaluated: {
-          role: "faculty",
-          deletedAt: null,
-        },
-      },
-      distinct: ["academicYear"],
-      select: { academicYear: true },
-      orderBy: { academicYear: "desc" },
-    });
-
     return apiSuccess({
+      viewerRole: accessContext.role,
       results,
       years: yearsData.map((item) => item.academicYear),
       semesters: SEMESTER_OPTIONS,

@@ -38,6 +38,7 @@ async function validateSession(session: Session | null) {
       email: true,
       name: true,
       role: true,
+      department: true,
       mustChangePassword: true,
     },
   });
@@ -54,6 +55,7 @@ async function validateSession(session: Session | null) {
       email: user.email,
       name: user.name,
       role: user.role,
+      department: user.department,
       mustChangePassword: user.mustChangePassword,
     },
   };

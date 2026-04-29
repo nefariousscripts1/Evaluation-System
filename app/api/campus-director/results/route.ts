@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { getCampusDirectorResultsData } from "@/lib/leadership-portal";
+import { getResultsAccessContext } from "@/lib/results-access";
 import { isResultsNotReleasedError } from "@/lib/results-release";
+import { requireApiSession } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await requireApiSession(["campus_director"]);
+    const accessContext = getResultsAccessContext(session);
 
-    if (!session || session.user.role !== "campus_director") {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!accessContext) {
+      return NextResponse.json({ message: "Invalid session user" }, { status: 401 });
     }
 
-    const data = await getCampusDirectorResultsData({ request });
+    const data = await getCampusDirectorResultsData({ request, accessContext });
 
     return NextResponse.json(data);
   } catch (error) {

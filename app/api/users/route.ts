@@ -1,7 +1,7 @@
-import bcrypt from "bcrypt";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db";
 import { apiError, apiSuccess, handleApiError, parseJsonBody } from "@/lib/api";
+import { hashPassword } from "@/lib/password-auth";
 import { requireApiSession } from "@/lib/server-auth";
 import { staffUserCreateSchema } from "@/lib/validation";
 
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   try {
     await requireApiSession(["secretary"]);
     const payload = await parseJsonBody(request, staffUserCreateSchema);
-    const hashedPassword = await bcrypt.hash(payload.password, 10);
+    const hashedPassword = await hashPassword(payload.password);
 
     const user = await prisma.user.create({
       data: {

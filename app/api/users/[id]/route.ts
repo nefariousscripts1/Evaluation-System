@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db";
 import {
@@ -8,6 +7,7 @@ import {
   parseJsonBody,
   parseRouteParams,
 } from "@/lib/api";
+import { hashPassword } from "@/lib/password-auth";
 import { requireApiSession } from "@/lib/server-auth";
 import { idRouteParamSchema, staffUserUpdateSchema } from "@/lib/validation";
 
@@ -107,7 +107,7 @@ export async function PUT(
     };
 
     if (payload.password) {
-      updateData.password = await bcrypt.hash(payload.password, 10);
+      updateData.password = await hashPassword(payload.password);
       updateData.mustChangePassword = true;
     }
 

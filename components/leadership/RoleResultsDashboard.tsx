@@ -114,13 +114,15 @@ export default function RoleResultsDashboard({
   useEffect(() => {
     const fetchTargetOptions = async () => {
       try {
-        const res = await fetch("/api/evaluations/targets", { cache: "no-store" });
+        const params = new URLSearchParams({ scope: "subordinate" });
+        const res = await fetch(`/api/results/targets?${params.toString()}`, { cache: "no-store" });
         const data = await readApiResponse<
           Array<{
             id: number;
             name: string | null;
             email: string;
             department: string | null;
+            roleLabel?: string;
           }>
         >(res);
 
@@ -133,8 +135,8 @@ export default function RoleResultsDashboard({
             })
           )
         );
-      } catch (err) {
-        console.error(err);
+      } catch {
+        setTargetOptions([]);
       }
     };
 
