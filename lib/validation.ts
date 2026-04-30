@@ -21,6 +21,11 @@ const STAFF_ROLES = [
   "campus_director",
   "secretary",
 ] as const;
+const STAFF_ROLE_REQUIRED_MESSAGE = "Please select a role.";
+
+function isStaffRole(value: string): value is (typeof STAFF_ROLES)[number] {
+  return STAFF_ROLES.includes(value as (typeof STAFF_ROLES)[number]);
+}
 
 function normalizeWhitespace(value: string, preserveNewlines = false) {
   if (!preserveNewlines) {
@@ -129,7 +134,12 @@ export const passwordSchema = z
   .min(8, "Password must be at least 8 characters long")
   .max(72, "Password must be 72 characters or fewer");
 
-export const staffRoleSchema = z.enum(STAFF_ROLES);
+export const staffRoleSchema = z
+  .preprocess((value) => (typeof value === "string" ? value : ""), z.string())
+  .transform((value) => sanitizeText(value).toLowerCase())
+  .pipe(z.string().min(1, STAFF_ROLE_REQUIRED_MESSAGE))
+  .refine(isStaffRole, STAFF_ROLE_REQUIRED_MESSAGE)
+  .transform((value) => value as (typeof STAFF_ROLES)[number]);
 export const appRoleSchema = z.nativeEnum(Role);
 export const reportableRoleSchema = z.enum(reportableRoles);
 export const semesterSchema = z.enum(SEMESTER_OPTIONS);
@@ -285,8 +295,16 @@ export const evaluationSubmissionSchema = z.object({
   evaluatedId: z.coerce.number().int().positive("Invalid evaluated user ID"),
   scheduleId: z.coerce.number().int().positive("Invalid schedule ID").nullable().optional(),
   academicYear: academicYearSchema.optional(),
+  semester: semesterSchema.optional(),
   answers: z.array(evaluationAnswerSchema).min(1, "Please answer all questions"),
   comment: optionalCommentSchema,
+});
+
+export const evaluationEligibilityQuerySchema = z.object({
+  evaluatedId: z.coerce.number().int().positive("Please select a person to evaluate"),
+  scheduleId: z.coerce.number().int().positive("Invalid schedule ID").nullable().optional(),
+  academicYear: academicYearSchema,
+  semester: semesterSchema,
 });
 
 export const evaluationFeedbackSchema = z.object({
@@ -418,6 +436,18 @@ export const resultsNotificationSchema = z.object({
 export const reportsQuerySchema = z.object({
   academicYear: academicYearSchema.optional(),
   semester: z.union([semesterSchema, z.undefined()]),
+  role: z
+    .string()
+    .optional()
+    .transform((value) => sanitizeText(value || "").toLowerCase())
+    .refine(
+      (value) =>
+        value === "" ||
+        value === "all" ||
+        campusDirectorEvaluatedRoles.includes(value as typeof campusDirectorEvaluatedRoles[number]),
+      "Invalid role filter"
+    )
+    .transform((value) => (value || "all") as CampusDirectorRoleFilter),
 });
 
 const positivePageQuerySchema = z

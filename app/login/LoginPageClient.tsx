@@ -4,7 +4,16 @@ import { signIn } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronDown, Lock, ShieldCheck, User, UserSquare2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Lock,
+  ShieldCheck,
+  User,
+  UserSquare2,
+} from "lucide-react";
 import AppLogo from "@/components/AppLogo";
 import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
 import { getErrorMessage } from "@/lib/error-message";
@@ -21,6 +30,7 @@ export default function LoginPageClient() {
   );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
   const [openRoleDropdown, setOpenRoleDropdown] = useState(false);
   const [openRoleDropdownUpward, setOpenRoleDropdownUpward] = useState(false);
@@ -59,6 +69,7 @@ export default function LoginPageClient() {
   const switchMode = (nextMode: "staff" | "student") => {
     setMode(nextMode);
     setError("");
+    setShowPassword(false);
     setOpenRoleDropdown(false);
     router.replace(nextMode === "student" ? "/login?mode=student" : "/login");
   };
@@ -216,13 +227,24 @@ export default function LoginPageClient() {
                       <Lock size={13} />
                       Password
                     </label>
-                    <input
-                      type="password"
-                      name="password"
-                      required
-                      placeholder="Enter your password"
-                      className="app-input h-11 rounded-[14px] placeholder:text-[#b0abc4]"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        required
+                        placeholder="Enter your password"
+                        className="app-input h-11 rounded-[14px] pr-11 placeholder:text-[#b0abc4]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((current) => !current)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6e6888] transition hover:text-[#24135f]"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
 
                   <div ref={dropdownRef} className="relative z-20">

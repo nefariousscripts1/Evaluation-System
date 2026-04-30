@@ -24,7 +24,8 @@ export async function GET() {
               where: {
                 evaluatorId: access.student.id,
                 evaluatedId: access.target.id,
-                scheduleId: access.schedule.id,
+                academicYear: access.schedule.academicYear,
+                semester: access.schedule.semester,
               },
               select: { id: true },
             })
@@ -62,7 +63,8 @@ export async function POST(req: Request) {
       where: {
         evaluatorId: access.student.id,
         evaluatedId: instructorAccess.instructor.id,
-        scheduleId: access.schedule.id,
+        academicYear: access.schedule.academicYear,
+        semester: access.schedule.semester,
       },
       select: { id: true },
     });

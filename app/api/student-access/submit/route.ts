@@ -25,6 +25,7 @@ export async function POST(req: Request) {
       evaluatedId: access.target.id,
       scheduleId: access.schedule.id,
       academicYear: access.schedule.academicYear,
+      semester: access.schedule.semester,
       answers: payload.answers,
       comment: payload.comment,
     });

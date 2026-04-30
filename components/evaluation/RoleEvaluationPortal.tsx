@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Check, Star, UserRound } from "lucide-react";
+import { Check, Clock3, Star, UserRound } from "lucide-react";
 import AppSelect from "@/components/ui/AppSelect";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import { getApiErrorMessage, readApiResponse } from "@/lib/client-api";
@@ -38,6 +38,14 @@ type RoleEvaluationPortalProps = {
   copy: PortalCopy;
 };
 
+type CurrentScheduleResponse = {
+  scheduleId: number | null;
+  academicYear: string | null;
+  semester: string | null;
+  status: string;
+  message: string;
+};
+
 export default function RoleEvaluationPortal({
   allowedRole,
   copy,
@@ -54,10 +62,14 @@ export default function RoleEvaluationPortal({
   const [answers, setAnswers] = useState<Record<number, { rating: number }>>({});
   const [finalComment, setFinalComment] = useState("");
   const [academicYears, setAcademicYears] = useState<string[]>([]);
+  const [semesters, setSemesters] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
+  const [scheduleStatus, setScheduleStatus] = useState("missing");
+  const [scheduleMessage, setScheduleMessage] = useState("");
   const [highlightedQuestionId, setHighlightedQuestionId] = useState<number | null>(null);
   const questionRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
@@ -102,18 +114,25 @@ export default function RoleEvaluationPortal({
   async function fetchCurrentSchedule() {
     try {
       const res = await fetch("/api/schedule/current", { cache: "no-store" });
-      const data = await readApiResponse<{
-        scheduleId: number | null;
-        academicYear: string | null;
-        semester: string | null;
-      }>(res);
+      const data = await readApiResponse<CurrentScheduleResponse>(res);
 
-      if (data?.scheduleId && data?.academicYear) {
-        setScheduleId(data.scheduleId);
-        setSelectedYear(data.academicYear);
-        setSelectedSemester(data.semester || "");
-        setAcademicYears([data.academicYear]);
+      setScheduleStatus(data?.status || "missing");
+      setScheduleMessage(data?.message || "");
+
+      if (!data?.scheduleId || !data?.academicYear || !data?.semester) {
+        setScheduleId(null);
+        setSelectedYear("");
+        setSelectedSemester("");
+        setAcademicYears([]);
+        setSemesters([]);
+        return;
       }
+
+      setScheduleId(data.scheduleId);
+      setSelectedYear(data.academicYear);
+      setSelectedSemester(data.semester);
+      setAcademicYears([data.academicYear]);
+      setSemesters([data.semester]);
     } catch (err) {
       console.error("Failed to fetch current schedule:", err);
     }
@@ -143,15 +162,28 @@ export default function RoleEvaluationPortal({
   const selectedTarget = targets.find((target) => String(target.id) === selectedTargetId);
   const answeredCount = questions.filter((question) => answers[question.id]?.rating).length;
   const groupedQuestions = groupQuestionsByCategory(questions);
+  const isScheduleAvailable = scheduleStatus === "active";
+  const canContinue =
+    Boolean(selectedTargetId) &&
+    Boolean(selectedYear) &&
+    Boolean(selectedSemester) &&
+    Boolean(scheduleId) &&
+    isScheduleAvailable &&
+    !checkingEligibility;
 
-  function handleNext() {
+  async function handleNext() {
     if (!selectedTargetId) {
       setError("Please select a person to evaluate");
       return;
     }
 
     if (!selectedYear) {
-      setError("No evaluation schedule is available right now");
+      setError("Please select an academic year.");
+      return;
+    }
+
+    if (!selectedSemester) {
+      setError("Please select a semester.");
       return;
     }
 
@@ -160,8 +192,32 @@ export default function RoleEvaluationPortal({
       return;
     }
 
+    if (!isScheduleAvailable) {
+      setError(scheduleMessage || "The evaluation period is currently closed.");
+      return;
+    }
+
+    setCheckingEligibility(true);
     setError("");
-    setStep(2);
+
+    try {
+      const params = new URLSearchParams({
+        evaluatedId: selectedTargetId,
+        scheduleId: String(scheduleId),
+        academicYear: selectedYear,
+        semester: selectedSemester,
+      });
+      const res = await fetch(`/api/evaluations/eligibility?${params.toString()}`, {
+        cache: "no-store",
+      });
+
+      await readApiResponse(res);
+      setStep(2);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to continue with this evaluation."));
+    } finally {
+      setCheckingEligibility(false);
+    }
   }
 
   function handleBack() {
@@ -172,6 +228,11 @@ export default function RoleEvaluationPortal({
   async function handleSubmit() {
     if (!selectedTargetId) {
       setError("Please select a person to evaluate");
+      return;
+    }
+
+    if (!isScheduleAvailable) {
+      setError(scheduleMessage || "The evaluation period is currently closed.");
       return;
     }
 
@@ -194,6 +255,7 @@ export default function RoleEvaluationPortal({
           evaluatedId: Number.parseInt(selectedTargetId, 10),
           scheduleId,
           academicYear: selectedYear,
+          semester: selectedSemester,
           answers: questions.map((question) => ({
             questionId: question.id,
             rating: answers[question.id].rating,
@@ -251,7 +313,7 @@ export default function RoleEvaluationPortal({
               <p className="font-semibold">{session?.user?.name || session?.user?.email}</p>
               <p className="text-white/70">
                 {selectedYear || "Waiting for schedule"}
-                {selectedSemester ? ` • ${selectedSemester}` : ""}
+                {selectedSemester ? ` - ${selectedSemester}` : ""}
               </p>
             </div>
           </div>
@@ -284,7 +346,8 @@ export default function RoleEvaluationPortal({
               <div>
                 <h2 className="text-[22px] font-bold text-[#24135f]">Choose Evaluation Target</h2>
                 <p className="mt-2 text-sm text-[#6f678d]">
-                  Start by choosing the person you want to evaluate and confirming the active academic year.
+                  Start by choosing the person you want to evaluate, then confirm the academic year
+                  and semester.
                 </p>
 
                 <div className="mt-6 space-y-5">
@@ -293,37 +356,54 @@ export default function RoleEvaluationPortal({
                       {copy.selectorLabel}
                     </label>
 
-                    <div>
-                      <AppSelect
-                        value={selectedTargetId}
-                        onChange={setSelectedTargetId}
-                        placeholder="Select a person"
-                        options={targets.map((target) => ({
-                          value: String(target.id),
-                          label: target.name || target.email,
-                          sublabel: `${target.role.replace(/_/g, " ")}${target.department ? ` • ${target.department}` : ""}`,
-                        }))}
-                        triggerClassName="min-h-12 rounded-[14px] text-sm"
-                      />
-                    </div>
+                    <AppSelect
+                      value={selectedTargetId}
+                      onChange={setSelectedTargetId}
+                      placeholder="Select a person"
+                      options={targets.map((target) => ({
+                        value: String(target.id),
+                        label: target.name || target.email,
+                        sublabel: `${target.role.replace(/_/g, " ")}${
+                          target.department ? ` - ${target.department}` : ""
+                        }`,
+                      }))}
+                      triggerClassName="min-h-12 rounded-[14px] text-sm"
+                    />
 
-                    {targets.length === 0 && (
+                    {targets.length === 0 ? (
                       <p className="mt-3 text-sm text-[#8f4663]">{copy.emptyMessage}</p>
-                    )}
+                    ) : null}
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#24135f]">
                       Academic Year
                     </label>
-                    <div>
-                      <AppSelect
-                        value={selectedYear}
-                        onChange={setSelectedYear}
-                        options={academicYears.map((year) => ({ value: year, label: year }))}
-                        triggerClassName="min-h-12 rounded-[14px] text-sm"
-                      />
-                    </div>
+                    <AppSelect
+                      value={selectedYear}
+                      onChange={setSelectedYear}
+                      placeholder="Select an academic year"
+                      options={academicYears.map((year) => ({ value: year, label: year }))}
+                      disabled={academicYears.length === 0}
+                      triggerClassName="min-h-12 rounded-[14px] text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-[#24135f]">
+                      Semester
+                    </label>
+                    <AppSelect
+                      value={selectedSemester}
+                      onChange={setSelectedSemester}
+                      placeholder="Select a semester"
+                      options={semesters.map((semester) => ({
+                        value: semester,
+                        label: semester,
+                      }))}
+                      disabled={semesters.length === 0}
+                      triggerClassName="min-h-12 rounded-[14px] text-sm"
+                    />
                   </div>
                 </div>
               </div>
@@ -350,26 +430,40 @@ export default function RoleEvaluationPortal({
                   <div className="mt-4">
                     <h3 className="text-lg font-bold text-[#24135f]">Ready when you are</h3>
                     <p className="mt-2 text-sm text-[#6f678d]">
-                      Pick a person from the list to preview the evaluation target before continuing.
+                      Pick a person from the list to preview the evaluation target before
+                      continuing.
                     </p>
                   </div>
                 )}
+
+                {scheduleStatus !== "active" ? (
+                  <div className="mt-5 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+                    <p className="flex items-center gap-2 font-semibold">
+                      <Clock3 size={16} />
+                      Schedule Notice
+                    </p>
+                    <p className="mt-2 leading-6">
+                      {scheduleMessage || "No evaluation schedule is available right now."}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            {error && (
+            {error ? (
               <div className="mt-6 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
-            )}
+            ) : null}
 
             <div className="mt-6 flex justify-end">
               <button
                 type="button"
-                onClick={handleNext}
-                className="app-btn-primary min-h-[44px] w-full px-6 py-3 sm:w-auto"
+                onClick={() => void handleNext()}
+                disabled={!canContinue}
+                className="app-btn-primary min-h-[44px] w-full px-6 py-3 disabled:opacity-60 sm:w-auto"
               >
-                Continue
+                {checkingEligibility ? "Checking..." : "Continue"}
               </button>
             </div>
           </section>
@@ -401,7 +495,9 @@ export default function RoleEvaluationPortal({
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a7199]">
-                        {copy.selectorLabel.replace("Which ", "").replace(" would you like to evaluate?", "")}
+                        {copy.selectorLabel
+                          .replace("Which ", "")
+                          .replace(" would you like to evaluate?", "")}
                       </p>
                       <h3 className="mt-1 text-xl font-extrabold text-[#24135f]">
                         {selectedTarget.name || selectedTarget.email}
@@ -433,7 +529,7 @@ export default function RoleEvaluationPortal({
                         Semester
                       </p>
                       <p className="mt-1 text-sm font-bold text-[#24135f]">
-                        {selectedSemester || "Current term"}
+                        {selectedSemester || "-"}
                       </p>
                     </div>
                   </div>
@@ -444,8 +540,8 @@ export default function RoleEvaluationPortal({
             <div className="mt-6 rounded-[22px] border border-[#efe8fb] bg-[#fbf9ff] p-4 shadow-[0_10px_24px_rgba(36,19,95,0.04)]">
               <p className="text-sm font-semibold text-[#24135f]">Instructions</p>
               <p className="mt-2 text-sm leading-6 text-[#6f678d]">
-                Please evaluate using the descriptive rating scale below. Base your
-                answers on the quality of performance shown in each statement.
+                Please evaluate using the descriptive rating scale below. Base your answers on the
+                quality of performance shown in each statement.
               </p>
 
               <div className="mt-4 overflow-hidden rounded-[18px] border border-[#e7def7] bg-white">
@@ -623,11 +719,11 @@ export default function RoleEvaluationPortal({
               </div>
             </div>
 
-            {error && (
+            {error ? (
               <div className="mt-6 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
-            )}
+            ) : null}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
               <button
@@ -639,7 +735,7 @@ export default function RoleEvaluationPortal({
               </button>
               <button
                 type="button"
-                onClick={handleSubmit}
+                onClick={() => void handleSubmit()}
                 disabled={submitting}
                 className="app-btn-primary min-h-[44px] px-6 py-3"
               >
@@ -651,8 +747,8 @@ export default function RoleEvaluationPortal({
 
         {step === 3 && (
           <section className="rounded-[28px] border border-[#dbeadf] bg-white px-4 py-10 text-center shadow-[0_18px_42px_rgba(36,19,95,0.08)] sm:px-8">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#eaf8ee] text-[32px] text-[#18794e]">
-              ✓
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#eaf8ee] text-[#18794e]">
+              <Check size={36} />
             </div>
             <h2 className="mt-5 text-[28px] font-extrabold text-[#24135f]">{copy.successTitle}</h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-[#6f678d] sm:text-base">

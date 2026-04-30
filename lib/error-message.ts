@@ -1,6 +1,12 @@
 export function getErrorMessage(error: unknown, fallback = "Something went wrong") {
   if (typeof error === "string") {
     if (
+      error.includes('Invalid option: expected one of "faculty"|"chairperson"|"dean"|"director"|"campus_director"|"secretary"')
+    ) {
+      return "Please select a role.";
+    }
+
+    if (
       error.includes("Unique constraint failed") &&
       (error.includes("User_email_key") || error.includes("`email`"))
     ) {

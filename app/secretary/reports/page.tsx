@@ -16,6 +16,12 @@ import AppSelect from "@/components/ui/AppSelect";
 import InlineLoadingIndicator from "@/components/ui/InlineLoadingIndicator";
 import PortalPageLoader from "@/components/ui/PortalPageLoader";
 import { readApiResponse } from "@/lib/client-api";
+import {
+  getCampusDirectorRoleFilterPluralLabel,
+  getCampusDirectorRoleOptions,
+  getReportableRoleLabel,
+  type CampusDirectorRoleFilter,
+} from "@/lib/reporting-roles";
 
 interface Result {
   id: number;
@@ -32,6 +38,7 @@ type ReportsResponse = {
   results: Result[];
   years: string[];
   semesters: string[];
+  role: CampusDirectorRoleFilter;
   completedCount: number;
   totalCount: number;
 };
@@ -51,6 +58,7 @@ type SummaryCommentsResponse = {
 
 const instructorListPageSize = 10;
 const detailPageSizeOptions = ["10", "20"] as const;
+const roleOptions = getCampusDirectorRoleOptions();
 
 export default function ReportsPage() {
   const { data: session, status } = useSession();
@@ -68,6 +76,7 @@ export default function ReportsPage() {
   const [search, setSearch] = useState("");
   const [academicYear, setAcademicYear] = useState("");
   const [semester, setSemester] = useState("");
+  const [role, setRole] = useState<CampusDirectorRoleFilter>("all");
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -133,6 +142,9 @@ export default function ReportsPage() {
         if (semester) {
           params.append("semester", semester);
         }
+        if (role) {
+          params.append("role", role);
+        }
 
         const res = await fetch(`/api/reports?${params.toString()}`, {
           cache: "no-store",
@@ -144,6 +156,7 @@ export default function ReportsPage() {
         setReportTotalCount(data.totalCount || 0);
         setYears(data.years || []);
         setSemesters(data.semesters || []);
+        setRole(data.role || "all");
       } catch (error) {
         console.error("Failed to fetch reports:", error);
         setResults([]);
@@ -157,7 +170,7 @@ export default function ReportsPage() {
     };
 
     void fetchResults();
-  }, [academicYear, semester, status]);
+  }, [academicYear, role, semester, status]);
 
   useEffect(() => {
     if (status !== "authenticated" || activeTab !== "comments") {
@@ -346,9 +359,9 @@ export default function ReportsPage() {
 
   if (activeTab === "results" && resultsLoading) {
     return (
-      <PortalPageLoader
-        title="Results"
-        description="Loading evaluation results and summary metrics..."
+        <PortalPageLoader
+          title="Results"
+          description="Loading evaluation results and summary metrics..."
         cards={1}
         compact
       />
@@ -425,7 +438,9 @@ export default function ReportsPage() {
                   {averageRating.toFixed(2)}
                 </div>
                 <div className="mt-2 flex justify-center">{renderStars(averageRating)}</div>
-                <p className="mt-2 text-[14px] text-[#403a68]">Across all the instructors</p>
+                <p className="mt-2 text-[14px] text-[#403a68]">
+                  Across all {getCampusDirectorRoleFilterPluralLabel(role)}
+                </p>
               </div>
 
               <div className="app-stat-card text-center">
@@ -440,18 +455,28 @@ export default function ReportsPage() {
             </div>
 
             <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="relative w-full md:max-w-[420px]">
-                <Search
-                  size={18}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8e89aa]"
-                />
-                <input
-                  type="text"
-                  placeholder="Search Instructor"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="app-input h-[46px] rounded-[16px] pl-10 text-[15px]"
-                />
+              <div className="flex w-full flex-col gap-3 md:max-w-[620px] md:flex-row md:items-center">
+                <div className="w-full md:max-w-[220px]">
+                  <AppSelect
+                    value={role}
+                    onChange={(value) => setRole(value as CampusDirectorRoleFilter)}
+                    options={roleOptions}
+                    triggerClassName="min-h-[46px] rounded-[16px] text-[15px]"
+                  />
+                </div>
+                <div className="relative w-full">
+                  <Search
+                    size={18}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8e89aa]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search All Roles"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="app-input h-[46px] rounded-[16px] pl-10 text-[15px]"
+                  />
+                </div>
               </div>
 
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
@@ -487,7 +512,8 @@ export default function ReportsPage() {
               <table className="w-full min-w-[620px] text-left">
                 <thead className="app-table-head">
                   <tr>
-                    <th>Instructor</th>
+                    <th>Evaluatee</th>
+                    <th>Role</th>
                     <th>Rating</th>
                   </tr>
                 </thead>
@@ -498,6 +524,9 @@ export default function ReportsPage() {
                       <tr key={item.id} className="app-table-row">
                         <td className="app-table-cell text-[15px] text-[#2f2a57]">
                           {item.user?.name || item.user?.email}
+                        </td>
+                        <td className="app-table-cell text-[15px] text-[#2f2a57]">
+                          {getReportableRoleLabel(item.user?.role || "")}
                         </td>
                         <td className="app-table-cell">
                           <div className="flex items-center gap-3">
@@ -511,7 +540,7 @@ export default function ReportsPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={2} className="px-5 py-8 text-center text-[#7d7d95]">
+                      <td colSpan={3} className="px-5 py-8 text-center text-[#7d7d95]">
                         No evaluation results found.
                       </td>
                     </tr>
@@ -529,6 +558,9 @@ export default function ReportsPage() {
                   >
                     <p className="text-[15px] font-semibold text-[#24135f]">
                       {item.user?.name || item.user?.email}
+                    </p>
+                    <p className="mt-1 text-[13px] text-[#6c6684]">
+                      {getReportableRoleLabel(item.user?.role || "")}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {renderStars(item.averageRating)}

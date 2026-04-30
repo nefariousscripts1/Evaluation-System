@@ -1,6 +1,12 @@
 import prisma from "@/lib/db";
 import { getAllowedEvaluatedRoles } from "@/lib/role-evaluation";
-import { getActiveSchedule, isScheduleActive } from "@/lib/evaluation-session";
+import {
+  getActiveSchedule,
+  getScheduleAvailabilityMessage,
+  getScheduleAvailabilityStatus,
+  isScheduleActive,
+  isValidSemester,
+} from "@/lib/evaluation-session";
 
 type SubmissionAnswerInput = {
   questionId: unknown;
@@ -13,6 +19,7 @@ type SubmissionInput = {
   evaluatedId: unknown;
   scheduleId?: unknown;
   academicYear: unknown;
+  semester?: unknown;
   answers: unknown;
   comment?: unknown;
 };
@@ -32,6 +39,9 @@ type NormalizedSubmission = {
   answers: NormalizedAnswer[];
   comment: string | null;
 };
+
+type NormalizedSubmissionContext = Omit<NormalizedSubmission, "answers" | "comment">;
+type SubmissionContextInput = Omit<SubmissionInput, "answers" | "comment">;
 
 export class EvaluationSubmissionError extends Error {
   status: number;
@@ -157,15 +167,7 @@ async function assertQuestionSetIsValid(answers: NormalizedAnswer[]) {
   }
 }
 
-async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSubmission> {
-  if (!Number.isInteger(input.evaluatorId) || input.evaluatorId <= 0) {
-    throw new EvaluationSubmissionError("Invalid evaluator session", 401);
-  }
-
-  if (typeof input.evaluatorRole !== "string" || input.evaluatorRole.trim().length === 0) {
-    throw new EvaluationSubmissionError("Invalid evaluator role", 401);
-  }
-
+async function resolveScheduleForSubmission(input: SubmissionContextInput) {
   const normalizedScheduleId =
     input.scheduleId === undefined || input.scheduleId === null || input.scheduleId === ""
       ? null
@@ -175,6 +177,17 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
     typeof input.academicYear === "string" && input.academicYear.trim().length > 0
       ? input.academicYear.trim()
       : null;
+  const normalizedSemester =
+    typeof input.semester === "string" && isValidSemester(input.semester.trim())
+      ? input.semester.trim()
+      : null;
+
+  if ((normalizedAcademicYear && !normalizedSemester) || (!normalizedAcademicYear && normalizedSemester)) {
+    throw new EvaluationSubmissionError(
+      !normalizedAcademicYear ? "Please select an academic year." : "Please select a semester.",
+      400
+    );
+  }
 
   const schedule = normalizedScheduleId
     ? await prisma.schedule.findUnique({
@@ -188,13 +201,13 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
           isOpen: true,
         },
       })
-    : normalizedAcademicYear
+    : normalizedAcademicYear && normalizedSemester
     ? await prisma.schedule.findFirst({
         where: {
           academicYear: normalizedAcademicYear,
-          isOpen: true,
+          semester: normalizedSemester,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ isOpen: "desc" }, { createdAt: "desc" }],
         select: {
           id: true,
           academicYear: true,
@@ -206,12 +219,46 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
       })
     : await getActiveSchedule();
 
-  if (!schedule || !isScheduleActive(schedule)) {
+  if (!schedule) {
     throw new EvaluationSubmissionError(
-      "The evaluation period is currently closed",
+      normalizedAcademicYear && normalizedSemester
+        ? "No evaluation schedule is available for the selected academic year and semester."
+        : "No active evaluation schedule is available right now.",
       400
     );
   }
+
+  if (
+    normalizedAcademicYear &&
+    normalizedSemester &&
+    (schedule.academicYear !== normalizedAcademicYear || schedule.semester !== normalizedSemester)
+  ) {
+    throw new EvaluationSubmissionError(
+      "The selected academic year and semester do not match the evaluation schedule.",
+      400
+    );
+  }
+
+  const scheduleStatus = getScheduleAvailabilityStatus(schedule);
+  if (scheduleStatus !== "active" || !isScheduleActive(schedule)) {
+    throw new EvaluationSubmissionError(getScheduleAvailabilityMessage(scheduleStatus), 400);
+  }
+
+  return schedule;
+}
+
+async function normalizeSubmissionContext(
+  input: SubmissionContextInput
+): Promise<NormalizedSubmissionContext> {
+  if (!Number.isInteger(input.evaluatorId) || input.evaluatorId <= 0) {
+    throw new EvaluationSubmissionError("Invalid evaluator session", 401);
+  }
+
+  if (typeof input.evaluatorRole !== "string" || input.evaluatorRole.trim().length === 0) {
+    throw new EvaluationSubmissionError("Invalid evaluator role", 401);
+  }
+
+  const schedule = await resolveScheduleForSubmission(input);
 
   const normalized = {
     evaluatorId: input.evaluatorId,
@@ -220,8 +267,6 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
     scheduleId: schedule.id,
     academicYear: schedule.academicYear,
     semester: schedule.semester,
-    answers: normalizeAnswers(input.answers),
-    comment: normalizeComment(input.comment),
   };
 
   if (normalized.evaluatorId === normalized.evaluatedId) {
@@ -229,6 +274,25 @@ async function normalizeSubmission(input: SubmissionInput): Promise<NormalizedSu
   }
 
   return normalized;
+}
+
+async function assertNoDuplicateEvaluation(submission: NormalizedSubmissionContext) {
+  const existingEvaluation = await prisma.evaluation.findFirst({
+    where: {
+      evaluatorId: submission.evaluatorId,
+      evaluatedId: submission.evaluatedId,
+      academicYear: submission.academicYear,
+      semester: submission.semester,
+    },
+    select: { id: true },
+  });
+
+  if (existingEvaluation) {
+    throw new EvaluationSubmissionError(
+      "You have already evaluated this person for the selected academic year and semester.",
+      409
+    );
+  }
 }
 
 function assertEvaluatorCanReviewRole(evaluatorRole: string, evaluatedRole: string) {
@@ -243,13 +307,16 @@ function assertEvaluatorCanReviewRole(evaluatorRole: string, evaluatedRole: stri
 }
 
 export async function submitEvaluationRecord(input: SubmissionInput) {
-  const submission = await normalizeSubmission(input);
-
-  await assertQuestionSetIsValid(submission.answers);
+  const context = await normalizeSubmissionContext(input);
+  const submission: NormalizedSubmission = {
+    ...context,
+    answers: normalizeAnswers(input.answers),
+    comment: normalizeComment(input.comment),
+  };
 
   const evaluatedUser = await prisma.user.findFirst({
     where: {
-      id: submission.evaluatedId,
+      id: context.evaluatedId,
       deletedAt: null,
     },
     select: { id: true, role: true },
@@ -259,25 +326,9 @@ export async function submitEvaluationRecord(input: SubmissionInput) {
     throw new EvaluationSubmissionError("Selected instructor could not be found", 404);
   }
 
-  assertEvaluatorCanReviewRole(submission.evaluatorRole, evaluatedUser.role);
-
-  const existingEvaluation = await prisma.evaluation.findFirst({
-    where: {
-      evaluatorId: submission.evaluatorId,
-      evaluatedId: submission.evaluatedId,
-      scheduleId: submission.scheduleId,
-    },
-    select: { id: true },
-  });
-
-  if (existingEvaluation) {
-    throw new EvaluationSubmissionError(
-      submission.evaluatorRole === "student"
-        ? "You have already submitted this evaluation"
-        : "You have already evaluated this instructor for this session",
-      409
-    );
-  }
+  assertEvaluatorCanReviewRole(context.evaluatorRole, evaluatedUser.role);
+  await assertNoDuplicateEvaluation(context);
+  await assertQuestionSetIsValid(submission.answers);
 
   const evaluation = await prisma.$transaction(async (tx) => {
     const createdEvaluation = await tx.evaluation.create({
@@ -333,4 +384,30 @@ export async function submitEvaluationRecord(input: SubmissionInput) {
   });
 
   return evaluation;
+}
+
+export async function assertEvaluationCanBeStarted(
+  input: SubmissionContextInput
+) {
+  const submission = await normalizeSubmissionContext(input);
+  const evaluatedUser = await prisma.user.findFirst({
+    where: {
+      id: submission.evaluatedId,
+      deletedAt: null,
+    },
+    select: { id: true, role: true },
+  });
+
+  if (!evaluatedUser) {
+    throw new EvaluationSubmissionError("Selected instructor could not be found", 404);
+  }
+
+  assertEvaluatorCanReviewRole(submission.evaluatorRole, evaluatedUser.role);
+  await assertNoDuplicateEvaluation(submission);
+
+  return {
+    scheduleId: submission.scheduleId,
+    academicYear: submission.academicYear,
+    semester: submission.semester,
+  };
 }

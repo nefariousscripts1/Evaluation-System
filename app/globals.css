@@ -105,6 +105,11 @@
     color: #aaa4bf;
   }
 
+  .app-input::-ms-reveal,
+  .app-input::-ms-clear {
+    display: none;
+  }
+
   .app-input:hover,
   .app-select:hover,
   .app-textarea:hover {

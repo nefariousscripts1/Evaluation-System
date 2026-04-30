@@ -13,7 +13,8 @@ export async function GET() {
     const submittedTargetIds = await prisma.evaluation.findMany({
       where: {
         evaluatorId: access.student.id,
-        scheduleId: access.schedule.id,
+        academicYear: access.schedule.academicYear,
+        semester: access.schedule.semester,
       },
       select: {
         evaluatedId: true,

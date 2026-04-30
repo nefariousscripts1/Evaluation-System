@@ -17,6 +17,12 @@ import {
   looksLikeBcryptHash,
   verifyPassword,
 } from "../lib/password-auth.ts";
+import {
+  getScheduleAvailabilityMessage,
+  getScheduleAvailabilityStatus,
+  SEMESTER_OPTIONS,
+} from "../lib/schedule-config.ts";
+import { getErrorMessage } from "../lib/error-message.ts";
 import { resolveStaffRoleSelection, staffRoleOptions } from "../lib/staff-roles.ts";
 
 const tests: Array<{ name: string; fn: () => void | Promise<void> }> = [];
@@ -82,6 +88,33 @@ runTest("staff role options keep readable labels and backend enum values", () =>
   assert.equal(resolveStaffRoleSelection("Faculty"), "faculty");
   assert.equal(resolveStaffRoleSelection("campus_director"), "campus_director");
   assert.equal(resolveStaffRoleSelection("Secretary"), "secretary");
+});
+
+runTest("staff login error mapping keeps the role message user-friendly", () => {
+  assert.equal(
+    getErrorMessage(
+      'Invalid option: expected one of "faculty"|"chairperson"|"dean"|"director"|"campus_director"|"secretary"'
+    ),
+    "Please select a role."
+  );
+});
+
+runTest("semester options support the configured academic terms", () => {
+  assert.deepEqual(SEMESTER_OPTIONS, ["1st Semester", "2nd Semester"]);
+});
+
+runTest("schedule availability reports ended periods with a clear message", () => {
+  const status = getScheduleAvailabilityStatus({
+    isOpen: true,
+    startDate: new Date("2026-01-01T00:00:00.000Z"),
+    endDate: new Date("2026-01-31T23:59:59.000Z"),
+  }, new Date("2026-02-01T00:00:00.000Z"));
+
+  assert.equal(status, "ended");
+  assert.equal(
+    getScheduleAvailabilityMessage(status),
+    "The evaluation period has ended. You can no longer submit an evaluation."
+  );
 });
 
 runTest("Charny Marie Bayonas comments appear when academic year and semester match", () => {
@@ -344,11 +377,49 @@ runTest("campus director and secretary access can expand to all visible results"
   assert.ok(secretaryContext);
   assert.deepEqual(buildAccessibleResultsUserWhere(campusDirectorContext!), {
     deletedAt: null,
-    OR: [{ id: 5 }, {}],
   });
   assert.deepEqual(buildAccessibleResultsUserWhere(secretaryContext!), {
     deletedAt: null,
-    OR: [{ id: 6 }, {}],
+  });
+  assert.deepEqual(
+    buildAccessibleResultsUserWhere(campusDirectorContext!, {
+      includeOwn: true,
+      includeSubordinate: true,
+      restrictToRoles: ["faculty", "dean", "director", "chairperson"],
+    }),
+    {
+      deletedAt: null,
+      OR: [{ role: { in: ["faculty", "dean", "director", "chairperson"] } }],
+    }
+  );
+  assert.deepEqual(
+    buildAccessibleResultsUserWhere(secretaryContext!, {
+      includeOwn: true,
+      includeSubordinate: true,
+      restrictToRoles: ["faculty", "dean", "director", "chairperson"],
+    }),
+    {
+      deletedAt: null,
+      OR: [{ role: { in: ["faculty", "dean", "director", "chairperson"] } }],
+    }
+  );
+});
+
+runTest("secretary full-scope access includes all non-deleted visible users", () => {
+  const secretaryContext = getResultsAccessContext({
+    user: {
+      id: "6",
+      role: "secretary",
+      email: "sec@bisu.edu.ph",
+      department: null,
+      mustChangePassword: false,
+    },
+    expires: "2099-01-01T00:00:00.000Z",
+  });
+
+  assert.ok(secretaryContext);
+  assert.deepEqual(buildAccessibleResultsUserWhere(secretaryContext!), {
+    deletedAt: null,
   });
 });
 

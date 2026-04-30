@@ -158,6 +158,12 @@ export function buildAccessibleResultsUserWhere(
   }
 
   if (context.role === "campus_director" || context.role === "secretary") {
+    if (includeOwn && includeSubordinate && !restrictToRoles) {
+      return {
+        deletedAt: null,
+      };
+    }
+
     if (!includeOwn && includeSubordinate) {
       return {
         deletedAt: null,

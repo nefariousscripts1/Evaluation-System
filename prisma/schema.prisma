@@ -39,7 +39,7 @@ model Evaluation {
   schedule       Schedule?          @relation(fields: [scheduleId], references: [id])
   answers        EvaluationAnswer[]
 
-  @@unique([evaluatorId, evaluatedId, scheduleId])
+  @@unique([evaluatorId, evaluatedId, academicYear, semester])
   @@index([evaluatedId], map: "Evaluation_evaluatedId_fkey")
   @@index([evaluatorId], map: "Evaluation_evaluatorId_fkey")
   @@index([scheduleId], map: "Evaluation_scheduleId_fkey")

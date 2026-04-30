@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { SEMESTER_OPTIONS } from "@/lib/evaluation-session";
 import { apiSuccess, handleApiError, parseSearchParams } from "@/lib/api";
+import { campusDirectorEvaluatedRoles } from "@/lib/reporting-roles";
 import { requireApiSession } from "@/lib/server-auth";
 import {
   buildAccessibleResultsUserWhere,
@@ -15,19 +16,26 @@ export async function GET(request: Request) {
   try {
     const session = await requireApiSession(resultsViewerRoles);
     const accessContext = getResultsAccessContext(session);
-    const { academicYear, semester } = parseSearchParams(request, reportsQuerySchema);
+    const { academicYear, semester, role } = parseSearchParams(request, reportsQuerySchema);
 
     if (!accessContext) {
       return apiSuccess({
         results: [],
         years: [],
         semesters: SEMESTER_OPTIONS,
+        role: "all",
         completedCount: 0,
         totalCount: 0,
       });
     }
 
-    const accessibleUsersWhere = buildAccessibleResultsUserWhere(accessContext);
+    const visibleRoles =
+      role === "all" ? [...campusDirectorEvaluatedRoles] : [role];
+    const accessibleUsersWhere = buildAccessibleResultsUserWhere(accessContext, {
+      includeOwn: false,
+      includeSubordinate: true,
+      restrictToRoles: visibleRoles,
+    });
     const evaluationWhere = {
       ...(academicYear ? { academicYear } : {}),
       ...(semester ? { semester } : {}),
@@ -61,6 +69,7 @@ export async function GET(request: Request) {
             },
           },
         },
+        orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }],
       }),
       prisma.user.count({
         where: accessibleUsersWhere,
@@ -110,6 +119,7 @@ export async function GET(request: Request) {
 
     return apiSuccess({
       viewerRole: accessContext.role,
+      role,
       results,
       years: yearsData.map((item) => item.academicYear),
       semesters: SEMESTER_OPTIONS,

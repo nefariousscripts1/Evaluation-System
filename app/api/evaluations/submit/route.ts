@@ -23,6 +23,7 @@ export async function POST(req: Request) {
       evaluatedId: payload.evaluatedId,
       scheduleId: payload.scheduleId,
       academicYear: payload.academicYear,
+      semester: payload.semester,
       answers: payload.answers,
       comment: payload.comment,
     });

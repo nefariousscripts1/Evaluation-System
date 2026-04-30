@@ -1,18 +1,15 @@
 import { randomInt } from "crypto";
 import prisma from "@/lib/db";
+import {
+  getScheduleAvailabilityMessage,
+  getScheduleAvailabilityStatus,
+  isScheduleActive,
+  isValidSemester,
+  SEMESTER_OPTIONS,
+  type ScheduleAvailabilityStatus,
+} from "@/lib/schedule-config";
 
 const ACCESS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-export const SEMESTER_OPTIONS = ["1st Semester", "2nd Semester"] as const;
-
-type ScheduleLike = {
-  isOpen: boolean;
-  startDate: Date;
-  endDate: Date;
-};
-
-export function isScheduleActive(schedule: ScheduleLike, now = new Date()) {
-  return schedule.isOpen && now >= schedule.startDate && now <= schedule.endDate;
-}
 
 export function getAcademicYearForDate(date: Date) {
   const year = date.getFullYear();
@@ -24,10 +21,6 @@ export function buildAcademicYearOptions(baseYear = new Date().getFullYear(), co
     const year = baseYear - 1 + index;
     return `${year}-${year + 1}`;
   });
-}
-
-export function isValidSemester(value: string): value is (typeof SEMESTER_OPTIONS)[number] {
-  return SEMESTER_OPTIONS.includes(value as (typeof SEMESTER_OPTIONS)[number]);
 }
 
 export function generateAccessCode(length = 6) {
@@ -44,6 +37,13 @@ export async function getActiveSchedule() {
   });
 
   return schedules.find((schedule) => isScheduleActive(schedule)) ?? null;
+}
+
+export async function getLatestOpenSchedule() {
+  return prisma.schedule.findFirst({
+    where: { isOpen: true },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 export async function getScheduleByAccessCode(accessCode: string) {
@@ -68,3 +68,12 @@ export async function closeAllActiveSchedules() {
     data: { isOpen: false },
   });
 }
+
+export {
+  SEMESTER_OPTIONS,
+  getScheduleAvailabilityMessage,
+  getScheduleAvailabilityStatus,
+  isScheduleActive,
+  isValidSemester,
+};
+export type { ScheduleAvailabilityStatus };
