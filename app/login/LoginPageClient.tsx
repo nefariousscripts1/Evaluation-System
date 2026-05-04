@@ -106,7 +106,14 @@ export default function LoginPageClient() {
       });
 
       if (!result || result.error) {
-        setError("Invalid email, password, or role");
+        if (result?.error === "CredentialsSignin") {
+          setError("Invalid email, password, or role");
+        } else {
+          setError(
+            "Login failed due to server configuration. Check deployment environment variables and auth logs."
+          );
+          console.error("Auth sign-in error:", result?.error);
+        }
         setLoading(false);
         return;
       }
