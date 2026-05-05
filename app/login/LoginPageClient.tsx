@@ -109,9 +109,7 @@ export default function LoginPageClient() {
         if (result?.error === "CredentialsSignin") {
           setError("Invalid email, password, or role");
         } else {
-          setError(
-            "Login failed due to server configuration. Check deployment environment variables and auth logs."
-          );
+          setError("Unable to sign in right now. Please try again and check the server auth logs.");
           console.error("Auth sign-in error:", result?.error);
         }
         setLoading(false);

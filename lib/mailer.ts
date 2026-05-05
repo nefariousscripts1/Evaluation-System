@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { getAppBaseUrl } from "@/lib/auth-config";
 
 type MailRecipient = string | string[];
 
@@ -45,8 +46,7 @@ function getEmailSenderAddress() {
 }
 
 function getAppPortalUrl() {
-  const baseUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
-  return `${baseUrl}`;
+  return getAppBaseUrl();
 }
 
 function getFacultyResultsUrl() {

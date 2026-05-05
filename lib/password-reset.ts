@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { getAppBaseUrl, getAuthSecret } from "@/lib/auth-config";
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 
@@ -6,10 +7,6 @@ type ResetTokenPayload = {
   email: string;
   exp: number;
 };
-
-function getSecret() {
-  return process.env.NEXTAUTH_SECRET || process.env.PASSWORD_RESET_SECRET || "dev-reset-secret";
-}
 
 function toBase64Url(value: string) {
   return Buffer.from(value, "utf8").toString("base64url");
@@ -20,7 +17,7 @@ function fromBase64Url(value: string) {
 }
 
 function sign(value: string) {
-  return crypto.createHmac("sha256", getSecret()).update(value).digest("base64url");
+  return crypto.createHmac("sha256", getAuthSecret()).update(value).digest("base64url");
 }
 
 export function createPasswordResetToken(email: string, expiresInMs = ONE_HOUR_IN_MS) {
@@ -62,6 +59,6 @@ export function verifyPasswordResetToken(token: string) {
 }
 
 export function buildPasswordResetUrl(token: string) {
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl = getAppBaseUrl();
   return `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 }

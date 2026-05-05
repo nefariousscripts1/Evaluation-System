@@ -1,5 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { getAuthSecret } from "@/lib/auth-config";
 
 const PUBLIC_ROUTES = [
   "/",
@@ -125,6 +126,7 @@ export default withAuth(
     return withPathnameHeader(req);
   },
   {
+    secret: getAuthSecret(),
     callbacks: {
       authorized: () => true,
     },

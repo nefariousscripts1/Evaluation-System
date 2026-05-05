@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import { getAuthSecret } from "@/lib/auth-config";
 import prisma from "@/lib/db";
 import { isScheduleActive } from "@/lib/evaluation-session";
 
@@ -14,12 +15,8 @@ type StudentAccessPayload = {
   expiresAt: number;
 };
 
-function getSecret() {
-  return process.env.NEXTAUTH_SECRET || "digital-evaluation-system-student-access";
-}
-
 function signValue(value: string) {
-  return createHmac("sha256", getSecret()).update(value).digest("base64url");
+  return createHmac("sha256", getAuthSecret()).update(value).digest("base64url");
 }
 
 function encodePayload(payload: StudentAccessPayload) {
