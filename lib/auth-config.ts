@@ -2,6 +2,10 @@ function normalizeUrl(value: string) {
   return value.replace(/\/+$/, "");
 }
 
+function normalizePlatformUrl(value: string) {
+  return normalizeUrl(value.startsWith("http") ? value : `https://${value}`);
+}
+
 export function getAuthSecret() {
   return (
     process.env.NEXTAUTH_SECRET ||
@@ -21,11 +25,19 @@ export function getAppBaseUrl() {
   const railwayUrl = process.env.RAILWAY_STATIC_URL;
 
   if (railwayUrl) {
-    const normalizedRailwayUrl = railwayUrl.startsWith("http")
-      ? railwayUrl
-      : `https://${railwayUrl}`;
+    return normalizePlatformUrl(railwayUrl);
+  }
 
-    return normalizeUrl(normalizedRailwayUrl);
+  const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
+  if (vercelProductionUrl) {
+    return normalizePlatformUrl(vercelProductionUrl);
+  }
+
+  const vercelUrl = process.env.VERCEL_URL;
+
+  if (vercelUrl) {
+    return normalizePlatformUrl(vercelUrl);
   }
 
   return "http://localhost:3000";

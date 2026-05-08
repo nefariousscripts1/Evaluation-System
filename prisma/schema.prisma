@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -40,9 +41,9 @@ model Evaluation {
   answers        EvaluationAnswer[]
 
   @@unique([evaluatorId, evaluatedId, academicYear, semester])
-  @@index([evaluatedId], map: "Evaluation_evaluatedId_fkey")
-  @@index([evaluatorId], map: "Evaluation_evaluatorId_fkey")
-  @@index([scheduleId], map: "Evaluation_scheduleId_fkey")
+  @@index([evaluatedId])
+  @@index([evaluatorId])
+  @@index([scheduleId])
 }
 
 model EvaluationAnswer {
@@ -54,8 +55,8 @@ model EvaluationAnswer {
   evaluation    Evaluation    @relation(fields: [evaluationId], references: [id])
   questionnaire Questionnaire @relation(fields: [questionId], references: [id])
 
-  @@index([evaluationId], map: "EvaluationAnswer_evaluationId_fkey")
-  @@index([questionId], map: "EvaluationAnswer_questionId_fkey")
+  @@index([evaluationId])
+  @@index([questionId])
 }
 
 model Questionnaire {
