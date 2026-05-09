@@ -44,19 +44,13 @@ export function getAuthSecret() {
 export function getAppBaseUrl() {
   const explicitUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL;
   const platformUrl = getPlatformBaseUrl();
-  const isHostedEnvironment = Boolean(platformUrl);
-
-  if (explicitUrl) {
-    const normalizedExplicitUrl = normalizeUrl(explicitUrl);
-
-    // Hosted deployments should not rely on localhost auth URLs.
-    if (!(isHostedEnvironment && isLocalUrl(normalizedExplicitUrl))) {
-      return normalizedExplicitUrl;
-    }
-  }
 
   if (platformUrl) {
     return platformUrl;
+  }
+
+  if (explicitUrl) {
+    return normalizeUrl(explicitUrl);
   }
 
   return "http://localhost:3000";
