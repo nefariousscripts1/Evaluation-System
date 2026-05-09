@@ -6,22 +6,11 @@ function normalizePlatformUrl(value: string) {
   return normalizeUrl(value.startsWith("http") ? value : `https://${value}`);
 }
 
-export function getAuthSecret() {
-  return (
-    process.env.NEXTAUTH_SECRET ||
-    process.env.AUTH_SECRET ||
-    process.env.PASSWORD_RESET_SECRET ||
-    "dev-reset-secret"
-  );
+function isLocalUrl(value: string) {
+  return /^https?:\/\/(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0)(:\d+)?$/i.test(value);
 }
 
-export function getAppBaseUrl() {
-  const explicitUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL;
-
-  if (explicitUrl) {
-    return normalizeUrl(explicitUrl);
-  }
-
+function getPlatformBaseUrl() {
   const railwayUrl = process.env.RAILWAY_STATIC_URL;
 
   if (railwayUrl) {
@@ -40,5 +29,51 @@ export function getAppBaseUrl() {
     return normalizePlatformUrl(vercelUrl);
   }
 
+  return null;
+}
+
+export function getAuthSecret() {
+  return (
+    process.env.NEXTAUTH_SECRET ||
+    process.env.AUTH_SECRET ||
+    process.env.PASSWORD_RESET_SECRET ||
+    "dev-reset-secret"
+  );
+}
+
+export function getAppBaseUrl() {
+  const explicitUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL;
+  const platformUrl = getPlatformBaseUrl();
+  const isHostedEnvironment = Boolean(platformUrl);
+
+  if (explicitUrl) {
+    const normalizedExplicitUrl = normalizeUrl(explicitUrl);
+
+    // Hosted deployments should not rely on localhost auth URLs.
+    if (!(isHostedEnvironment && isLocalUrl(normalizedExplicitUrl))) {
+      return normalizedExplicitUrl;
+    }
+  }
+
+  if (platformUrl) {
+    return platformUrl;
+  }
+
   return "http://localhost:3000";
+}
+
+export function ensureAuthEnvironment() {
+  const resolvedUrl = getAppBaseUrl();
+
+  if (!process.env.NEXTAUTH_URL || (resolvedUrl !== process.env.NEXTAUTH_URL && !isLocalUrl(resolvedUrl))) {
+    process.env.NEXTAUTH_URL = resolvedUrl;
+  }
+
+  if (!process.env.AUTH_URL || (resolvedUrl !== process.env.AUTH_URL && !isLocalUrl(resolvedUrl))) {
+    process.env.AUTH_URL = resolvedUrl;
+  }
+
+  if (!process.env.NEXTAUTH_SECRET && process.env.AUTH_SECRET) {
+    process.env.NEXTAUTH_SECRET = process.env.AUTH_SECRET;
+  }
 }

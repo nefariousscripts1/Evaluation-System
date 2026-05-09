@@ -1,9 +1,11 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/db";
-import { getAuthSecret } from "@/lib/auth-config";
+import { ensureAuthEnvironment, getAuthSecret } from "@/lib/auth-config";
 import { hashPassword, verifyPassword } from "@/lib/password-auth";
 import { staffLoginSchema } from "@/lib/validation";
+
+ensureAuthEnvironment();
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -132,7 +134,7 @@ export const authOptions: NextAuthOptions = {
         return session;
       } catch (error) {
         console.error("NextAuth session callback failed", error);
-        throw error;
+        return session;
       }
     },
   },
