@@ -37,8 +37,7 @@ export async function GET() {
                 where: {
                   evaluatorRole: session.user.role as never,
                   evaluatorId: userId,
-                  academicYear: activeSchedule.academicYear,
-                  semester: activeSchedule.semester,
+                  scheduleId: activeSchedule.id,
                   evaluatedId: { in: targets.map((target) => target.id) },
                 },
                 select: { evaluatedId: true },

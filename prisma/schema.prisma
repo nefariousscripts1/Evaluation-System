@@ -36,14 +36,14 @@ model Evaluation {
   academicYear   String
   createdAt      DateTime           @default(now())
   generalComment String?
-  scheduleId     Int?
+  scheduleId     Int
   semester       String             @default("1st Semester")
   evaluated      User               @relation("Evaluated", fields: [evaluatedId], references: [id])
   evaluator      User               @relation("Evaluator", fields: [evaluatorId], references: [id])
-  schedule       Schedule?          @relation(fields: [scheduleId], references: [id])
+  schedule       Schedule           @relation(fields: [scheduleId], references: [id])
   answers        EvaluationAnswer[]
 
-  @@unique([evaluatorRole, evaluatorId, evaluatedId, academicYear, semester], map: "eval_once_role_person_period")
+  @@unique([evaluatorRole, evaluatorId, evaluatedId, scheduleId], map: "eval_once_role_person_sem")
   @@index([evaluatedId])
   @@index([evaluatorId])
   @@index([scheduleId])

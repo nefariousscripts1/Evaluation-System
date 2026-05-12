@@ -195,7 +195,7 @@ export default function RoleEvaluationPortal({
     }
 
     if (selectedTarget?.alreadySubmitted) {
-      setError("You have already submitted your evaluation.");
+      setError("You have already submitted your evaluation for this semester.");
       return;
     }
 
@@ -239,7 +239,7 @@ export default function RoleEvaluationPortal({
     }
 
     if (selectedTarget?.alreadySubmitted) {
-      setError("You have already submitted your evaluation.");
+      setError("You have already submitted your evaluation for this semester.");
       setStep(1);
       return;
     }
@@ -440,7 +440,7 @@ export default function RoleEvaluationPortal({
                     <p className="text-sm text-[#6f678d]">{selectedTarget.email}</p>
                     {selectedTarget.alreadySubmitted ? (
                       <div className="mt-3 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-semibold text-amber-900">
-                        You have already submitted your evaluation.
+                        You have already submitted your evaluation for this semester.
                       </div>
                     ) : null}
                   </div>

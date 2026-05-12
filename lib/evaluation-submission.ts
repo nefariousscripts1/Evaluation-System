@@ -288,14 +288,16 @@ async function assertNoDuplicateEvaluation(submission: NormalizedSubmissionConte
       evaluatorRole: submission.evaluatorRole as never,
       evaluatorId: submission.evaluatorId,
       evaluatedId: submission.evaluatedId,
-      academicYear: submission.academicYear,
-      semester: submission.semester,
+      scheduleId: submission.scheduleId,
     },
     select: { id: true },
   });
 
   if (existingEvaluation) {
-    throw new EvaluationSubmissionError("You have already submitted your evaluation.", 409);
+    throw new EvaluationSubmissionError(
+      "You have already submitted your evaluation for this semester.",
+      409
+    );
   }
 }
 
@@ -419,7 +421,10 @@ export async function submitEvaluationRecord(input: SubmissionInput) {
       "code" in error &&
       (error as { code?: string }).code === "P2002"
     ) {
-      throw new EvaluationSubmissionError("You have already submitted your evaluation.", 409);
+      throw new EvaluationSubmissionError(
+        "You have already submitted your evaluation for this semester.",
+        409
+      );
     }
 
     throw error;
