@@ -40,7 +40,7 @@ model Evaluation {
   semester       String             @default("1st Semester")
   evaluated      User               @relation("Evaluated", fields: [evaluatedId], references: [id])
   evaluator      User               @relation("Evaluator", fields: [evaluatorId], references: [id])
-  schedule       Schedule           @relation(fields: [scheduleId], references: [id])
+  schedule       Schedule           @relation(fields: [scheduleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   answers        EvaluationAnswer[]
 
   @@unique([evaluatorRole, evaluatorId, evaluatedId, scheduleId], map: "eval_once_role_person_sem")

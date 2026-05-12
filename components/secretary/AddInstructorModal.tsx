@@ -93,7 +93,7 @@ export default function AddInstructorModal({
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="h-10 w-full rounded-lg border border-[#6c63a8] px-3 text-sm outline-none focus:border-[#24135f] focus:ring-1 focus:ring-[#24135f]"
-              placeholder="e.g., Dr. Arnel John Soriso"
+              placeholder="e.g., Dr., Phd. Full Name"
             />
           </div>
 
