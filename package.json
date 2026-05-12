@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "npm run db:generate && npm run db:migrate:deploy && npm run build",
     "start": "next start",
     "lint": "next lint",
     "test": "node --experimental-strip-types tests/summary-comments.test.ts",
     "postinstall": "prisma generate",
     "seed": "npx tsx prisma/seed.ts",
+    "seed:staff": "npx tsx prisma/seed-staff.ts",
     "db:generate": "prisma generate",
     "db:migrate:deploy": "prisma migrate deploy",
     "railway:build": "npm run db:generate && npm run build",

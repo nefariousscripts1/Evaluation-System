@@ -11,7 +11,9 @@ function isLocalUrl(value: string) {
 }
 
 function getPlatformBaseUrl() {
-  const railwayUrl = process.env.RAILWAY_STATIC_URL;
+  const railwayUrl =
+    process.env.RAILWAY_PUBLIC_DOMAIN ||
+    process.env.RAILWAY_STATIC_URL;
 
   if (railwayUrl) {
     return normalizePlatformUrl(railwayUrl);

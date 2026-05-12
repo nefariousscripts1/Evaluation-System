@@ -115,6 +115,10 @@ export async function requirePageRole(allowedRoles?: AppRole[]) {
 }
 
 export function getDefaultRouteForRole(session: Session | null) {
+  if (session?.user?.mustChangePassword) {
+    return "/change-password";
+  }
+
   const role = session?.user?.role;
 
   switch (role) {

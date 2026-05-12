@@ -74,6 +74,45 @@ export default function LoginPageClient() {
     router.replace(nextMode === "student" ? "/login?mode=student" : "/login");
   };
 
+  const resolveAuthDiagnosticsMessage = async (payload: {
+    email: string;
+    password: string;
+    role: string;
+  }) => {
+    try {
+      const res = await fetch("/api/auth/diagnostics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        ok?: boolean;
+        reason?: string;
+        details?: { message?: string } | null;
+      };
+
+      switch (data.reason) {
+        case "invalid_credentials":
+          return "Invalid email, password, or role.";
+        case "database_unreachable":
+          return "Server cannot connect to the database.";
+        case "validation_failed":
+          return "Please check the email, password, and role you entered.";
+        case "server_error":
+          return "Unable to sign in right now.";
+        default:
+          return null;
+      }
+    } catch {
+      return null;
+    }
+  };
+
   const handleStaffSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -111,7 +150,11 @@ export default function LoginPageClient() {
         } else if (result?.error === "Configuration") {
           setError("Login is temporarily unavailable because the server auth settings are incomplete.");
         } else {
-          setError("Unable to sign in right now. Please try again and check the server auth logs.");
+          const diagnosticsMessage = await resolveAuthDiagnosticsMessage({ email, password, role });
+          setError(
+            diagnosticsMessage ||
+              "Unable to sign in right now. Please try again and check the server auth logs."
+          );
           console.error("Auth sign-in error:", result?.error);
         }
         setLoading(false);

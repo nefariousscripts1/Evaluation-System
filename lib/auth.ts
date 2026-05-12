@@ -1,9 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import prisma from "@/lib/db";
 import { ensureAuthEnvironment, getAuthSecret } from "@/lib/auth-config";
-import { hashPassword, verifyPassword } from "@/lib/password-auth";
-import { staffLoginSchema } from "@/lib/validation";
+import { authorizeStaffCredentials } from "@/lib/staff-auth";
 
 ensureAuthEnvironment();
 
@@ -33,99 +31,38 @@ export const authOptions: NextAuthOptions = {
         role: { label: "Role", type: "text" },
       },
       async authorize(credentials) {
-        try {
-          logAuthDebug("authorize:start", {
-            hasCredentials: Boolean(credentials),
-            email: typeof credentials?.email === "string" ? credentials.email : null,
-            role: typeof credentials?.role === "string" ? credentials.role : null,
-          });
+        logAuthDebug("authorize:start", {
+          hasCredentials: Boolean(credentials),
+          email: typeof credentials?.email === "string" ? credentials.email : null,
+          role: typeof credentials?.role === "string" ? credentials.role : null,
+        });
 
-          const parsedCredentials = staffLoginSchema.safeParse(credentials);
+        const result = await authorizeStaffCredentials(credentials);
 
-          if (!parsedCredentials.success) {
-            logAuthDebug("authorize:validation_failed", {
-              issues: parsedCredentials.error.issues.map((issue) => ({
-                path: issue.path.join("."),
-                message: issue.message,
-              })),
-            });
-            return null;
+        if (!result.ok) {
+          logAuthDebug(`authorize:${result.reason}`, result.details);
+
+          if (result.reason === "database_unreachable") {
+            console.error("NextAuth authorize failed", result.details);
+            throw new Error("Server cannot connect to the database.");
           }
 
-          const { email, password, role } = parsedCredentials.data;
-
-          const user = await prisma.user.findUnique({
-            where: { email },
-          });
-
-          if (!user) {
-            logAuthDebug("authorize:user_not_found", { email, role });
-            return null;
+          if (result.reason === "server_error") {
+            console.error("NextAuth authorize failed", result.details);
+            throw new Error("Unable to sign in right now.");
           }
 
-          if (user.deletedAt) {
-            logAuthDebug("authorize:user_deleted", {
-              email,
-              role,
-              userId: user.id,
-              deletedAt: user.deletedAt.toISOString(),
-            });
-            return null;
-          }
-
-          if (user.role !== role) {
-            logAuthDebug("authorize:role_mismatch", {
-              email,
-              selectedRole: role,
-              actualRole: user.role,
-              userId: user.id,
-            });
-            return null;
-          }
-
-          const passwordResult = await verifyPassword(password, user.password);
-
-          if (!passwordResult.isValid) {
-            logAuthDebug("authorize:password_invalid", {
-              email,
-              role,
-              userId: user.id,
-            });
-            return null;
-          }
-
-          if (passwordResult.shouldRehash) {
-            logAuthDebug("authorize:rehash_password", {
-              email,
-              role,
-              userId: user.id,
-            });
-            await prisma.user.update({
-              where: { id: user.id },
-              data: {
-                password: await hashPassword(password),
-              },
-            });
-          }
-
-          logAuthDebug("authorize:success", {
-            email,
-            role,
-            userId: user.id,
-            mustChangePassword: user.mustChangePassword,
-          });
-
-          return {
-            id: String(user.id),
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            mustChangePassword: user.mustChangePassword,
-          };
-        } catch (error) {
-          console.error("NextAuth authorize failed", error);
-          throw error;
+          return null;
         }
+
+        logAuthDebug("authorize:success", {
+          email: result.user.email,
+          role: result.user.role,
+          userId: result.user.id,
+          mustChangePassword: result.user.mustChangePassword,
+        });
+
+        return result.user;
       },
     }),
   ],
@@ -193,5 +130,5 @@ export const authOptions: NextAuthOptions = {
   },
   secret: getAuthSecret(),
   useSecureCookies: process.env.NODE_ENV === "production",
-  debug: process.env.NODE_ENV === "development",
+  debug: isAuthDebugEnabled(),
 };

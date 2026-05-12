@@ -59,9 +59,19 @@ export default async function RootLayout({
   }
 
   if (session && isPublicShelllessRoute) {
-    const defaultRoute = session.user.mustChangePassword
-      ? "/change-password"
-      : getDefaultRouteForRole(session);
+    if (pathname === "/login") {
+      return (
+        <html lang="en">
+          <body className="font-sans">
+            <SessionProvider session={session}>
+              <main className="min-h-screen bg-white">{children}</main>
+            </SessionProvider>
+          </body>
+        </html>
+      );
+    }
+
+    const defaultRoute = getDefaultRouteForRole(session);
 
     if (defaultRoute !== pathname) {
       redirect(defaultRoute);
