@@ -32,7 +32,10 @@ type NormalizedAnswer = {
 type NormalizedSubmission = {
   evaluatorId: number;
   evaluatorRole: string;
+  evaluatorName: string | null;
   evaluatedId: number;
+  evaluatedName: string | null;
+  evaluatedRole: string;
   scheduleId: number;
   academicYear: string;
   semester: string;
@@ -263,7 +266,10 @@ async function normalizeSubmissionContext(
   const normalized = {
     evaluatorId: input.evaluatorId,
     evaluatorRole: input.evaluatorRole.trim(),
-    evaluatedId: parsePositiveInt(input.evaluatedId, "evaluated instructor"),
+    evaluatorName: null,
+    evaluatedId: parsePositiveInt(input.evaluatedId, "evaluation target"),
+    evaluatedName: null,
+    evaluatedRole: "",
     scheduleId: schedule.id,
     academicYear: schedule.academicYear,
     semester: schedule.semester,
@@ -279,6 +285,7 @@ async function normalizeSubmissionContext(
 async function assertNoDuplicateEvaluation(submission: NormalizedSubmissionContext) {
   const existingEvaluation = await prisma.evaluation.findFirst({
     where: {
+      evaluatorRole: submission.evaluatorRole as never,
       evaluatorId: submission.evaluatorId,
       evaluatedId: submission.evaluatedId,
       academicYear: submission.academicYear,
@@ -288,10 +295,7 @@ async function assertNoDuplicateEvaluation(submission: NormalizedSubmissionConte
   });
 
   if (existingEvaluation) {
-    throw new EvaluationSubmissionError(
-      "You have already evaluated this person for the selected academic year and semester.",
-      409
-    );
+    throw new EvaluationSubmissionError("You have already submitted your evaluation.", 409);
   }
 }
 
@@ -308,80 +312,118 @@ function assertEvaluatorCanReviewRole(evaluatorRole: string, evaluatedRole: stri
 
 export async function submitEvaluationRecord(input: SubmissionInput) {
   const context = await normalizeSubmissionContext(input);
-  const submission: NormalizedSubmission = {
-    ...context,
-    answers: normalizeAnswers(input.answers),
-    comment: normalizeComment(input.comment),
-  };
+  const evaluatorUser = await prisma.user.findFirst({
+    where: {
+      id: context.evaluatorId,
+      deletedAt: null,
+    },
+    select: { id: true, role: true, name: true, email: true },
+  });
+
+  if (!evaluatorUser) {
+    throw new EvaluationSubmissionError("Evaluator account could not be found", 401);
+  }
 
   const evaluatedUser = await prisma.user.findFirst({
     where: {
       id: context.evaluatedId,
       deletedAt: null,
     },
-    select: { id: true, role: true },
+    select: { id: true, role: true, name: true, email: true },
   });
 
   if (!evaluatedUser) {
-    throw new EvaluationSubmissionError("Selected instructor could not be found", 404);
+    throw new EvaluationSubmissionError("Selected evaluation target could not be found", 404);
   }
 
   assertEvaluatorCanReviewRole(context.evaluatorRole, evaluatedUser.role);
+  if (evaluatorUser.role !== context.evaluatorRole) {
+    throw new EvaluationSubmissionError("Your session role does not match your evaluator account", 403);
+  }
+
+  const submission: NormalizedSubmission = {
+    ...context,
+    evaluatorName: evaluatorUser.name ?? evaluatorUser.email,
+    evaluatedName: evaluatedUser.name ?? evaluatedUser.email,
+    evaluatedRole: evaluatedUser.role,
+    answers: normalizeAnswers(input.answers),
+    comment: normalizeComment(input.comment),
+  };
+
   await assertNoDuplicateEvaluation(context);
   await assertQuestionSetIsValid(submission.answers);
 
-  const evaluation = await prisma.$transaction(async (tx) => {
-    const createdEvaluation = await tx.evaluation.create({
-      data: {
-        evaluatorId: submission.evaluatorId,
-        evaluatedId: submission.evaluatedId,
-        scheduleId: submission.scheduleId,
-        academicYear: submission.academicYear,
-        semester: submission.semester,
-        generalComment: submission.comment,
-        answers: {
-          create: submission.answers.map((answer) => ({
-            questionId: answer.questionId,
-            rating: answer.rating,
-          })),
-        },
-      },
-      include: {
-        answers: true,
-      },
-    });
+  let evaluation;
 
-    const averageRatingResult = await tx.evaluationAnswer.aggregate({
-      where: {
-        evaluation: {
+  try {
+    evaluation = await prisma.$transaction(async (tx) => {
+      const createdEvaluation = await tx.evaluation.create({
+        data: {
+          evaluatorRole: submission.evaluatorRole as never,
+          evaluatorId: submission.evaluatorId,
+          evaluatorName: submission.evaluatorName,
           evaluatedId: submission.evaluatedId,
+          evaluatedName: submission.evaluatedName,
+          evaluatedRole: submission.evaluatedRole as never,
+          scheduleId: submission.scheduleId,
           academicYear: submission.academicYear,
+          semester: submission.semester,
+          generalComment: submission.comment,
+          answers: {
+            create: submission.answers.map((answer) => ({
+              questionId: answer.questionId,
+              rating: answer.rating,
+            })),
+          },
         },
-      },
-      _avg: { rating: true },
-    });
+        include: {
+          answers: true,
+        },
+      });
 
-    const averageRating = averageRatingResult._avg.rating ?? 0;
+      const averageRatingResult = await tx.evaluationAnswer.aggregate({
+        where: {
+          evaluation: {
+            evaluatedId: submission.evaluatedId,
+            academicYear: submission.academicYear,
+          },
+        },
+        _avg: { rating: true },
+      });
 
-    await tx.result.upsert({
-      where: {
-        userId_academicYear: {
+      const averageRating = averageRatingResult._avg.rating ?? 0;
+
+      await tx.result.upsert({
+        where: {
+          userId_academicYear: {
+            userId: submission.evaluatedId,
+            academicYear: submission.academicYear,
+          },
+        },
+        update: {
+          averageRating,
+        },
+        create: {
           userId: submission.evaluatedId,
           academicYear: submission.academicYear,
+          averageRating,
         },
-      },
-      update: {
-        averageRating,
-      },
-      create: {
-        userId: submission.evaluatedId,
-        academicYear: submission.academicYear,
-        averageRating,
-      },
-    });
+      });
 
-    return createdEvaluation;
-  });
+      return createdEvaluation;
+    });
+  } catch (error: unknown) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2002"
+    ) {
+      throw new EvaluationSubmissionError("You have already submitted your evaluation.", 409);
+    }
+
+    throw error;
+  }
 
   return evaluation;
 }
@@ -399,7 +441,7 @@ export async function assertEvaluationCanBeStarted(
   });
 
   if (!evaluatedUser) {
-    throw new EvaluationSubmissionError("Selected instructor could not be found", 404);
+    throw new EvaluationSubmissionError("Selected evaluation target could not be found", 404);
   }
 
   assertEvaluatorCanReviewRole(submission.evaluatorRole, evaluatedUser.role);

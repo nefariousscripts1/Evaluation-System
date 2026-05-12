@@ -1,17 +1,19 @@
 import prisma from "@/lib/db";
 import { ApiRouteError, apiSuccess, handleApiError } from "@/lib/api";
+import { getActiveSchedule } from "@/lib/evaluation-session";
 import { getAllowedEvaluatedRoles } from "@/lib/role-evaluation";
-import { requireApiSession } from "@/lib/server-auth";
+import { requireApiUserId } from "@/lib/server-auth";
 
 export async function GET() {
   try {
-    const session = await requireApiSession();
+    const { session, userId } = await requireApiUserId();
     const allowedRoles = getAllowedEvaluatedRoles(session.user.role ?? "");
 
     if (allowedRoles.length === 0) {
       throw new ApiRouteError("Unauthorized", { status: 401 });
     }
 
+    const activeSchedule = await getActiveSchedule();
     const targets = await prisma.user.findMany({
       where: {
         role: { in: allowedRoles },
@@ -27,7 +29,31 @@ export async function GET() {
       orderBy: [{ role: "asc" }, { name: "asc" }],
     });
 
-    return apiSuccess(targets, { preserveRoot: false });
+    const submittedTargetIds =
+      activeSchedule
+        ? new Set(
+            (
+              await prisma.evaluation.findMany({
+                where: {
+                  evaluatorRole: session.user.role as never,
+                  evaluatorId: userId,
+                  academicYear: activeSchedule.academicYear,
+                  semester: activeSchedule.semester,
+                  evaluatedId: { in: targets.map((target) => target.id) },
+                },
+                select: { evaluatedId: true },
+              })
+            ).map((evaluation) => evaluation.evaluatedId)
+          )
+        : new Set<number>();
+
+    return apiSuccess(
+      targets.map((target) => ({
+        ...target,
+        alreadySubmitted: submittedTargetIds.has(target.id),
+      })),
+      { preserveRoot: false }
+    );
   } catch (error) {
     return handleApiError(error, "Failed to load evaluation targets");
   }

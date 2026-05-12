@@ -12,6 +12,7 @@
     "postinstall": "prisma generate",
     "seed": "npx tsx prisma/seed.ts",
     "seed:staff": "npx tsx prisma/seed-staff.ts",
+    "check:staff": "npx tsx prisma/check-staff.ts",
     "db:generate": "prisma generate",
     "db:migrate:deploy": "prisma migrate deploy",
     "railway:build": "npm run db:generate && npm run build",

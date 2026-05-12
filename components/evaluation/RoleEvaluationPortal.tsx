@@ -15,6 +15,7 @@ type EvaluationTarget = {
   email: string;
   role: string;
   department: string | null;
+  alreadySubmitted?: boolean;
 };
 
 type Question = {
@@ -169,6 +170,7 @@ export default function RoleEvaluationPortal({
     Boolean(selectedSemester) &&
     Boolean(scheduleId) &&
     isScheduleAvailable &&
+    !selectedTarget?.alreadySubmitted &&
     !checkingEligibility;
 
   async function handleNext() {
@@ -189,6 +191,11 @@ export default function RoleEvaluationPortal({
 
     if (!scheduleId) {
       setError("No active evaluation session is available right now");
+      return;
+    }
+
+    if (selectedTarget?.alreadySubmitted) {
+      setError("You have already submitted your evaluation.");
       return;
     }
 
@@ -228,6 +235,12 @@ export default function RoleEvaluationPortal({
   async function handleSubmit() {
     if (!selectedTargetId) {
       setError("Please select a person to evaluate");
+      return;
+    }
+
+    if (selectedTarget?.alreadySubmitted) {
+      setError("You have already submitted your evaluation.");
+      setStep(1);
       return;
     }
 
@@ -365,7 +378,7 @@ export default function RoleEvaluationPortal({
                         label: target.name || target.email,
                         sublabel: `${target.role.replace(/_/g, " ")}${
                           target.department ? ` - ${target.department}` : ""
-                        }`,
+                        }${target.alreadySubmitted ? " - Already submitted" : ""}`,
                       }))}
                       triggerClassName="min-h-12 rounded-[14px] text-sm"
                     />
@@ -425,6 +438,11 @@ export default function RoleEvaluationPortal({
                       {selectedTarget.department || "No department listed"}
                     </p>
                     <p className="text-sm text-[#6f678d]">{selectedTarget.email}</p>
+                    {selectedTarget.alreadySubmitted ? (
+                      <div className="mt-3 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-semibold text-amber-900">
+                        You have already submitted your evaluation.
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="mt-4">
@@ -463,7 +481,11 @@ export default function RoleEvaluationPortal({
                 disabled={!canContinue}
                 className="app-btn-primary min-h-[44px] w-full px-6 py-3 disabled:opacity-60 sm:w-auto"
               >
-                {checkingEligibility ? "Checking..." : "Continue"}
+                {checkingEligibility
+                  ? "Checking..."
+                  : selectedTarget?.alreadySubmitted
+                  ? "Already Submitted"
+                  : "Continue"}
               </button>
             </div>
           </section>

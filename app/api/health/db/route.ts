@@ -12,11 +12,14 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const result = await prisma.$queryRaw<Array<{ ok: number }>>`SELECT 1 AS ok`;
+    const result = await prisma.$queryRaw<Array<{ ok: bigint | number }>>`SELECT 1 AS ok`;
+    const normalizedResult = result.map((row) => ({
+      ok: typeof row.ok === "bigint" ? Number(row.ok) : row.ok,
+    }));
 
     return apiSuccess({
       ok: true,
-      result,
+      result: normalizedResult,
       database: getDatabaseUrlDiagnostics(),
     });
   } catch (error) {

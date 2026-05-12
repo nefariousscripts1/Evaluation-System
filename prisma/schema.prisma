@@ -27,8 +27,12 @@ model User {
 
 model Evaluation {
   id             Int                @id @default(autoincrement())
+  evaluatorRole  Role
   evaluatorId    Int
+  evaluatorName  String?
   evaluatedId    Int
+  evaluatedName  String?
+  evaluatedRole  Role
   academicYear   String
   createdAt      DateTime           @default(now())
   generalComment String?
@@ -39,7 +43,7 @@ model Evaluation {
   schedule       Schedule?          @relation(fields: [scheduleId], references: [id])
   answers        EvaluationAnswer[]
 
-  @@unique([evaluatorId, evaluatedId, academicYear, semester])
+  @@unique([evaluatorRole, evaluatorId, evaluatedId, academicYear, semester], map: "eval_once_role_person_period")
   @@index([evaluatedId])
   @@index([evaluatorId])
   @@index([scheduleId])
